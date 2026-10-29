@@ -154,6 +154,20 @@ describe('/api/me', () => {
     expect(await countGoalVersionsFor(email)).toBe(1);
   });
 
+  it('concurrent identical PUTs append exactly one goal version', async () => {
+    const { cookie, email } = await consentedUser();
+    const responses = await Promise.all(
+      Array.from({ length: 4 }, () => authed(cookie, 'PUT', '/api/me/profile', profile)),
+    );
+    expect(responses.map((r) => r.status)).toEqual([200, 200, 200, 200]);
+    const bodies = (await Promise.all(responses.map((r) => r.json()))) as PutBody[];
+    expect(await countGoalVersionsFor(email)).toBe(1);
+    // Every response names the one stored version.
+    const ids = new Set(bodies.map((b) => b.goalVersionId));
+    expect(ids.size).toBe(1);
+    expect([...ids][0]).not.toBeNull();
+  });
+
   it('locale, unit and training changes do not append a goal version', async () => {
     const { cookie, email } = await consentedUser();
     const first = (await (await authed(cookie, 'PUT', '/api/me/profile', profile)).json()) as PutBody;

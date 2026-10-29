@@ -3,12 +3,14 @@ import { useLocale, type MessageKey } from '../i18n';
 import { api } from '../lib/api';
 import { authClient } from '../lib/auth-client';
 import { useOnboarding, type Submission } from './draft';
+import { createInFlightGuard } from './in-flight';
 import { submitProfile } from './submit';
 import { tryToProfileInput } from './to-profile-input';
 
 /**
  * Submit the questionnaire from the health step (and re-submit with `confirmed` from the report).
- * Resolves to the saved submission, or `null` when it failed (see `error`) or the session expired.
+ * Resolves to the saved submission, or `null` when it failed (see `error`), the session expired,
+ * or a submit was already in flight (a double tap is dropped).
  * On a 401 the user is signed out but the draft is kept, so signing in resumes the questionnaire.
  */
 export function useSubmitProfile() {
@@ -16,8 +18,13 @@ export function useSubmitProfile() {
   const { draft, consentRecorded, setConsentRecorded, setSubmission } = useOnboarding();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<MessageKey | null>(null);
+  const [runExclusive] = useState(createInFlightGuard);
 
-  async function submit(options: { confirmed: boolean } = { confirmed: false }): Promise<Submission | null> {
+  function submit(options: { confirmed: boolean } = { confirmed: false }): Promise<Submission | null> {
+    return runExclusive(() => submitOnce(options));
+  }
+
+  async function submitOnce(options: { confirmed: boolean }): Promise<Submission | null> {
     const input = tryToProfileInput(draft, locale);
     if (input === null) {
       setError('onboarding.error.invalid');

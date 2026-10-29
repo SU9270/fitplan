@@ -133,8 +133,8 @@ export async function getProfile(
 
 /**
  * Steps 3-6 of PUT /api/me/profile (validation and the consent check happen in the route).
- * The target calculation is pure, so it runs first and the profile upsert and the goal
- * version insert go out as one atomic batch.
+ * The target calculation is pure, so it runs first and the profile upsert and the
+ * (conditional) goal version insert go out as one atomic batch.
  */
 export async function saveProfile(
   db: Db,
@@ -189,30 +189,44 @@ export async function saveProfile(
   }
 
   const snapshot = serializeTargetInput(targetInput);
-  const latest = await latestGoalRow(db, userId);
-  if (latest && latest.inputSnapshot === snapshot) {
-    await upsertProfile;
-    return respond(200, latest.id);
-  }
-
   const id = crypto.randomUUID();
-  await db.batch([
-    upsertProfile,
-    db.insert(goalVersions).values({
-      id,
-      userId,
-      effectiveAt: nowIso,
-      inputSnapshot: snapshot,
-      status: result.status,
-      reasons: JSON.stringify(result.reasons),
-      bmi: result.bmi,
-      bmrKcal: result.bmrKcal,
-      tdeeKcal: result.tdeeKcal,
-      kcal: targets.kcal,
-      proteinG: targets.proteinG,
-      carbsG: targets.carbsG,
-      fatG: targets.fatG,
-    }),
-  ]);
-  return respond(200, id);
+  // Dedupe and insert in ONE statement: the row is added only when the latest version's
+  // snapshot differs (`IS NOT` is also true when there is no version yet). A read-then-insert
+  // would let concurrent identical saves all see "changed" and each append a version; D1 runs
+  // each batch as a transaction, so here the second save sees the first one's row.
+  const latestSnapshot = db
+    .select({ snapshot: goalVersions.inputSnapshot })
+    .from(goalVersions)
+    .where(eq(goalVersions.userId, userId))
+    .orderBy(desc(goalVersions.effectiveAt), desc(sql`rowid`))
+    .limit(1);
+  // INSERT … SELECT <values> WHERE (latest snapshot) IS NOT <snapshot>. Drizzle checks at
+  // runtime that the selected keys match the table's columns and their order.
+  const insertIfChanged = db.insert(goalVersions).select((qb) =>
+    qb
+      .select({
+        id: sql<string>`${id}`.as('id'),
+        userId: sql<string>`${userId}`.as('user_id'),
+        effectiveAt: sql<string>`${nowIso}`.as('effective_at'),
+        inputSnapshot: sql<string>`${snapshot}`.as('input_snapshot'),
+        status: sql<'safe' | 'confirm'>`${result.status}`.as('status'),
+        reasons: sql<string>`${JSON.stringify(result.reasons)}`.as('reasons'),
+        bmi: sql<number>`${result.bmi}`.as('bmi'),
+        bmrKcal: sql<number>`${result.bmrKcal}`.as('bmr_kcal'),
+        tdeeKcal: sql<number>`${result.tdeeKcal}`.as('tdee_kcal'),
+        kcal: sql<number>`${targets.kcal}`.as('kcal'),
+        proteinG: sql<number>`${targets.proteinG}`.as('protein_g'),
+        carbsG: sql<number>`${targets.carbsG}`.as('carbs_g'),
+        fatG: sql<number>`${targets.fatG}`.as('fat_g'),
+      })
+      .from(sql`(SELECT 1)`)
+      .where(sql`(${latestSnapshot}) IS NOT ${snapshot}`),
+  );
+  const [, inserted] = await db.batch([upsertProfile, insertIfChanged]);
+  if (inserted.meta.changes === 1) return respond(200, id);
+
+  // Unchanged input: answer with the version that is already there.
+  const latest = await latestGoalRow(db, userId);
+  if (!latest) throw new Error('goal version insert was skipped but no version exists');
+  return respond(200, latest.id);
 }
