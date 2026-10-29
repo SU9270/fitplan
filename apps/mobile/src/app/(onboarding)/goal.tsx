@@ -35,7 +35,7 @@ export default function Goal() {
       subtitle={t('onboarding.goal.subtitle')}
       preview={computePreview(draft)}
       onNext={() => router.push('/basics')}
-      footer={<TextButton title={t('auth.signOut')} onPress={signOut} />}
+      footer={<TextButton title={t('auth.signOut')} onPress={() => void signOut()} />}
     >
       <OptionGroup label={t('onboarding.goal.title')}>
         <OptionCard

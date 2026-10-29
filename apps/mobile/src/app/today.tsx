@@ -77,7 +77,7 @@ export default function Today() {
         />
       </View>
 
-      <TextButton title={t('auth.signOut')} onPress={signOut} />
+      <TextButton title={t('auth.signOut')} onPress={() => void signOut()} />
     </Screen>
   );
 }

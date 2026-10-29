@@ -10,25 +10,25 @@ import { tokens } from '../../theme/tokens';
  * draft kept across a 401 sign-in is never overwritten.
  */
 export default function OnboardingLayout() {
-  const { hydrated, hydrate } = useOnboarding();
+  const { ownerId, hydrated, hydrate } = useOnboarding();
 
   useEffect(() => {
-    if (hydrated) return;
+    if (hydrated || ownerId === null) return;
     let cancelled = false;
     void (async () => {
       try {
         const res = await api.api.me.profile.$get();
         const body = res.ok ? await res.json() : null;
-        if (!cancelled) hydrate(body?.profile ?? null);
+        if (!cancelled) hydrate(body?.profile ?? null, ownerId);
       } catch {
         // Offline or a server error: start with an empty questionnaire; saving will surface real problems.
-        if (!cancelled) hydrate(null);
+        if (!cancelled) hydrate(null, ownerId);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [hydrated, hydrate]);
+  }, [ownerId, hydrated, hydrate]);
 
   return <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: tokens.color.background } }} />;
 }
