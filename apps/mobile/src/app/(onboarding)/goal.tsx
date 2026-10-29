@@ -1,27 +1,88 @@
-import { StyleSheet, Text } from 'react-native';
+import { router } from 'expo-router';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { TextButton } from '../../components/form';
-import { Screen } from '../../components/screen';
+import { OptionCard, OptionGroup } from '../../components/option-card';
+import { SegmentedControl } from '../../components/segmented-control';
+import { StepLayout } from '../../components/step-layout';
 import { useLocale } from '../../i18n';
-import { authClient } from '../../lib/auth-client';
+import { useSignOut } from '../../lib/use-sign-out';
+import { useOnboarding } from '../../onboarding/draft';
+import { paceDescription } from '../../onboarding/pace';
+import { computePreview } from '../../onboarding/preview';
 import { tokens } from '../../theme/tokens';
 
-/** Placeholder so the route guard has a target; Task 8 replaces it with the questionnaire. */
+const PACES = ['conservative', 'standard', 'aggressive'] as const;
+
 export default function Goal() {
   const { t } = useLocale();
+  const { draft, updateDraft, hydrated } = useOnboarding();
+  const signOut = useSignOut();
+
+  if (!hydrated) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator color={tokens.color.primary} accessibilityLabel={t('gate.loading')} />
+      </View>
+    );
+  }
+
+  const description = paceDescription(draft.goal, draft.pace);
+
   return (
-    <Screen centered>
-      <Text accessibilityRole="header" style={styles.title}>
-        {t('onboarding.goal.title')}
-      </Text>
-      <TextButton title={t('auth.signOut')} onPress={() => void authClient.signOut()} />
-    </Screen>
+    <StepLayout
+      step={1}
+      title={t('onboarding.goal.title')}
+      subtitle={t('onboarding.goal.subtitle')}
+      preview={computePreview(draft)}
+      onNext={() => router.push('/basics')}
+      footer={<TextButton title={t('auth.signOut')} onPress={signOut} />}
+    >
+      <OptionGroup label={t('onboarding.goal.title')}>
+        <OptionCard
+          title={t('onboarding.goal.lose.title')}
+          description={t('onboarding.goal.lose.desc')}
+          selected={draft.goal === 'lose'}
+          onPress={() => updateDraft((d) => ({ ...d, goal: 'lose' }))}
+        />
+        <OptionCard
+          title={t('onboarding.goal.gain.title')}
+          description={t('onboarding.goal.gain.desc')}
+          selected={draft.goal === 'gain'}
+          onPress={() => updateDraft((d) => ({ ...d, goal: 'gain' }))}
+        />
+      </OptionGroup>
+
+      <View style={styles.pace}>
+        <Text style={styles.label}>{t('onboarding.pace.label')}</Text>
+        <SegmentedControl
+          label={t('onboarding.pace.label')}
+          value={draft.pace}
+          options={PACES.map((pace) => ({ value: pace, label: t(`onboarding.pace.${pace}`) }))}
+          onChange={(pace) => updateDraft((d) => ({ ...d, pace }))}
+        />
+        <Text style={styles.paceHint}>{t(description.key, description.params)}</Text>
+      </View>
+    </StepLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  title: {
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: tokens.color.background,
+  },
+  pace: {
+    gap: tokens.space.sm,
+  },
+  label: {
     color: tokens.color.text,
-    fontSize: tokens.fontSize.title,
-    fontWeight: tokens.fontWeight.bold,
+    fontSize: tokens.fontSize.caption,
+    fontWeight: tokens.fontWeight.semibold,
+  },
+  paceHint: {
+    color: tokens.color.textSecondary,
+    fontSize: tokens.fontSize.body,
   },
 });

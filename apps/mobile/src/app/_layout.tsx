@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GateProvider, useGate } from '../lib/gate';
+import { OnboardingProvider } from '../onboarding/draft';
 import { tokens } from '../theme/tokens';
 
 void SplashScreen.preventAutoHideAsync();
@@ -33,6 +34,7 @@ function RootNavigator() {
       </Stack.Protected>
       <Stack.Protected guard={status === 'needsGoal'}>
         <Stack.Screen name="(onboarding)" />
+        <Stack.Screen name="report" />
       </Stack.Protected>
       <Stack.Protected guard={status === 'ready'}>
         <Stack.Screen name="today" />
@@ -46,7 +48,10 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <GateProvider>
         <StatusBar style="dark" />
-        <RootNavigator />
+        {/* Above the navigator: the questionnaire draft survives a 401 sign-out and sign-in. */}
+        <OnboardingProvider>
+          <RootNavigator />
+        </OnboardingProvider>
       </GateProvider>
     </SafeAreaProvider>
   );
