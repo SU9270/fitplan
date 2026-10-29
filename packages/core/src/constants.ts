@@ -61,3 +61,6 @@ export const CM_PER_M = 100;
 export const MIN_AGE = 18;
 export const MIN_BMI_FOR_LOSS = 18.5;
 export const CONSULT_BMI = 35;
+
+/** BMI is reported with 1 decimal: round(x * 10) / 10. */
+export const BMI_ROUND_FACTOR = 10;
