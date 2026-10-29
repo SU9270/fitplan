@@ -1,0 +1,7 @@
+# Copy to .dev.vars (gitignored) for `wrangler dev`.
+# In production set these with `wrangler secret put <NAME>`.
+
+# At least 32 random characters, e.g. `openssl rand -base64 32`.
+BETTER_AUTH_SECRET=replace-me-with-a-long-random-string
+# Public URL of this Worker.
+BETTER_AUTH_URL=http://localhost:8787

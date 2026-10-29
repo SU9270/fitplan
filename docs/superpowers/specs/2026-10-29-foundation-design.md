@@ -32,7 +32,7 @@ FitPlan 是一款面向在美中国留学生的增肌 / 减脂饮食 App，核�
 | 登录 | Better Auth（邮箱 + 密码）+ `@better-auth/expo` | 开源、可自托管；参考 create-t3-turbo 与 better-hono |
 | 接口调用 | Hono RPC 客户端 | 前后端类型共享，不额外引入 tRPC |
 | 校验 | Zod | 前后端共用同一份输入规则 |
-| 测试 | Vitest；后端用 `@cloudflare/vitest-pool-workers` | |
+| 测试 | Vitest；后端用 `@cloudflare/vitest-plugin`（即 `@cloudflare/vitest-pool-workers`，1.0 起改名） | |
 | 代码协议 | MIT | 食物数据的协议在第二阶段单独处理 |
 
 所有依赖在实施时安装当时的稳定版本，并以官方文档为准。
@@ -189,6 +189,6 @@ interface TargetResult {
 
 | 风险 | 处理 |
 |---|---|
-| Better Auth + D1 + Workers 组合没有找到现成范例 | **实施第一步先做验证**：在 Workers 本地环境跑通注册、登录、读会话。跑不通则改用 Better Auth 的 Kysely D1 方案或其他方案，并更新本文档 |
+| Better Auth + D1 + Workers 组合没有找到现成范例 | **实施第一步先做验证**：在 Workers 本地环境跑通注册、登录、读会话。跑不通则改用 Better Auth 的 Kysely D1 方案或其他方案，并更新本文档。**已验证（2026-10-29）**：Drizzle（`drizzle-orm/d1`）+ `drizzleAdapter` `provider: 'sqlite'` 在 `wrangler dev` 下跑通，沿用 Drizzle 方案 |
 | Expo App 与 Better Auth 的会话传递 | 按 `@better-auth/expo` 官方用法；在模拟器上实测登录、退出、重启后保持登录 |
 | 计算参数未经专业人士复核 | 参数集中定义在 core 的常量里，复核后只需改一处 |

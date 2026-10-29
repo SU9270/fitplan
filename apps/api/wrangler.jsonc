@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "fitplan-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-20",
+  // Better Auth relies on AsyncLocalStorage (node:async_hooks).
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "fitplan",
+      // Local dev (`wrangler dev`) does not need a real id. Before the first
+      // deploy run `wrangler d1 create fitplan` and paste the id here.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ]
+}
