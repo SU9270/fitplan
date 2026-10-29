@@ -1,10 +1,12 @@
 import { Hono } from 'hono';
 import { createAuth } from './auth';
 import type { AppEnv } from './env';
+import { meRoutes } from './routes/me';
 
 const app = new Hono<AppEnv>()
   .get('/health', (c) => c.json({ ok: true }))
-  .on(['GET', 'POST'], '/api/auth/*', (c) => createAuth(c.env).handler(c.req.raw));
+  .on(['GET', 'POST'], '/api/auth/*', (c) => createAuth(c.env).handler(c.req.raw))
+  .route('/api/me', meRoutes);
 
 app.onError((err, c) => {
   console.error(err);

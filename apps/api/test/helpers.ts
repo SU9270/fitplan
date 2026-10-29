@@ -29,3 +29,20 @@ export function newAccount() {
   const email = `${unique('user')}@example.com`;
   return { email, password: 'correct-horse-battery-staple', name: email.split('@')[0] ?? email };
 }
+
+/** Sign up a fresh user and return its session cookie, ready for `authed` requests. */
+export async function signedInUser(): Promise<{ cookie: string; email: string }> {
+  const account = newAccount();
+  const res = await signUp({ ...account, inviteCode: await seedInvite(1) });
+  if (res.status !== 200) throw new Error(`sign-up failed: ${res.status}`);
+  const cookie = (res.headers.get('set-cookie') ?? '').split(';')[0] ?? '';
+  return { cookie, email: account.email };
+}
+
+export function authed(cookie: string, method: string, path: string, body?: unknown) {
+  return exports.default.fetch(`${BASE_URL}${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', cookie },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+}
