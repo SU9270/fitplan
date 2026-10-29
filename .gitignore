@@ -1,0 +1,15 @@
+.superpowers/
+node_modules/
+.turbo/
+dist/
+build/
+.expo/
+.wrangler/
+.dev.vars
+coverage/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+.DS_Store
+.Rhistory
