@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { createAuth } from './auth';
 import type { AppEnv } from './env';
+import { handleError } from './errors';
 import { meRoutes } from './routes/me';
 
 const app = new Hono<AppEnv>()
@@ -8,10 +9,7 @@ const app = new Hono<AppEnv>()
   .on(['GET', 'POST'], '/api/auth/*', (c) => createAuth(c.env).handler(c.req.raw))
   .route('/api/me', meRoutes);
 
-app.onError((err, c) => {
-  console.error(err);
-  return c.json({ code: 'internal_error' }, 500);
-});
+app.onError(handleError);
 
 /** Route types for the Expo app's Hono RPC client. */
 export type AppType = typeof app;
