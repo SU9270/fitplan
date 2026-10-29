@@ -4,3 +4,11 @@ packages:
 allowBuilds:
   esbuild: true
   workerd: true
+  # apps/mobile (jest / Metro tooling): prebuilt binaries ship as optional deps,
+  # so their install scripts are only source-build fallbacks — keep them off.
+  '@parcel/watcher': false
+  unrs-resolver: false
+overrides:
+  # Expo SDK 58 pins react 19.3.0; react-dom (pulled in as a peer by expo-router / better-auth)
+  # must match it, otherwise pnpm creates a second peer variant of `expo` (expo-doctor: duplicate native module).
+  react-dom: 19.3.0
