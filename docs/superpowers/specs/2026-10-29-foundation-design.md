@@ -1,6 +1,6 @@
 # 第一阶段「地基」设计
 
-日期：2026-10-29　状态：已确认，待实施
+日期：2026-10-29　状态：已实施（2026-10-29 从零克隆验证通过）
 
 ## 1. 背景与目标
 
@@ -42,10 +42,11 @@ FitPlan 是一款面向在美中国留学生的增肌 / 减脂饮食 App，核�
 ```
 fitplan/
 ├─ apps/
-│  ├─ mobile/          Expo App
-│  └─ api/             Hono + Workers + D1
+│  ├─ mobile/          Expo App（@fitplan/mobile）
+│  └─ api/             Hono + Workers + D1（@fitplan/api）
 ├─ packages/
-│  └─ core/            纯 TypeScript 计算核心，零运行时依赖
+│  ├─ core/            纯 TypeScript 计算核心，零运行时依赖（@fitplan/core）
+│  └─ validators/      前后端共用的 Zod 输入规则（@fitplan/validators）
 ├─ docs/
 ├─ .github/workflows/ci.yml
 ├─ LICENSE  README.md  CONTRIBUTING.md  .env.example
