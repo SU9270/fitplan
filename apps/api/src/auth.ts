@@ -8,6 +8,16 @@ import type { Env } from './env';
 import { reserveInvite } from './invites';
 
 /**
+ * Origins Better Auth trusts (request Origin and callbackURL/redirectTo checks).
+ * `exp://` (Expo Go / dev client) is trusted only in development: in production an
+ * `exp://<any-host>` redirect could receive auth tokens. This mirrors upstream
+ * @better-auth/expo, which keys on NODE_ENV — not set on Workers, hence ENVIRONMENT.
+ */
+export function trustedOriginsFor(env: Pick<Env, 'ENVIRONMENT'>): string[] {
+  return env.ENVIRONMENT === 'development' ? ['fitplan://', 'exp://'] : ['fitplan://'];
+}
+
+/**
  * Create a Better Auth instance. Cloudflare bindings are only available per
  * request, so call this once per request (pattern from alwaysnomads/better-hono).
  */
@@ -20,7 +30,7 @@ export function createAuth(env: Env) {
     basePath: '/api/auth',
     emailAndPassword: { enabled: true },
     plugins: [expo()],
-    trustedOrigins: ['fitplan://', 'exp://'],
+    trustedOrigins: trustedOriginsFor(env),
     hooks: {
       // Sign-up is invite-only: the client sends `inviteCode` in the sign-up body.
       before: createAuthMiddleware(async (ctx) => {

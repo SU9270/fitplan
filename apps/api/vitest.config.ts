@@ -14,6 +14,7 @@ export default defineConfig(async () => {
           bindings: {
             BETTER_AUTH_SECRET: 'test-only-secret-not-for-production-0123456789',
             BETTER_AUTH_URL: 'http://localhost:8787',
+            ENVIRONMENT: 'development',
             TEST_MIGRATIONS: migrations,
           },
         },

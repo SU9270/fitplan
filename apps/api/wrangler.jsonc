@@ -5,6 +5,8 @@
   "compatibility_date": "2026-10-20",
   // Better Auth relies on AsyncLocalStorage (node:async_hooks).
   "compatibility_flags": ["nodejs_compat"],
+  // Overridden to "development" by .dev.vars for `wrangler dev`.
+  "vars": { "ENVIRONMENT": "production" },
   "d1_databases": [
     {
       "binding": "DB",
