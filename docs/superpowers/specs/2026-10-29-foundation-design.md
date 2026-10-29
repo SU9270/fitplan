@@ -140,9 +140,13 @@ interface TargetResult {
 
 注册时必须提供有效且未用完的邀请码。在 Better Auth 的注册前钩子里校验，注册成功后使用次数加一。邀请码由管理员用命令行脚本生成，本阶段不做管理界面。
 
+### 5.2.1 频率限制
+
+Better Auth 的频率限制在所有环境显式开启（Better Auth 只在 `NODE_ENV=production` 时自动开启，Workers 不设置该变量）。计数存在 D1（`rate_limit` 表），按客户端 IP（`cf-connecting-ip`）+ 路径计：`/sign-in/email` 每 60 秒 5 次、`/sign-up/email` 每 60 秒 3 次，其余登录接口沿用 Better Auth 默认（每 60 秒 100 次），`/get-session` 不计数。超限返回 429，App 显示「尝试次数过多，请稍后再试」。
+
 ### 5.3 数据表
 
-除 Better Auth 自带的表（user、session、account、verification）外：
+除 Better Auth 自带的表（user、session、account、verification，以及频率限制计数表 rate_limit）外：
 
 | 表 | 字段要点 |
 |---|---|

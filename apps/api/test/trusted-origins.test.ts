@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
 import { createAuth, trustedOriginsFor } from '../src/auth';
-import { BASE_URL, newAccount } from './helpers';
+import { BASE_URL, newAccount, uniqueIp } from './helpers';
 
 /** A sign-in whose redirect target is an Expo Go URL on an arbitrary host. */
 function signInWithExpCallback(environment: 'development' | 'production') {
@@ -9,7 +9,7 @@ function signInWithExpCallback(environment: 'development' | 'production') {
   return createAuth({ ...env, ENVIRONMENT: environment }).handler(
     new Request(`${BASE_URL}/api/auth/sign-in/email`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': uniqueIp() },
       body: JSON.stringify({ email, password, callbackURL: 'exp://attacker.example.com/--/callback' }),
     }),
   );

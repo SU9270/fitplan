@@ -18,6 +18,38 @@ export function trustedOriginsFor(env: Pick<Env, 'ENVIRONMENT'>): string[] {
 }
 
 /**
+ * Per-IP limits for the credential endpoints: `max` requests per `window` seconds, counted in
+ * D1 (the `rate_limit` table). Sign-in allows a few password typos; sign-up is invite-gated and a
+ * real person rarely needs more than one or two tries. Exceeding a limit answers 429, which the
+ * app shows as `auth.error.tooManyRequests`.
+ */
+export const RATE_LIMIT_RULES = {
+  '/sign-in/email': { window: 60, max: 5 },
+  '/sign-up/email': { window: 60, max: 3 },
+} as const;
+
+/**
+ * Better Auth rate limiting, on in every environment (also `wrangler dev` and tests, which
+ * send a unique `cf-connecting-ip` per request). Better Auth only enables it by itself when
+ * NODE_ENV === 'production', which Workers never set, so `enabled` is explicit.
+ *
+ * - `storage: 'database'`: Worker isolates do not share memory, so the default in-memory
+ *   counter would not limit anything across isolates. D1 is consistent and Better Auth's
+ *   database store does an atomic conditional increment (and prunes expired rows itself).
+ * - Every other auth path: Better Auth's defaults (100 per 60 s per IP and path; its own
+ *   tighter built-ins for e.g. /change-password).
+ * - `/get-session` is skipped: the app calls it on every launch, a session token cannot be
+ *   guessed, and counting it would cost a D1 write per call.
+ */
+const rateLimit = {
+  enabled: true,
+  storage: 'database',
+  window: 60,
+  max: 100,
+  customRules: { ...RATE_LIMIT_RULES, '/get-session': false },
+} as const;
+
+/**
  * Create a Better Auth instance. Cloudflare bindings are only available per
  * request, so call this once per request (pattern from alwaysnomads/better-hono).
  */
@@ -31,6 +63,12 @@ export function createAuth(env: Env) {
     emailAndPassword: { enabled: true },
     plugins: [expo()],
     trustedOrigins: trustedOriginsFor(env),
+    rateLimit,
+    advanced: {
+      // Cloudflare sets cf-connecting-ip to the real client address on every request (and
+      // overwrites any client-sent value). x-forwarded-for, the default, is client-controlled.
+      ipAddress: { ipAddressHeaders: ['cf-connecting-ip'] },
+    },
     hooks: {
       // Sign-up is invite-only: the client sends `inviteCode` in the sign-up body.
       before: createAuthMiddleware(async (ctx) => {

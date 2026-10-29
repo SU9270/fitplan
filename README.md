@@ -135,6 +135,7 @@ cd apps/mobile && npx expo export --platform ios
 - **密码哈希的 CPU 时间**：Better Auth 默认的密码哈希较吃 CPU，Cloudflare Workers 免费计划的 CPU 时间限制较紧；首次部署后需实测注册 / 登录是否超时。
 - **部署前必须替换 D1 的 `database_id`**：`apps/api/wrangler.jsonc` 里是占位值，部署前运行 `wrangler d1 create fitplan` 并把返回的 id 填进去；本地开发不需要。
 - **`ENVIRONMENT` 不得在生产环境设为 `development`**：该值会信任 `exp://` 来源与重定向。生产环境保持 `wrangler.jsonc` 里的 `"production"`，且不要把 `.dev.vars` 带到线上。
+- **登录 / 注册有频率限制**：同一 IP 每分钟最多登录 5 次、注册 3 次（计数存 D1，见 `apps/api/src/auth.ts` 的 `RATE_LIMIT_RULES`），本地开发同样生效；多人共用一个出口 IP（如校园网）时可能互相影响，需要时调高。
 - **语言选择尚未持久化**：App 按系统语言自动选择，设置里切换语言后，重启 App 会回到系统语言。
 - 计算参数尚未经专业人士复核（集中定义在 `packages/core/src/constants.ts`，复核后只需改一处）。
 

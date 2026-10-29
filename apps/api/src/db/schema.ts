@@ -111,6 +111,18 @@ export const accountRelations = relations(account, ({ one }) => ({
   }),
 }));
 
+/**
+ * Better Auth rate-limit counters (`rateLimit.storage: 'database'`). Fields follow Better
+ * Auth 1.7.14's `rateLimit` model (key unique, count, lastRequest in epoch ms); the `id` is
+ * required by the drizzle adapter's atomic increment.
+ */
+export const rateLimit = sqliteTable('rate_limit', {
+  id: text('id').primaryKey(),
+  key: text('key').notNull().unique(),
+  count: integer('count').notNull(),
+  lastRequest: integer('last_request').notNull(),
+});
+
 // ---------------------------------------------------------------------------
 // App tables
 // ---------------------------------------------------------------------------
