@@ -4,6 +4,15 @@ on:
   push:
   pull_request:
 
+# Read-only token: CI only checks out code and runs checks.
+permissions:
+  contents: read
+
+# A newer push to the same branch / PR cancels the run it supersedes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     runs-on: ubuntu-latest
