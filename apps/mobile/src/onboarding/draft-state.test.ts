@@ -78,3 +78,31 @@ describe('onboardingReducer user keying', () => {
     expect(run(cleared, { type: 'user', userId: 'A' })).toEqual(initialState('A'));
   });
 });
+
+describe('onboardingReducer edit (re-open the questionnaire from Today)', () => {
+  const saved = { ...profile, weightKg: 58, pace: 'standard' as const };
+
+  it('replaces the draft with the saved profile and clears the last submission', () => {
+    const edited = run(userAWithDraft(), { type: 'edit', profile: saved, forUserId: 'A' });
+    expect(edited.draft.weight.kg).toBe('58');
+    expect(edited.draft.pace).toBe('standard');
+    expect(edited.draft.consent).toBe(true);
+    expect(edited.hydrated).toBe(true);
+    expect(edited.consentRecorded).toBe(true);
+    expect(edited.submission).toBeNull();
+    expect(edited.ownerId).toBe('A');
+  });
+
+  it('works on a fresh launch too (not hydrated yet), so the layout does not refetch over it', () => {
+    const fresh = run(initialState(), { type: 'user', userId: 'A' }, { type: 'edit', profile: saved, forUserId: 'A' });
+    expect(fresh.hydrated).toBe(true);
+    expect(fresh.draft.age).toBe('30');
+    // A late first-load hydrate must not overwrite it.
+    expect(run(fresh, { type: 'hydrate', profile: null, forUserId: 'A' })).toBe(fresh);
+  });
+
+  it("ignores a profile for someone who is no longer the draft's owner", () => {
+    const b = run(userAWithDraft(), { type: 'user', userId: 'B' });
+    expect(run(b, { type: 'edit', profile: saved, forUserId: 'A' })).toBe(b);
+  });
+});

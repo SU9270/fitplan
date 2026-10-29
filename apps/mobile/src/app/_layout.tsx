@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GateProvider, useGate } from '../lib/gate';
+import { routeAccess } from '../lib/route-access';
 import { OnboardingProvider } from '../onboarding/draft';
 import { tokens } from '../theme/tokens';
 
@@ -15,12 +16,14 @@ export const unstable_settings = {
 
 /**
  * Route guard (protected routes, as in the Expo Router authentication guide):
- * signed out → (auth); signed in without a goal → (onboarding); with a goal → today.
+ * signed out → (auth); signed in without a goal → (onboarding); with a goal → today, plus
+ * (onboarding) while the user edits their answers (see `routeAccess`).
  * `index` stays reachable and redirects, so a guard flip (sign-in, sign-out, goal saved)
  * always lands on the right screen.
  */
 function RootNavigator() {
-  const { status } = useGate();
+  const { status, editing } = useGate();
+  const access = routeAccess(status, editing);
 
   useEffect(() => {
     if (status !== 'loading') SplashScreen.hide();
@@ -29,14 +32,14 @@ function RootNavigator() {
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: tokens.color.background } }}>
       <Stack.Screen name="index" />
-      <Stack.Protected guard={status === 'signedOut'}>
+      <Stack.Protected guard={access.auth}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
-      <Stack.Protected guard={status === 'needsGoal'}>
+      <Stack.Protected guard={access.onboarding}>
         <Stack.Screen name="(onboarding)" />
         <Stack.Screen name="report" />
       </Stack.Protected>
-      <Stack.Protected guard={status === 'ready'}>
+      <Stack.Protected guard={access.today}>
         <Stack.Screen name="today" />
       </Stack.Protected>
     </Stack>

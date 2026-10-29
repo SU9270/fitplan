@@ -51,6 +51,7 @@ export const zh = {
 
   'onboarding.step': '第 {step} / {total} 步',
   'onboarding.back': '上一步',
+  'onboarding.cancelEdit': '取消修改',
   'onboarding.next': '下一步',
   'onboarding.disclaimer': '所有数值都是估算，不构成医疗建议',
 
@@ -158,10 +159,12 @@ export const zh = {
   'report.confirm': '我已了解，继续',
   'report.edit': '返回修改',
   'report.start': '开始使用',
+  'report.backToToday': '回到今日',
 
   'today.target': '每日目标',
   'today.comingSoon': '更多功能即将上线',
   'today.loadError': '暂时无法读取你的每日目标',
+  'today.editAnswers': '重新填写问卷',
 
   'report.kcal': '{n} 千卡',
 } as const;

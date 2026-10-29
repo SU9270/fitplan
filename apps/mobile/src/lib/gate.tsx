@@ -1,6 +1,7 @@
 import { createContext, use, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { api } from './api';
 import { authClient } from './auth-client';
+import { isEditing } from './route-access';
 
 /**
  * Where the app should send the user (controller ruling 9):
@@ -8,13 +9,21 @@ import { authClient } from './auth-client';
  * - `needsGoal` → signed in, `GET /api/me/profile` has `latestGoal === null` → (onboarding)/goal
  * - `ready`     → signed in with a goal → today
  * - `loading` while the session or profile is being read; `error` if the profile request failed.
+ *
+ * `editing`: a `ready` user chose "Edit my answers" on Today, which also opens the questionnaire
+ * (see `routeAccess`). Saving the edited answers calls `refreshProfile`, which ends it.
  */
 export type GateStatus = 'loading' | 'signedOut' | 'needsGoal' | 'ready' | 'error';
 
 type GateValue = {
   status: GateStatus;
-  /** Re-read the profile (after an error, or once onboarding has saved a goal). */
+  /** Re-read the profile (after an error, or once onboarding has saved a goal). Ends editing. */
   refreshProfile: () => void;
+  editing: boolean;
+  /** Open the questionnaire for a user who already has a goal. */
+  startEditing: () => void;
+  /** Close it again without saving (the user is back on Today). */
+  stopEditing: () => void;
 };
 
 type ProfileState = { userId: string; result: 'needsGoal' | 'ready' | 'error' };
@@ -29,6 +38,10 @@ export function GateProvider({ children }: { children: ReactNode }) {
 
   const [profile, setProfile] = useState<ProfileState | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+
+  // Signing out ends editing (derived during render, like the onboarding draft's owner).
+  if (userId === null && editingUserId !== null) setEditingUserId(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -56,16 +69,23 @@ export function GateProvider({ children }: { children: ReactNode }) {
   }, [userId, reloadToken]);
 
   const refreshProfile = useCallback(() => {
+    setEditingUserId(null);
     setProfile(null);
     setReloadToken((n) => n + 1);
   }, []);
+  const startEditing = useCallback(() => setEditingUserId(userId), [userId]);
+  const stopEditing = useCallback(() => setEditingUserId(null), []);
 
   let status: GateStatus;
   if (!userId) status = isPending ? 'loading' : 'signedOut';
   else if (profile?.userId !== userId) status = 'loading';
   else status = profile.result;
 
-  const value = useMemo(() => ({ status, refreshProfile }), [status, refreshProfile]);
+  const editing = isEditing({ status, userId, editingUserId });
+  const value = useMemo(
+    () => ({ status, refreshProfile, editing, startEditing, stopEditing }),
+    [status, refreshProfile, editing, startEditing, stopEditing],
+  );
   return <GateContext value={value}>{children}</GateContext>;
 }
 

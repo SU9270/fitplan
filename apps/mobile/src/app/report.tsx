@@ -15,12 +15,13 @@ import { tokens } from '../theme/tokens';
 /**
  * Body report from the server's result for the questionnaire:
  * saved (200) → "开始使用"; needs confirmation (409) → "我已了解，继续" re-submits with `confirmed`;
- * blocked (422) → reasons and "返回修改", never today.
+ * blocked (422) → reasons and "返回修改", never today. When the user is editing answers from
+ * Today, the saved button reads "回到今日"; `refreshProfile` reloads the new targets either way.
  */
 export default function Report() {
   const { t } = useLocale();
   const { submission } = useOnboarding();
-  const { refreshProfile } = useGate();
+  const { refreshProfile, editing } = useGate();
   const { submit, busy, error } = useSubmitProfile();
 
   if (!submission) return <Redirect href="/goal" />;
@@ -76,7 +77,7 @@ export default function Report() {
 
       <View style={styles.actions}>
         {status === 'saved' ? (
-          <PrimaryButton title={t('report.start')} onPress={refreshProfile} />
+          <PrimaryButton title={t(editing ? 'report.backToToday' : 'report.start')} onPress={refreshProfile} />
         ) : status === 'confirm' ? (
           <>
             <PrimaryButton title={t('report.confirm')} busy={busy} onPress={() => void confirm()} />

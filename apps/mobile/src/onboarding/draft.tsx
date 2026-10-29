@@ -15,6 +15,8 @@ interface OnboardingValue {
   hydrated: boolean;
   /** Finish the first load for `forUserId`; a profile whose goal was never accepted pre-fills the draft. */
   hydrate: (profile: SavedProfile | null, forUserId: string) => void;
+  /** Start editing from `profile` (the saved answers), replacing whatever the draft holds. */
+  editFrom: (profile: SavedProfile, forUserId: string) => void;
   consentRecorded: boolean;
   setConsentRecorded: (recorded: boolean) => void;
   submission: Submission | null;
@@ -43,6 +45,10 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     (profile: SavedProfile | null, forUserId: string) => dispatch({ type: 'hydrate', profile, forUserId }),
     [],
   );
+  const editFrom = useCallback(
+    (profile: SavedProfile, forUserId: string) => dispatch({ type: 'edit', profile, forUserId }),
+    [],
+  );
   const setConsentRecorded = useCallback((recorded: boolean) => dispatch({ type: 'consent', recorded }), []);
   const setSubmission = useCallback((submission: Submission | null) => dispatch({ type: 'submission', submission }), []);
   const reset = useCallback(() => dispatch({ type: 'reset' }), []);
@@ -54,13 +60,14 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       ownerId: state.ownerId,
       hydrated: state.hydrated,
       hydrate,
+      editFrom,
       consentRecorded: state.consentRecorded,
       setConsentRecorded,
       submission: state.submission,
       setSubmission,
       reset,
     }),
-    [state, updateDraft, hydrate, setConsentRecorded, setSubmission, reset],
+    [state, updateDraft, hydrate, editFrom, setConsentRecorded, setSubmission, reset],
   );
 
   return <OnboardingContext value={value}>{children}</OnboardingContext>;

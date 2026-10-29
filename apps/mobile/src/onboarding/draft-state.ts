@@ -29,6 +29,8 @@ export type OnboardingAction =
   | { type: 'update'; update: (draft: OnboardingDraft) => OnboardingDraft }
   /** Finish the first load for `forUserId`; ignored if already hydrated or the owner changed meanwhile. */
   | { type: 'hydrate'; profile: SavedProfile | null; forUserId: string }
+  /** Re-open the questionnaire from the saved profile ("Edit my answers" on Today). */
+  | { type: 'edit'; profile: SavedProfile; forUserId: string }
   | { type: 'consent'; recorded: boolean }
   | { type: 'submission'; submission: Submission | null }
   /** User-initiated sign-out: forget everything, including the owner. */
@@ -52,6 +54,15 @@ export function onboardingReducer(state: OnboardingState, action: OnboardingActi
         ? { ...state, hydrated: true, draft: draftFromProfile(action.profile), consentRecorded: true }
         : { ...state, hydrated: true };
     }
+    case 'edit':
+      if (state.ownerId !== action.forUserId) return state;
+      return {
+        ...state,
+        hydrated: true,
+        draft: draftFromProfile(action.profile),
+        consentRecorded: true,
+        submission: null,
+      };
     case 'consent':
       return { ...state, consentRecorded: action.recorded };
     case 'submission':

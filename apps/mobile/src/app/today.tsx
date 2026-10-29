@@ -1,4 +1,5 @@
 import type { MacroTargets } from '@fitplan/core';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Card } from '../components/card';
@@ -9,18 +10,48 @@ import { SegmentedControl } from '../components/segmented-control';
 import { useLocale, type Locale } from '../i18n';
 import { api } from '../lib/api';
 import { authClient } from '../lib/auth-client';
+import { useGate } from '../lib/gate';
 import { useSignOut } from '../lib/use-sign-out';
+import type { SavedProfile } from '../onboarding/draft-model';
+import { useOnboarding } from '../onboarding/draft';
 import { tokens } from '../theme/tokens';
 
-type Targets = { state: 'loading' } | { state: 'error' } | { state: 'ready'; targets: MacroTargets };
+type Targets =
+  | { state: 'loading' }
+  | { state: 'error' }
+  | { state: 'ready'; targets: MacroTargets; profile: SavedProfile | null };
 
 const LOCALES = ['zh', 'en'] as const satisfies readonly Locale[];
 
-/** Today placeholder: the latest daily targets; everything else arrives in later phases. */
+/**
+ * Today placeholder: the latest daily targets, and "Edit my answers", which re-opens the
+ * questionnaire pre-filled from the saved profile. Everything else arrives in later phases.
+ */
 export default function Today() {
   const { t, locale, setLocale } = useLocale();
   const signOut = useSignOut();
+  const { editing, startEditing, stopEditing } = useGate();
+  const { ownerId, editFrom } = useOnboarding();
   const [targets, setTargets] = useState<Targets>({ state: 'loading' });
+  const [openWizard, setOpenWizard] = useState(false);
+
+  // Back on Today without saving (back button / swipe from the first step): close the questionnaire.
+  useFocusEffect(stopEditing);
+
+  // The guard opens (onboarding) only after `editing` has rendered, so navigate from here
+  // rather than in the press handler (a push before that would be refused).
+  useEffect(() => {
+    if (!openWizard || !editing) return;
+    setOpenWizard(false);
+    router.push('/goal');
+  }, [openWizard, editing]);
+
+  function editAnswers(profile: SavedProfile) {
+    if (ownerId === null) return;
+    editFrom(profile, ownerId);
+    startEditing();
+    setOpenWizard(true);
+  }
 
   const load = useCallback(async () => {
     setTargets({ state: 'loading' });
@@ -31,8 +62,8 @@ export default function Today() {
         return;
       }
       if (!res.ok) throw new Error(`GET /api/me/profile → ${res.status}`);
-      const { latestGoal } = await res.json();
-      setTargets(latestGoal ? { state: 'ready', targets: latestGoal.targets } : { state: 'error' });
+      const { latestGoal, profile } = await res.json();
+      setTargets(latestGoal ? { state: 'ready', targets: latestGoal.targets, profile } : { state: 'error' });
     } catch {
       setTargets({ state: 'error' });
     }
@@ -41,6 +72,8 @@ export default function Today() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const savedProfile = targets.state === 'ready' ? targets.profile : null;
 
   return (
     <Screen>
@@ -61,6 +94,9 @@ export default function Today() {
           <>
             <Text style={styles.kcal}>{t('report.kcal', { n: targets.targets.kcal })}</Text>
             <MacroTiles targets={targets.targets} />
+            {savedProfile ? (
+              <TextButton title={t('today.editAnswers')} onPress={() => editAnswers(savedProfile)} />
+            ) : null}
           </>
         )}
       </Card>

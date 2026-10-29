@@ -136,8 +136,8 @@ export interface SavedProfile {
 }
 
 /**
- * Re-open the questionnaire from a saved profile (one whose goal was never accepted, e.g. after
- * a 409 or 422). The user's unit preference decides which unit the values are "typed" in. A saved
+ * Re-open the questionnaire from a saved profile: one whose goal was never accepted (e.g. after
+ * a 409 or 422), or the current answers when the user edits them from Today. The user's unit preference decides which unit the values are "typed" in. A saved
  * profile implies the health-data consent was already recorded.
  */
 export function draftFromProfile(p: SavedProfile): OnboardingDraft {

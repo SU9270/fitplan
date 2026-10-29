@@ -50,6 +50,7 @@ export const en: Record<MessageKey, string> = {
 
   'onboarding.step': 'Step {step} of {total}',
   'onboarding.back': 'Back',
+  'onboarding.cancelEdit': 'Cancel',
   'onboarding.next': 'Next',
   'onboarding.disclaimer': 'All figures are estimates and are not medical advice',
 
@@ -157,10 +158,12 @@ export const en: Record<MessageKey, string> = {
   'report.confirm': 'I understand, continue',
   'report.edit': 'Go back and edit',
   'report.start': 'Get started',
+  'report.backToToday': 'Back to Today',
 
   'today.target': 'Daily targets',
   'today.comingSoon': 'More features are coming soon',
   'today.loadError': "We couldn't load your daily targets",
+  'today.editAnswers': 'Edit my answers',
 
   'report.kcal': '{n} kcal',
 };

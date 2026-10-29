@@ -5,6 +5,7 @@ import { OptionCard, OptionGroup } from '../../components/option-card';
 import { SegmentedControl } from '../../components/segmented-control';
 import { StepLayout } from '../../components/step-layout';
 import { useLocale } from '../../i18n';
+import { useGate } from '../../lib/gate';
 import { useSignOut } from '../../lib/use-sign-out';
 import { useOnboarding } from '../../onboarding/draft';
 import { paceDescription } from '../../onboarding/pace';
@@ -17,6 +18,8 @@ export default function Goal() {
   const { t } = useLocale();
   const { draft, updateDraft, hydrated } = useOnboarding();
   const signOut = useSignOut();
+  // Editing from Today: offer a way back instead of signing out.
+  const { editing } = useGate();
 
   if (!hydrated) {
     return (
@@ -35,7 +38,13 @@ export default function Goal() {
       subtitle={t('onboarding.goal.subtitle')}
       preview={computePreview(draft)}
       onNext={() => router.push('/basics')}
-      footer={<TextButton title={t('auth.signOut')} onPress={() => void signOut()} />}
+      footer={
+        editing ? (
+          <TextButton title={t('onboarding.cancelEdit')} onPress={() => router.back()} />
+        ) : (
+          <TextButton title={t('auth.signOut')} onPress={() => void signOut()} />
+        )
+      }
     >
       <OptionGroup label={t('onboarding.goal.title')}>
         <OptionCard
