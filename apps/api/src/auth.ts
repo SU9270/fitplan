@@ -62,6 +62,9 @@ export function createAuth(env: Env) {
     basePath: '/api/auth',
     emailAndPassword: { enabled: true },
     plugins: [expo()],
+    // The expo plugin's OAuth helper redirects to any `authorizationURL` (an open redirect).
+    // FitPlan has no social login, so nothing needs it.
+    disabledPaths: ['/expo-authorization-proxy'],
     trustedOrigins: trustedOriginsFor(env),
     rateLimit,
     advanced: {
