@@ -1,0 +1,248 @@
+// Turns the USDA FoodData Central "SR Legacy" CSV download into rows for `foods` and
+// `food_portions`, and those rows into idempotent SQL. Pure (no file system): the CLI in
+// scripts/import-usda.ts reads the files and runs wrangler. See the phase 2 spec, section 2.
+import { csvRecords } from './csv.ts';
+
+/** FDC `nutrient.id`s we keep (SR Legacy values are per 100 g of edible portion). */
+export const FDC_NUTRIENT_IDS = {
+  kcal: '1008',
+  proteinG: '1003',
+  fatG: '1004',
+  carbsG: '1005',
+  fiberG: '1079',
+  sugarsG: '2000',
+  sodiumMg: '1093',
+} as const;
+
+type NutrientField = keyof typeof FDC_NUTRIENT_IDS;
+const NUTRIENT_FIELD_BY_ID = new Map<string, NutrientField>(
+  Object.entries(FDC_NUTRIENT_IDS).map(([field, id]) => [id, field as NutrientField]),
+);
+
+/** Raw text of the CSV files used from the SR Legacy download. */
+export interface UsdaCsvFiles {
+  food: string;
+  srLegacyFood: string;
+  foodNutrient: string;
+  foodPortion: string;
+  measureUnit: string;
+}
+
+export interface ZhName {
+  ndbNumber: string;
+  nameZh: string;
+  aliases: string[];
+}
+
+export type UsdaFoodRow = {
+  id: string;
+  fdcId: number;
+  name: string;
+  nameZh: string | null;
+  aliases: string | null;
+  searchText: string;
+} & Record<NutrientField, number | null>;
+
+export interface UsdaPortionRow {
+  id: string;
+  foodId: string;
+  label: string;
+  grams: number;
+  sortOrder: number;
+}
+
+export interface UsdaImport {
+  foods: UsdaFoodRow[];
+  portions: UsdaPortionRow[];
+  /** NDB numbers in the Chinese name table that are not in the download. */
+  unmatchedNdbNumbers: string[];
+}
+
+export const usdaFoodId = (fdcId: number) => `usda-${fdcId}`;
+const usdaPortionId = (portionId: string) => `usda-portion-${portionId}`;
+
+/** "01001" and "1001" are the same NDB number. */
+const normalizeNdb = (ndb: string) => ndb.trim().replace(/^0+(?=\d)/, '');
+
+/** `|`-separated aliases; joined back the same way when stored. */
+export const ALIAS_SEPARATOR = '|';
+
+/** What the search matches against: lowercased names and aliases, one per line. */
+export function buildSearchText(name: string, nameZh: string | null, aliases: readonly string[]): string {
+  return [name, nameZh, ...aliases]
+    .filter((part): part is string => part !== null && part.trim() !== '')
+    .map((part) => part.trim().toLowerCase())
+    .join('\n');
+}
+
+/** Reads apps/api/data/usda-zh.csv (`ndb_number,name_zh,aliases`). Throws on duplicates or blanks. */
+export function parseZhNames(text: string): ZhName[] {
+  const names: ZhName[] = [];
+  const seen = new Set<string>();
+  for (const r of csvRecords(text)) {
+    const ndbNumber = (r.ndb_number ?? '').trim();
+    const nameZh = (r.name_zh ?? '').trim();
+    if (!/^\d{4,5}$/.test(ndbNumber)) throw new Error(`usda-zh: bad ndb_number "${ndbNumber}"`);
+    if (nameZh === '') throw new Error(`usda-zh: empty name_zh for ${ndbNumber}`);
+    const key = normalizeNdb(ndbNumber);
+    if (seen.has(key)) throw new Error(`usda-zh: duplicate ndb_number ${ndbNumber}`);
+    seen.add(key);
+    const aliases = (r.aliases ?? '')
+      .split(ALIAS_SEPARATOR)
+      .map((a) => a.trim())
+      .filter((a) => a !== '');
+    names.push({ ndbNumber, nameZh, aliases });
+  }
+  return names;
+}
+
+function parseAmount(value: string | undefined): number | null {
+  if (value === undefined || value.trim() === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** 1 → "1", 0.5 → "0.5", 1.333 → "1.33". */
+function formatAmount(n: number): string {
+  return String(Math.round(n * 100) / 100);
+}
+
+/**
+ * "1 cup, chopped": amount + unit (skipped when FDC says "undetermined", as in all SR Legacy
+ * rows) + description or modifier.
+ */
+export function portionLabel(amount: number | null, unitName: string | undefined, text: string): string {
+  const unit = unitName && unitName !== 'undetermined' ? unitName : '';
+  return [amount === null ? '' : formatAmount(amount), unit, text.trim()].filter((part) => part !== '').join(' ');
+}
+
+export function buildUsdaImport(files: UsdaCsvFiles, zhNames: readonly ZhName[]): UsdaImport {
+  const zhByNdb = new Map(zhNames.map((z) => [normalizeNdb(z.ndbNumber), z]));
+  const ndbByFdc = new Map<string, string>();
+  for (const r of csvRecords(files.srLegacyFood)) ndbByFdc.set(r.fdc_id ?? '', normalizeNdb(r.NDB_number ?? ''));
+
+  const foodsByFdc = new Map<string, UsdaFoodRow>();
+  const matchedNdb = new Set<string>();
+  for (const r of csvRecords(files.food)) {
+    const fdc = r.fdc_id ?? '';
+    const fdcId = Number(fdc);
+    const name = (r.description ?? '').trim();
+    // food.csv of other downloads lists other data types too; keep SR Legacy foods only.
+    if (!ndbByFdc.has(fdc) || !Number.isInteger(fdcId) || name === '') continue;
+    const zh = zhByNdb.get(ndbByFdc.get(fdc) ?? '');
+    if (zh) matchedNdb.add(normalizeNdb(zh.ndbNumber));
+    foodsByFdc.set(fdc, {
+      id: usdaFoodId(fdcId),
+      fdcId,
+      name,
+      nameZh: zh?.nameZh ?? null,
+      aliases: zh && zh.aliases.length > 0 ? zh.aliases.join(ALIAS_SEPARATOR) : null,
+      searchText: buildSearchText(name, zh?.nameZh ?? null, zh?.aliases ?? []),
+      kcal: null,
+      proteinG: null,
+      carbsG: null,
+      fatG: null,
+      fiberG: null,
+      sugarsG: null,
+      sodiumMg: null,
+    });
+  }
+
+  for (const r of csvRecords(files.foodNutrient)) {
+    const field = NUTRIENT_FIELD_BY_ID.get(r.nutrient_id ?? '');
+    const food = field ? foodsByFdc.get(r.fdc_id ?? '') : undefined;
+    const amount = parseAmount(r.amount);
+    if (field && food && amount !== null && amount >= 0) food[field] = amount;
+  }
+
+  const unitNames = new Map<string, string>();
+  for (const r of csvRecords(files.measureUnit)) unitNames.set(r.id ?? '', r.name ?? '');
+
+  const portions: UsdaPortionRow[] = [];
+  for (const r of csvRecords(files.foodPortion)) {
+    const food = foodsByFdc.get(r.fdc_id ?? '');
+    const grams = parseAmount(r.gram_weight);
+    if (!food || grams === null || grams <= 0 || !r.id) continue;
+    const label = portionLabel(
+      parseAmount(r.amount),
+      unitNames.get(r.measure_unit_id ?? ''),
+      r.portion_description || r.modifier || '',
+    );
+    if (label === '') continue;
+    portions.push({ id: usdaPortionId(r.id), foodId: food.id, label, grams, sortOrder: parseAmount(r.seq_num) ?? 0 });
+  }
+
+  return {
+    foods: [...foodsByFdc.values()],
+    portions,
+    unmatchedNdbNumbers: zhNames.map((z) => z.ndbNumber).filter((ndb) => !matchedNdb.has(normalizeNdb(ndb))),
+  };
+}
+
+function sqlValue(value: string | number | null): string {
+  if (value === null) return 'NULL';
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new Error(`not a finite number: ${value}`);
+    return String(value);
+  }
+  return `'${value.replaceAll("'", "''")}'`;
+}
+
+function chunks<T>(items: readonly T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
+/** Rows per INSERT: keeps each statement well under D1's statement size limit. */
+const ROWS_PER_STATEMENT = 100;
+
+/**
+ * Idempotent SQL: foods and portions are upserted by their stable FDC-derived ids, so running
+ * the import again updates rows in place (diary entries keep pointing at the same portions)
+ * and never touches custom foods.
+ */
+export function toImportSql(data: Pick<UsdaImport, 'foods' | 'portions'>, now: string): string[] {
+  const statements: string[] = [];
+  for (const batch of chunks(data.foods, ROWS_PER_STATEMENT)) {
+    const values = batch.map((f) =>
+      [
+        f.id,
+        'usda_sr_legacy',
+        f.fdcId,
+        null,
+        f.name,
+        f.nameZh,
+        f.aliases,
+        f.searchText,
+        f.kcal,
+        f.proteinG,
+        f.carbsG,
+        f.fatG,
+        f.fiberG,
+        f.sugarsG,
+        f.sodiumMg,
+        now,
+        now,
+      ].map(sqlValue),
+    );
+    statements.push(
+      'INSERT INTO foods (id, source, fdc_id, owner_user_id, name, name_zh, aliases, search_text, kcal, protein_g, carbs_g, fat_g, fiber_g, sugars_g, sodium_mg, created_at, updated_at) VALUES\n' +
+        values.map((v) => `(${v.join(', ')})`).join(',\n') +
+        '\nON CONFLICT(id) DO UPDATE SET name = excluded.name, name_zh = excluded.name_zh, aliases = excluded.aliases, ' +
+        'search_text = excluded.search_text, kcal = excluded.kcal, protein_g = excluded.protein_g, carbs_g = excluded.carbs_g, ' +
+        'fat_g = excluded.fat_g, fiber_g = excluded.fiber_g, sugars_g = excluded.sugars_g, sodium_mg = excluded.sodium_mg, ' +
+        'updated_at = excluded.updated_at;',
+    );
+  }
+  for (const batch of chunks(data.portions, ROWS_PER_STATEMENT)) {
+    const values = batch.map((p) => [p.id, p.foodId, p.label, p.grams, p.sortOrder].map(sqlValue));
+    statements.push(
+      'INSERT INTO food_portions (id, food_id, label, grams, sort_order) VALUES\n' +
+        values.map((v) => `(${v.join(', ')})`).join(',\n') +
+        '\nON CONFLICT(id) DO UPDATE SET food_id = excluded.food_id, label = excluded.label, grams = excluded.grams, ' +
+        'sort_order = excluded.sort_order;',
+    );
+  }
+  return statements;
+}

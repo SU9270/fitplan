@@ -232,3 +232,98 @@ export const consents = sqliteTable(
     check('consents_granted_check', sql`${table.granted} IN (0, 1)`),
   ],
 );
+
+// ---------------------------------------------------------------------------
+// Food library (phase 2). Nutrient columns are per 100 g; NULL means unknown.
+// ---------------------------------------------------------------------------
+
+/** USDA SR Legacy foods (`usda-<fdc_id>`, imported by scripts/import-usda.ts) and users' custom foods. */
+export const foods = sqliteTable(
+  'foods',
+  {
+    id: text('id').primaryKey(),
+    source: text('source', { enum: ['usda_sr_legacy', 'custom'] }).notNull(),
+    fdcId: integer('fdc_id').unique(),
+    ownerUserId: text('owner_user_id').references(() => user.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    nameZh: text('name_zh'),
+    /** `|`-separated extra search terms (Chinese and English). */
+    aliases: text('aliases'),
+    /** Lowercased name + name_zh + aliases, matched with LIKE by the search. */
+    searchText: text('search_text').notNull(),
+    kcal: real('kcal'),
+    proteinG: real('protein_g'),
+    carbsG: real('carbs_g'),
+    fatG: real('fat_g'),
+    fiberG: real('fiber_g'),
+    sugarsG: real('sugars_g'),
+    sodiumMg: real('sodium_mg'),
+    createdAt: text('created_at').notNull().default(nowIso),
+    updatedAt: text('updated_at').notNull().default(nowIso),
+  },
+  (table) => [
+    index('foods_owner_idx').on(table.ownerUserId),
+    check('foods_source_check', sql`${table.source} IN ('usda_sr_legacy', 'custom')`),
+    check(
+      'foods_source_owner_check',
+      sql`(${table.source} = 'custom' AND ${table.ownerUserId} IS NOT NULL AND ${table.fdcId} IS NULL) OR (${table.source} = 'usda_sr_legacy' AND ${table.ownerUserId} IS NULL AND ${table.fdcId} IS NOT NULL)`,
+    ),
+  ],
+);
+
+/** Household measures ("1 cup, chopped" = 91 g). Custom foods have exactly one: their serving. */
+export const foodPortions = sqliteTable(
+  'food_portions',
+  {
+    id: text('id').primaryKey(),
+    foodId: text('food_id')
+      .notNull()
+      .references(() => foods.id, { onDelete: 'cascade' }),
+    /** Null only for a custom food's serving without a name (the app shows "1 serving"). */
+    label: text('label'),
+    grams: real('grams').notNull(),
+    sortOrder: integer('sort_order').notNull().default(0),
+  },
+  (table) => [
+    index('food_portions_food_idx').on(table.foodId, table.sortOrder),
+    check('food_portions_grams_check', sql`${table.grams} > 0`),
+  ],
+);
+
+/**
+ * What a user ate. The food's name and per-100 g nutrients are copied at logging time, so later
+ * edits or deletions of the food (or a re-import) never change history.
+ */
+export const diaryEntries = sqliteTable(
+  'diary_entries',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    /** The user's local date, YYYY-MM-DD. */
+    date: text('date').notNull(),
+    meal: text('meal', { enum: ['breakfast', 'lunch', 'dinner', 'snack'] }).notNull(),
+    foodId: text('food_id').references(() => foods.id, { onDelete: 'set null' }),
+    foodName: text('food_name').notNull(),
+    foodNameZh: text('food_name_zh'),
+    portionId: text('portion_id').references(() => foodPortions.id, { onDelete: 'set null' }),
+    /** Snapshot of the portion's label; NULL when the amount was entered in grams. */
+    portionLabel: text('portion_label'),
+    /** Portions (or grams when no portion) as entered. */
+    quantity: real('quantity').notNull(),
+    grams: real('grams').notNull(),
+    kcal: real('kcal'),
+    proteinG: real('protein_g'),
+    carbsG: real('carbs_g'),
+    fatG: real('fat_g'),
+    createdAt: text('created_at').notNull().default(nowIso),
+    updatedAt: text('updated_at').notNull().default(nowIso),
+  },
+  (table) => [
+    index('diary_entries_user_date_idx').on(table.userId, table.date),
+    check('diary_entries_meal_check', sql`${table.meal} IN ('breakfast', 'lunch', 'dinner', 'snack')`),
+    check('diary_entries_grams_check', sql`${table.grams} > 0`),
+    check('diary_entries_quantity_check', sql`${table.quantity} > 0`),
+  ],
+);

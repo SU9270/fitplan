@@ -14,7 +14,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply fitplan --local",
     "db:migrate:remote": "wrangler d1 migrations apply fitplan --remote",
-    "invite:create": "node scripts/create-invite.ts"
+    "invite:create": "node scripts/create-invite.ts",
+    "food:import": "node scripts/import-usda.ts"
   },
   "dependencies": {
     "@better-auth/expo": "1.7.14",
