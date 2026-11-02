@@ -141,6 +141,8 @@ describe('custom foods', () => {
     expect((await authed(other.cookie, 'DELETE', `/api/foods/${created.id}`)).status).toBe(404);
     expect((await authed(owner.cookie, 'PUT', `/api/foods/${usda.id}`, edit)).status).toBe(404);
     expect((await authed(owner.cookie, 'DELETE', `/api/foods/${usda.id}`)).status).toBe(404);
+    const untouched = ((await (await authed(owner.cookie, 'GET', `/api/foods/${created.id}`)).json()) as { food: Detail }).food;
+    expect(untouched).toMatchObject({ name: 'Protein bar', portions: [{ label: '1 bar', grams: 60 }] });
 
     const put = await authed(owner.cookie, 'PUT', `/api/foods/${created.id}`, edit);
     expect(put.status).toBe(200);

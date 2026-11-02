@@ -1,6 +1,6 @@
 import { per100gFromServing, type Nutrients } from '@fitplan/core';
 import type { CustomFoodInput, FoodSearchQuery } from '@fitplan/validators';
-import { and, asc, eq, isNull, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, eq, exists, isNull, or, sql, type SQL } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { foodPortions, foods } from '../db/schema';
 import { buildSearchText } from './search-text';
@@ -153,13 +153,20 @@ export async function updateCustomFood(
   input: CustomFoodInput,
   now = new Date(),
 ): Promise<FoodDetail | null> {
-  const [updated] = await db
-    .update(foods)
-    .set({ ...customFoodColumns(input), updatedAt: now.toISOString() })
-    .where(ownCustomFood(userId, id))
-    .returning({ id: foods.id });
-  if (!updated) return null;
-  await db.update(foodPortions).set({ label: input.servingLabel, grams: input.servingGrams }).where(eq(foodPortions.foodId, id));
+  // One atomic batch; the portion update repeats the ownership check, so it is a no-op too
+  // when the food is not the user's.
+  const [updated] = await db.batch([
+    db
+      .update(foods)
+      .set({ ...customFoodColumns(input), updatedAt: now.toISOString() })
+      .where(ownCustomFood(userId, id))
+      .returning({ id: foods.id }),
+    db
+      .update(foodPortions)
+      .set({ label: input.servingLabel, grams: input.servingGrams })
+      .where(and(eq(foodPortions.foodId, id), exists(db.select().from(foods).where(ownCustomFood(userId, id))))),
+  ]);
+  if (updated.length === 0) return null;
   return getFood(db, userId, id);
 }
 
