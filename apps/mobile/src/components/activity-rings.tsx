@@ -46,7 +46,9 @@ export function ActivityRings({ rings, accessibilityLabel, size = DEFAULT_SIZE }
                   fill="none"
                   strokeLinecap="round"
                   strokeDasharray={`${circumference * progress} ${circumference}`}
-                  transform={`rotate(-90 ${center} ${center})`}
+                  rotation={-90}
+                  originX={center}
+                  originY={center}
                 />
               ) : null}
             </G>
