@@ -49,6 +49,9 @@ export type FoodSearchQuery = z.infer<typeof foodSearchQuerySchema>;
 /** Query string of GET /api/diary. */
 export const diaryDayQuerySchema = z.object({ date: isoDateSchema });
 
+/** Query string of GET /api/diary/stats: the user's local today (the server has no time zone). */
+export const diaryStatsQuerySchema = z.object({ today: isoDateSchema });
+
 const gramsPerServing = z.number().gt(0).max(2000);
 const macroGrams = z.number().min(0).max(1000);
 

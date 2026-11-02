@@ -1,6 +1,6 @@
 import { per100gFromServing, type Nutrients } from '@fitplan/core';
 import type { CustomFoodInput, FoodSearchQuery } from '@fitplan/validators';
-import { and, asc, eq, exists, isNull, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, exists, isNull, or, sql, type SQL } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { foodPortions, foods } from '../db/schema';
 import { buildSearchText } from './search-text';
@@ -81,6 +81,16 @@ export async function searchFoods(db: Db, userId: string, query: FoodSearchQuery
     .where(and(visibleTo(userId), ...matches))
     .orderBy(tier, shownPrefix, sql`${foods.ownerUserId} IS NULL`, sql`length(${shownName})`, asc(foods.name))
     .limit(query.limit);
+  return rows.map(toSummary);
+}
+
+/** The user's own custom foods, most recently changed first. */
+export async function listOwnFoods(db: Db, userId: string): Promise<FoodSummary[]> {
+  const rows = await db
+    .select()
+    .from(foods)
+    .where(and(eq(foods.source, 'custom'), eq(foods.ownerUserId, userId)))
+    .orderBy(desc(foods.updatedAt), asc(foods.name));
   return rows.map(toSummary);
 }
 

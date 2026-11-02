@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   CONSENT_VERSION,
+  NICKNAME_MAX_LENGTH,
   consentInputSchema,
+  nicknameSchema,
   profileInputSchema,
+  settingsPatchSchema,
   toTargetInput,
 } from './index';
 
@@ -141,5 +144,26 @@ describe('consentInputSchema', () => {
 
   it('exposes the consent version', () => {
     expect(CONSENT_VERSION).toBe('2026-10-29');
+  });
+});
+
+describe('settingsPatchSchema', () => {
+  it('accepts either or both preferences', () => {
+    expect(settingsPatchSchema.parse({ unitSystem: 'imperial' })).toEqual({ unitSystem: 'imperial' });
+    expect(settingsPatchSchema.parse({ locale: 'en', unitSystem: 'metric' })).toEqual({ locale: 'en', unitSystem: 'metric' });
+  });
+
+  it('rejects unknown values and empty patches', () => {
+    expect(settingsPatchSchema.safeParse({ locale: 'fr' }).success).toBe(false);
+    expect(settingsPatchSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe('nicknameSchema', () => {
+  it('trims and bounds the length', () => {
+    expect(nicknameSchema.parse('  小苏  ')).toBe('小苏');
+    expect(nicknameSchema.safeParse('   ').success).toBe(false);
+    expect(nicknameSchema.safeParse('a'.repeat(NICKNAME_MAX_LENGTH)).success).toBe(true);
+    expect(nicknameSchema.safeParse('a'.repeat(NICKNAME_MAX_LENGTH + 1)).success).toBe(false);
   });
 });

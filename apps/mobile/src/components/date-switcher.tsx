@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { dayLabel, shiftDate } from '../diary/dates';
+import { shiftDate } from '@fitplan/core';
+import { dayLabel } from '../diary/dates';
 import { useLocale } from '../i18n';
 import { tokens } from '../theme/tokens';
 

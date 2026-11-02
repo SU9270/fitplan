@@ -2,7 +2,7 @@ import { customFoodInputSchema, foodSearchQuerySchema } from '@fitplan/validator
 import { Hono } from 'hono';
 import { createDb } from '../db/client';
 import type { AppEnv } from '../env';
-import { createCustomFood, deleteCustomFood, getFood, searchFoods, updateCustomFood } from '../foods/food-service';
+import { createCustomFood, deleteCustomFood, getFood, listOwnFoods, searchFoods, updateCustomFood } from '../foods/food-service';
 import { requireSession } from '../middleware/require-session';
 import { parseBody, parseValue } from './parse';
 
@@ -20,6 +20,8 @@ export const foodRoutes = new Hono<AppEnv>()
     if (!body.ok) return c.json({ error: 'invalid_input' as const, fields: body.fields }, 400);
     return c.json({ food: await createCustomFood(createDb(c.env.DB), c.var.user.id, body.data) }, 201);
   })
+  // Before '/:id', which would otherwise match "mine".
+  .get('/mine', async (c) => c.json({ foods: await listOwnFoods(createDb(c.env.DB), c.var.user.id) }))
   .get('/:id', async (c) => {
     const food = await getFood(createDb(c.env.DB), c.var.user.id, c.req.param('id'));
     return food ? c.json({ food }) : c.json(notFound, 404);

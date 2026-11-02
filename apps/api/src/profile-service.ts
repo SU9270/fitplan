@@ -1,7 +1,7 @@
 import { computeTargets } from '@fitplan/core';
 import type { GuardrailReason, MacroTargets, TargetInput, TargetResult, TargetStatus } from '@fitplan/core';
 import { toTargetInput } from '@fitplan/validators';
-import type { ConsentInput, ProfileInput } from '@fitplan/validators';
+import type { ConsentInput, ProfileInput, SettingsPatch } from '@fitplan/validators';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import type { Db } from './db/client';
 import { consents, goalVersions, profiles } from './db/schema';
@@ -97,6 +97,24 @@ async function latestGoalRow(db: Db, userId: string): Promise<GoalRow | undefine
 export async function getLatestTargets(db: Db, userId: string): Promise<MacroTargets | null> {
   const row = await latestGoalRow(db, userId);
   return row ? toGoalVersionView(row).targets : null;
+}
+
+/**
+ * Saves display preferences on the profile. Unit and language are not part of the target
+ * input, so no goal version is appended. Null when the user has no profile yet.
+ */
+export async function updateSettings(
+  db: Db,
+  userId: string,
+  patch: SettingsPatch,
+  now = new Date(),
+): Promise<Pick<ProfileView, 'unitSystem' | 'locale'> | null> {
+  const [row] = await db
+    .update(profiles)
+    .set({ ...patch, updatedAt: now.toISOString() })
+    .where(eq(profiles.userId, userId))
+    .returning({ unitSystem: profiles.unitSystem, locale: profiles.locale });
+  return row ?? null;
 }
 
 /** Records a consent decision (append-only). Returns the new row id. */

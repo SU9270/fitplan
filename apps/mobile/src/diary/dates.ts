@@ -1,14 +1,9 @@
+import { shiftDate } from '@fitplan/core';
+
 /** The device's local calendar date as `YYYY-MM-DD` (what the diary is keyed by). */
 export function localDate(now: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-}
-
-/** `date` moved by whole days; calendar arithmetic in UTC, so DST changes cannot skip a day. */
-export function shiftDate(date: string, days: number): string {
-  const [y, m, d] = date.split('-').map(Number);
-  const shifted = new Date(Date.UTC(y ?? 0, (m ?? 1) - 1, (d ?? 1) + days));
-  return shifted.toISOString().slice(0, 10);
 }
 
 export type DayLabel = { kind: 'today' } | { kind: 'yesterday' } | { kind: 'date'; month: number; day: number };
