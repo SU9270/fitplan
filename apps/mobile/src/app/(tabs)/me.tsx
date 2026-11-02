@@ -2,8 +2,9 @@ import type { InferResponseType } from 'hono/client';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { Card } from '../../components/card';
-import { ErrorText, PrimaryButton, TextButton, TextField } from '../../components/form';
+import { Card, CardHeader, Tile } from '../../components/card';
+import { ErrorText, PrimaryButton, SoftButton, TextButton, TextField } from '../../components/form';
+import { InfoRow } from '../../components/info-row';
 import { ListRow } from '../../components/list-row';
 import { MacroTiles } from '../../components/macro-tiles';
 import { Screen } from '../../components/screen';
@@ -132,27 +133,27 @@ export default function Me() {
       <AccountCard />
 
       <Card>
-        <Text accessibilityRole="header" style={styles.cardTitle}>
-          {t('profile.body.title')}
-        </Text>
+        <CardHeader label={t('profile.body.title')} />
         {profile.state === 'loading' ? (
           <ActivityIndicator color={tokens.color.primary} accessibilityLabel={t('gate.loading')} />
         ) : profile.state === 'error' ? (
           <>
-            <ErrorText message={t('profile.loadError')} />
+            <Tile>
+              <ErrorText message={t('profile.loadError')} />
+            </Tile>
             <PrimaryButton title={t('gate.error.retry')} onPress={load} />
           </>
         ) : profile.data.profile === null ? (
-          <Text style={styles.muted}>{t('profile.noProfile')}</Text>
+          <Tile>
+            <Text style={styles.muted}>{t('profile.noProfile')}</Text>
+          </Tile>
         ) : (
           <BodySummary body={profile.data} onEdit={editAnswers} />
         )}
       </Card>
 
       <Card>
-        <Text accessibilityRole="header" style={styles.cardTitle}>
-          {t('profile.stats.title')}
-        </Text>
+        <CardHeader label={t('profile.stats.title')} />
         {stats.state === 'ready' ? (
           <View style={styles.statRow}>
             <Stat value={t('profile.stats.daysValue', { n: stats.data.loggedDays })} label={t('profile.stats.days')} />
@@ -160,19 +161,21 @@ export default function Me() {
             <Stat value={String(stats.data.totalEntries)} label={t('profile.stats.entries')} />
           </View>
         ) : stats.state === 'error' ? (
-          <ErrorText message={t('profile.loadError')} />
+          <Tile>
+            <ErrorText message={t('profile.loadError')} />
+          </Tile>
         ) : (
           <ActivityIndicator color={tokens.color.primary} accessibilityLabel={t('gate.loading')} />
         )}
       </Card>
 
       <Card>
-        <Text accessibilityRole="header" style={styles.cardTitle}>
-          {t('profile.foods.title')}
-        </Text>
+        <CardHeader label={t('profile.foods.title')} />
         {foods.state === 'ready' ? (
           foods.data.length === 0 ? (
-            <Text style={styles.muted}>{t('profile.foods.empty')}</Text>
+            <Tile>
+              <Text style={styles.muted}>{t('profile.foods.empty')}</Text>
+            </Tile>
           ) : (
             foods.data.map((food) => (
               <ListRow
@@ -188,26 +191,28 @@ export default function Me() {
             ))
           )
         ) : foods.state === 'error' ? (
-          <ErrorText message={t('profile.loadError')} />
+          <Tile>
+            <ErrorText message={t('profile.loadError')} />
+          </Tile>
         ) : (
           <ActivityIndicator color={tokens.color.primary} accessibilityLabel={t('gate.loading')} />
         )}
-        <TextButton title={`+ ${t('profile.foods.add')}`} onPress={() => router.push('/food/custom')} />
+        <SoftButton title={`+ ${t('profile.foods.add')}`} onPress={() => router.push('/food/custom')} />
       </Card>
 
       <Card>
-        <Text accessibilityRole="header" style={styles.cardTitle}>
-          {t('profile.settings.title')}
-        </Text>
-        <Text style={styles.label}>{t('lang.label')}</Text>
-        <SegmentedControl
-          label={t('lang.label')}
-          value={locale}
-          options={LOCALES.map((l) => ({ value: l, label: t(`lang.${l}`) }))}
-          onChange={(l) => void saveSettings({ locale: l })}
-        />
+        <CardHeader label={t('profile.settings.title')} />
+        <Tile>
+          <Text style={styles.label}>{t('lang.label')}</Text>
+          <SegmentedControl
+            label={t('lang.label')}
+            value={locale}
+            options={LOCALES.map((l) => ({ value: l, label: t(`lang.${l}`) }))}
+            onChange={(l) => void saveSettings({ locale: l })}
+          />
+        </Tile>
         {saved ? (
-          <>
+          <Tile>
             <Text style={styles.label}>{t('profile.units')}</Text>
             <SegmentedControl
               label={t('profile.units')}
@@ -215,7 +220,7 @@ export default function Me() {
               options={UNITS.map((u) => ({ value: u, label: t(`profile.units.${u}`) }))}
               onChange={(u) => void saveSettings({ unitSystem: u })}
             />
-          </>
+          </Tile>
         ) : null}
         <ErrorText message={settingsError ? t('profile.settings.error') : null} />
         <TextButton title={t('auth.signOut')} onPress={() => void signOut()} />
@@ -224,7 +229,7 @@ export default function Me() {
   );
 }
 
-/** Avatar letter, name (editable) and email from the Better Auth session. */
+/** Avatar letter, name (editable) and email from the Better Auth session, as in BoardUI's profile card. */
 function AccountCard() {
   const { t } = useLocale();
   const { data: session } = authClient.useSession();
@@ -259,19 +264,15 @@ function AccountCard() {
         <View style={styles.avatar} accessible={false}>
           <Text style={styles.avatarText}>{initial(name)}</Text>
         </View>
-        <View style={styles.accountTexts}>
-          <Text style={styles.name} numberOfLines={1}>
-            {name}
-          </Text>
-          <Text style={styles.muted} numberOfLines={1}>
-            {session?.user.email ?? ''}
-          </Text>
-        </View>
+        <Text style={styles.name} numberOfLines={1}>
+          {name}
+        </Text>
       </View>
+      <InfoRow label={t('auth.email.label')} value={session?.user.email ?? ''} />
       {draft === null ? (
         <TextButton title={t('profile.editName')} onPress={() => setDraft(name)} />
       ) : (
-        <>
+        <Tile>
           <TextField label={t('profile.nickname')} value={draft} onChangeText={setDraft} autoFocus maxLength={60} />
           <ErrorText message={error && t(error)} />
           <PrimaryButton title={t('common.save')} onPress={() => void save()} busy={busy} />
@@ -282,7 +283,7 @@ function AccountCard() {
               setError(null);
             }}
           />
-        </>
+        </Tile>
       )}
     </Card>
   );
@@ -304,58 +305,51 @@ function BodySummary({ body, onEdit }: { body: ProfileBody; onEdit: () => void }
   return (
     <>
       {rows.map(([label, value]) => (
-        <View key={label} style={styles.row} accessible accessibilityLabel={`${t(label)} ${value}`}>
-          <Text style={styles.rowLabel}>{t(label)}</Text>
-          <Text style={styles.rowValue}>{value}</Text>
-        </View>
+        <InfoRow key={label} label={t(label)} value={value} />
       ))}
       {body.latestGoal ? (
         <>
-          <Text style={styles.label}>{t('profile.target')}</Text>
-          <Text style={styles.kcal}>{t('report.kcal', { n: body.latestGoal.targets.kcal })}</Text>
+          <CardHeader label={t('profile.target')} title={String(body.latestGoal.targets.kcal)} unit={t('diary.kcalUnit')} />
           <MacroTiles targets={body.latestGoal.targets} />
         </>
       ) : null}
-      <TextButton title={t('today.editAnswers')} onPress={onEdit} />
+      <SoftButton title={t('today.editAnswers')} onPress={onEdit} />
     </>
   );
 }
 
+/** BoardUI stat tile: gray label, value under it. */
 function Stat({ value, label }: { value: string; label: string }) {
   return (
     <View style={styles.stat} accessible accessibilityLabel={`${label} ${value}`}>
-      <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.muted}>{label}</Text>
+      <Text style={styles.statValue}>{value}</Text>
     </View>
   );
 }
 
-const AVATAR = 56;
+const AVATAR = 64;
 
 const styles = StyleSheet.create({
   title: {
     color: tokens.color.text,
     fontSize: tokens.fontSize.title,
-    fontWeight: tokens.fontWeight.bold,
-  },
-  cardTitle: {
-    color: tokens.color.text,
-    fontSize: tokens.fontSize.subtitle,
     fontWeight: tokens.fontWeight.semibold,
   },
   label: {
-    color: tokens.color.text,
-    fontSize: tokens.fontSize.caption,
-    fontWeight: tokens.fontWeight.semibold,
+    color: tokens.color.textSecondary,
+    fontSize: tokens.fontSize.label,
+    fontWeight: tokens.fontWeight.medium,
   },
   muted: {
     color: tokens.color.textSecondary,
-    fontSize: tokens.fontSize.caption,
+    fontSize: tokens.fontSize.label,
   },
   account: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: tokens.space.md,
+    gap: tokens.space.sm,
+    paddingTop: tokens.space.md,
+    paddingBottom: tokens.space.xs,
   },
   avatar: {
     width: AVATAR,
@@ -363,55 +357,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: tokens.radius.pill,
-    backgroundColor: tokens.color.primarySoft,
+    backgroundColor: tokens.color.borderStrong,
   },
   avatarText: {
-    color: tokens.color.primary,
+    color: tokens.color.onPrimary,
     fontSize: tokens.fontSize.title,
-    fontWeight: tokens.fontWeight.bold,
-  },
-  accountTexts: {
-    flex: 1,
-    gap: tokens.space.xs,
+    fontWeight: tokens.fontWeight.semibold,
   },
   name: {
     color: tokens.color.text,
-    fontSize: tokens.fontSize.subtitle,
-    fontWeight: tokens.fontWeight.semibold,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  rowLabel: {
-    color: tokens.color.textSecondary,
-    fontSize: tokens.fontSize.body,
-  },
-  rowValue: {
-    color: tokens.color.text,
-    fontSize: tokens.fontSize.body,
-    fontWeight: tokens.fontWeight.medium,
-  },
-  kcal: {
-    color: tokens.color.primary,
     fontSize: tokens.fontSize.title,
-    fontWeight: tokens.fontWeight.bold,
+    fontWeight: tokens.fontWeight.medium,
   },
   statRow: {
     flexDirection: 'row',
-    gap: tokens.space.sm,
+    gap: tokens.card.gap,
   },
   stat: {
     flex: 1,
-    alignItems: 'center',
-    gap: tokens.space.xs,
-    padding: tokens.space.md,
+    gap: tokens.hairline,
+    paddingHorizontal: tokens.card.tilePaddingX,
+    paddingVertical: tokens.card.tilePaddingY,
     borderRadius: tokens.radius.md,
-    backgroundColor: tokens.color.background,
+    backgroundColor: tokens.color.surface,
   },
   statValue: {
     color: tokens.color.text,
     fontSize: tokens.fontSize.subtitle,
-    fontWeight: tokens.fontWeight.bold,
+    fontWeight: tokens.fontWeight.semibold,
   },
 });

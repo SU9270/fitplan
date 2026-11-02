@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator } from 'react-native';
+import { Card, Tile } from '../../components/card';
 import { ErrorText, PrimaryButton, TextField } from '../../components/form';
 import { Screen } from '../../components/screen';
 import { ScreenHeader } from '../../components/screen-header';
@@ -104,19 +105,21 @@ export default function CustomFood() {
         )
       ) : (
         <>
-          {FIELDS.map(({ field, label, placeholder, numeric }) => (
-            <View key={field} style={styles.field}>
-              <TextField
-                label={t(label)}
-                placeholder={placeholder ? t(placeholder) : undefined}
-                value={values[field]}
-                onChangeText={(text) => setValues({ ...values, [field]: text })}
-                keyboardType={numeric ? 'decimal-pad' : 'default'}
-                autoCapitalize="none"
-              />
-              <ErrorText message={errors[field] ? t(errors[field]) : null} />
-            </View>
-          ))}
+          <Card>
+            {FIELDS.map(({ field, label, placeholder, numeric }) => (
+              <Tile key={field}>
+                <TextField
+                  label={t(label)}
+                  placeholder={placeholder ? t(placeholder) : undefined}
+                  value={values[field]}
+                  onChangeText={(text) => setValues({ ...values, [field]: text })}
+                  keyboardType={numeric ? 'decimal-pad' : 'default'}
+                  autoCapitalize="none"
+                />
+                <ErrorText message={errors[field] ? t(errors[field]) : null} />
+              </Tile>
+            ))}
+          </Card>
           <ErrorText message={error && t(error)} />
           <PrimaryButton title={t('common.save')} onPress={save} busy={busy} />
         </>
@@ -124,9 +127,3 @@ export default function CustomFood() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  field: {
-    gap: tokens.space.xs,
-  },
-});

@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { checkAmount, defaultQuantity, formatNumber, type AmountUnit, type Portion } from '../diary/amount';
 import { useLocale, type MessageKey } from '../i18n';
 import { tokens } from '../theme/tokens';
+import { Card, CardHeader, Tile } from './card';
 import { ErrorText, TextField } from './form';
 import { SegmentedControl } from './segmented-control';
 
@@ -46,8 +47,8 @@ export function AmountForm({ per100g, portions, value, onChange }: Props) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.group}>
-        <Text style={styles.label}>{t('food.unit.label')}</Text>
+      <Card>
+        <CardHeader label={t('food.unit.label')} />
         <View accessibilityRole="radiogroup" accessibilityLabel={t('food.unit.label')} style={styles.chips}>
           <Chip
             label={t('food.unit.grams')}
@@ -63,52 +64,56 @@ export function AmountForm({ per100g, portions, value, onChange }: Props) {
             />
           ))}
         </View>
-      </View>
-
-      <View style={styles.group}>
-        <TextField
-          label={t(value.unit.kind === 'grams' ? 'food.quantity.grams' : 'food.quantity.portions')}
-          value={value.quantity}
-          onChangeText={(quantity) => onChange({ ...value, quantity })}
-          keyboardType="decimal-pad"
-          selectTextOnFocus
-        />
-        {check.ok ? (
-          value.unit.kind === 'portion' ? (
-            <Text style={styles.hint}>{t('food.amountGrams', { n: formatNumber(check.grams) })}</Text>
-          ) : null
-        ) : (
-          <ErrorText
-            message={check.error === 'tooBig' ? t('food.quantity.tooBig', { max: MAX_ENTRY_GRAMS }) : t('food.quantity.invalid')}
+        <Tile>
+          <TextField
+            label={t(value.unit.kind === 'grams' ? 'food.quantity.grams' : 'food.quantity.portions')}
+            value={value.quantity}
+            onChangeText={(quantity) => onChange({ ...value, quantity })}
+            keyboardType="decimal-pad"
+            selectTextOnFocus
           />
-        )}
-      </View>
+          {check.ok ? (
+            value.unit.kind === 'portion' ? (
+              <Text style={styles.hint}>{t('food.amountGrams', { n: formatNumber(check.grams) })}</Text>
+            ) : null
+          ) : (
+            <ErrorText
+              message={check.error === 'tooBig' ? t('food.quantity.tooBig', { max: MAX_ENTRY_GRAMS }) : t('food.quantity.invalid')}
+            />
+          )}
+        </Tile>
+      </Card>
 
-      <View style={styles.nutrients} accessible accessibilityLabel={eaten ? nutrientsLabel(eaten, t) : undefined}>
-        <Text style={styles.label}>{t('food.nutrients.title')}</Text>
-        <Text style={styles.kcal}>
-          {eaten?.kcal != null ? t('report.kcal', { n: Math.round(eaten.kcal) }) : t('food.unknown')}
-        </Text>
+      <Card>
+        <View accessible accessibilityLabel={eaten ? nutrientsLabel(eaten, t) : undefined}>
+          <CardHeader
+            label={t('food.nutrients.title')}
+            title={eaten?.kcal != null ? String(Math.round(eaten.kcal)) : t('food.unknown')}
+            unit={eaten?.kcal != null ? t('diary.kcalUnit') : undefined}
+          />
+        </View>
         <View style={styles.macros}>
           {MACROS.map(({ key, label, color }) => (
             <View key={key} style={styles.macro}>
-              <View style={[styles.swatch, { backgroundColor: color }]} />
+              <View style={styles.macroLabelRow}>
+                <View style={[styles.swatch, { backgroundColor: color }]} />
+                <Text style={styles.macroLabel}>{t(label)}</Text>
+              </View>
               <Text style={styles.macroValue}>{gramsText(eaten?.[key] ?? null, t)}</Text>
-              <Text style={styles.macroLabel}>{t(label)}</Text>
             </View>
           ))}
         </View>
-      </View>
+      </Card>
 
-      <View style={styles.group}>
-        <Text style={styles.label}>{t('food.meal.label')}</Text>
+      <Card>
+        <CardHeader label={t('food.meal.label')} />
         <SegmentedControl
           label={t('food.meal.label')}
           value={value.meal}
           options={MEALS.map((meal) => ({ value: meal, label: t(`meal.${meal}`) }))}
           onChange={(meal) => onChange({ ...value, meal })}
         />
-      </View>
+      </Card>
     </View>
   );
 }
@@ -138,22 +143,16 @@ function Chip({ label, selected, onPress }: { label: string; selected: boolean; 
   );
 }
 
+const SWATCH = 10;
+
 const styles = StyleSheet.create({
   container: {
-    gap: tokens.space.lg,
-  },
-  group: {
-    gap: tokens.space.sm,
-  },
-  label: {
-    color: tokens.color.text,
-    fontSize: tokens.fontSize.caption,
-    fontWeight: tokens.fontWeight.semibold,
+    gap: tokens.space.md,
   },
   chips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: tokens.space.sm,
+    gap: tokens.card.gap,
   },
   chip: {
     minHeight: tokens.touchTarget,
@@ -169,8 +168,8 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.color.primarySoft,
   },
   chipText: {
-    color: tokens.color.textSecondary,
-    fontSize: tokens.fontSize.body,
+    color: tokens.color.text,
+    fontSize: tokens.fontSize.label,
   },
   chipTextSelected: {
     color: tokens.color.primary,
@@ -180,37 +179,35 @@ const styles = StyleSheet.create({
     color: tokens.color.textSecondary,
     fontSize: tokens.fontSize.caption,
   },
-  nutrients: {
-    gap: tokens.space.sm,
-    padding: tokens.space.lg,
-    borderRadius: tokens.radius.lg,
-    backgroundColor: tokens.color.surface,
-  },
-  kcal: {
-    color: tokens.color.primary,
-    fontSize: tokens.fontSize.title,
-    fontWeight: tokens.fontWeight.bold,
-  },
   macros: {
     flexDirection: 'row',
-    gap: tokens.space.sm,
+    gap: tokens.card.gap,
   },
   macro: {
     flex: 1,
+    gap: tokens.hairline,
+    paddingHorizontal: tokens.card.tilePaddingX,
+    paddingVertical: tokens.card.tilePaddingY,
+    borderRadius: tokens.radius.md,
+    backgroundColor: tokens.color.surface,
+  },
+  macroLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: tokens.space.xs,
   },
   swatch: {
-    width: tokens.space.xl,
-    height: tokens.space.xs,
-    borderRadius: tokens.radius.pill,
-  },
-  macroValue: {
-    color: tokens.color.text,
-    fontSize: tokens.fontSize.subtitle,
-    fontWeight: tokens.fontWeight.bold,
+    width: SWATCH,
+    height: SWATCH,
+    borderRadius: tokens.hairline,
   },
   macroLabel: {
     color: tokens.color.textSecondary,
     fontSize: tokens.fontSize.caption,
+  },
+  macroValue: {
+    color: tokens.color.text,
+    fontSize: tokens.fontSize.body,
+    fontWeight: tokens.fontWeight.semibold,
   },
 });

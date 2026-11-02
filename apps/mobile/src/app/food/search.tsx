@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -57,20 +58,23 @@ export default function FoodSearch() {
   return (
     <Screen>
       <ScreenHeader title={t('food.addTo', { meal: t(`meal.${meal}`) })} />
-      <TextInput
-        accessibilityLabel={t('food.search.label')}
-        accessibilityHint={t('food.search.hint')}
-        placeholder={t('food.search.placeholder')}
-        placeholderTextColor={tokens.color.textSecondary}
-        value={query}
-        onChangeText={setQuery}
-        autoFocus
-        autoCorrect={false}
-        autoCapitalize="none"
-        returnKeyType="search"
-        clearButtonMode="while-editing"
-        style={styles.input}
-      />
+      <View style={styles.search}>
+        <Ionicons name="search" size={tokens.fontSize.subtitle} color={tokens.color.textSecondary} />
+        <TextInput
+          accessibilityLabel={t('food.search.label')}
+          accessibilityHint={t('food.search.hint')}
+          placeholder={t('food.search.placeholder')}
+          placeholderTextColor={tokens.color.textTertiary}
+          value={query}
+          onChangeText={setQuery}
+          autoFocus
+          autoCorrect={false}
+          autoCapitalize="none"
+          returnKeyType="search"
+          clearButtonMode="while-editing"
+          style={styles.input}
+        />
+      </View>
 
       {results.state === 'idle' ? <Text style={styles.muted}>{t('food.search.hint')}</Text> : null}
       {results.state === 'loading' ? (
@@ -108,14 +112,18 @@ export default function FoodSearch() {
 }
 
 const styles = StyleSheet.create({
-  input: {
+  search: {
     minHeight: tokens.touchTarget,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.space.sm,
     paddingHorizontal: tokens.space.md,
-    paddingVertical: tokens.space.sm,
     borderRadius: tokens.radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.color.border,
-    backgroundColor: tokens.color.surface,
+    backgroundColor: tokens.color.card,
+  },
+  input: {
+    flex: 1,
+    minHeight: tokens.touchTarget,
     color: tokens.color.text,
     fontSize: tokens.fontSize.body,
   },

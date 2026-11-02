@@ -1,17 +1,23 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLocale } from '../i18n';
 import { tokens } from '../theme/tokens';
-import { TextButton } from './form';
 
 /** Back button + title for screens pushed on top of Today. */
 export function ScreenHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   const { t } = useLocale();
   return (
     <View style={styles.container}>
-      <View style={styles.back}>
-        <TextButton title={`‹ ${t('food.back')}`} accessibilityLabel={t('food.back')} onPress={() => router.back()} />
-      </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t('food.back')}
+        hitSlop={tokens.space.sm}
+        onPress={() => router.back()}
+        style={({ pressed }) => [styles.back, pressed && styles.backPressed]}
+      >
+        <Ionicons name="chevron-back" size={tokens.fontSize.title} color={tokens.color.text} />
+      </Pressable>
       <Text accessibilityRole="header" style={styles.title}>
         {title}
       </Text>
@@ -25,13 +31,24 @@ const styles = StyleSheet.create({
     gap: tokens.space.xs,
   },
   back: {
+    width: tokens.touchTarget,
+    height: tokens.touchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
     alignSelf: 'flex-start',
-    marginLeft: -tokens.space.sm,
+    marginBottom: tokens.space.sm,
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    borderColor: tokens.color.border,
+    backgroundColor: tokens.color.surface,
+  },
+  backPressed: {
+    backgroundColor: tokens.color.card,
   },
   title: {
     color: tokens.color.text,
     fontSize: tokens.fontSize.title,
-    fontWeight: tokens.fontWeight.bold,
+    fontWeight: tokens.fontWeight.semibold,
   },
   subtitle: {
     color: tokens.color.textSecondary,
