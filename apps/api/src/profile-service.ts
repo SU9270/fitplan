@@ -93,6 +93,12 @@ async function latestGoalRow(db: Db, userId: string): Promise<GoalRow | undefine
   return row;
 }
 
+/** The daily targets of the user's latest goal version, or null before the first accepted goal. */
+export async function getLatestTargets(db: Db, userId: string): Promise<MacroTargets | null> {
+  const row = await latestGoalRow(db, userId);
+  return row ? toGoalVersionView(row).targets : null;
+}
+
 /** Records a consent decision (append-only). Returns the new row id. */
 export async function recordConsent(db: Db, userId: string, input: ConsentInput): Promise<string> {
   const id = crypto.randomUUID();

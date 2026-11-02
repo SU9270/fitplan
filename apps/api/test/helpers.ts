@@ -59,3 +59,55 @@ export function authed(cookie: string, method: string, path: string, body?: unkn
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 }
+
+let fdcCounter = 0;
+
+export interface SeedFood {
+  name: string;
+  nameZh?: string | null;
+  aliases?: string[];
+  kcal?: number | null;
+  proteinG?: number | null;
+  carbsG?: number | null;
+  fatG?: number | null;
+  portions?: { label: string; grams: number }[];
+}
+
+/**
+ * Insert a USDA-like food (and its portions) directly, the way the import would, with a fresh
+ * fdc_id. Values are test numbers, not USDA data. Returns the food and portion ids.
+ */
+export async function seedUsdaFood(food: SeedFood): Promise<{ id: string; portionIds: string[] }> {
+  fdcCounter += 1;
+  const fdcId = 1_000_000_000 + (Date.now() % 1_000_000) * 100 + fdcCounter;
+  const id = `usda-${fdcId}`;
+  const nameZh = food.nameZh ?? null;
+  const aliases = food.aliases ?? [];
+  const searchText = [food.name, nameZh, ...aliases].filter((p): p is string => !!p).map((p) => p.toLowerCase()).join('\n');
+  await env.DB.prepare(
+    `INSERT INTO foods (id, source, fdc_id, name, name_zh, aliases, search_text, kcal, protein_g, carbs_g, fat_g)
+     VALUES (?, 'usda_sr_legacy', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(
+      id,
+      fdcId,
+      food.name,
+      nameZh,
+      aliases.length > 0 ? aliases.join('|') : null,
+      searchText,
+      food.kcal === undefined ? 100 : food.kcal,
+      food.proteinG === undefined ? 10 : food.proteinG,
+      food.carbsG === undefined ? 10 : food.carbsG,
+      food.fatG === undefined ? 1 : food.fatG,
+    )
+    .run();
+  const portionIds: string[] = [];
+  for (const [index, portion] of (food.portions ?? []).entries()) {
+    const portionId = `${id}-p${index}`;
+    await env.DB.prepare('INSERT INTO food_portions (id, food_id, label, grams, sort_order) VALUES (?, ?, ?, ?, ?)')
+      .bind(portionId, id, portion.label, portion.grams, index)
+      .run();
+    portionIds.push(portionId);
+  }
+  return { id, portionIds };
+}
