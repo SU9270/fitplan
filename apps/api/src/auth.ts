@@ -5,6 +5,7 @@ import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { createDb } from './db/client';
 import * as schema from './db/schema';
 import type { Env } from './env';
+import { nicknameSchema } from '@fitplan/validators';
 import { reserveInvite } from './invites';
 
 /**
@@ -73,8 +74,17 @@ export function createAuth(env: Env) {
       ipAddress: { ipAddressHeaders: ['cf-connecting-ip'] },
     },
     hooks: {
-      // Sign-up is invite-only: the client sends `inviteCode` in the sign-up body.
       before: createAuthMiddleware(async (ctx) => {
+        // The profile page renames the user: keep names to the same rule as the app.
+        if (ctx.path === '/update-user') {
+          const body: unknown = ctx.body;
+          const name = typeof body === 'object' && body !== null && 'name' in body ? body.name : undefined;
+          if (name !== undefined && !nicknameSchema.safeParse(name).success) {
+            throw new APIError('BAD_REQUEST', { code: 'invalid_name', message: 'The name must be 1-40 characters.' });
+          }
+          return;
+        }
+        // Sign-up is invite-only: the client sends `inviteCode` in the sign-up body.
         if (ctx.path !== '/sign-up/email') return;
         const body: unknown = ctx.body;
         const inviteCode =

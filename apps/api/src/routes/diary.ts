@@ -1,7 +1,14 @@
-import { diaryDayQuerySchema, diaryEntryInputSchema, diaryEntryPatchSchema } from '@fitplan/validators';
+import { diaryDayQuerySchema, diaryEntryInputSchema, diaryEntryPatchSchema, diaryStatsQuerySchema } from '@fitplan/validators';
 import { Hono } from 'hono';
 import { createDb } from '../db/client';
-import { addDiaryEntry, deleteDiaryEntry, getDiaryDay, updateDiaryEntry, type EntryResult } from '../diary/diary-service';
+import {
+  addDiaryEntry,
+  deleteDiaryEntry,
+  getDiaryDay,
+  getDiaryStats,
+  updateDiaryEntry,
+  type EntryResult,
+} from '../diary/diary-service';
 import type { AppEnv } from '../env';
 import { requireSession } from '../middleware/require-session';
 import { hasHealthDataConsent } from '../profile-service';
@@ -16,6 +23,11 @@ export const diaryRoutes = new Hono<AppEnv>()
     const query = parseValue(c.req.query(), diaryDayQuerySchema);
     if (!query.ok) return c.json({ error: 'invalid_input' as const, fields: query.fields }, 400);
     return c.json(await getDiaryDay(createDb(c.env.DB), c.var.user.id, query.data.date));
+  })
+  .get('/stats', async (c) => {
+    const query = parseValue(c.req.query(), diaryStatsQuerySchema);
+    if (!query.ok) return c.json({ error: 'invalid_input' as const, fields: query.fields }, 400);
+    return c.json(await getDiaryStats(createDb(c.env.DB), c.var.user.id, query.data.today));
   })
   .post('/entries', async (c) => {
     const body = await parseBody(c.req.raw, diaryEntryInputSchema);

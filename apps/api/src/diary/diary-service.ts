@@ -1,4 +1,4 @@
-import { scaleNutrients, sumNutrients, type MacroTargets, type NutrientKey, type Nutrients } from '@fitplan/core';
+import { currentStreak, scaleNutrients, sumNutrients, type MacroTargets, type NutrientKey, type Nutrients } from '@fitplan/core';
 import {
   MAX_ENTRY_GRAMS,
   isDateWithinLogWindow,
@@ -6,7 +6,7 @@ import {
   type DiaryEntryPatch,
   type Meal,
 } from '@fitplan/validators';
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, count, eq, lte, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { diaryEntries, foodPortions } from '../db/schema';
 import { findVisibleFood } from '../foods/food-service';
@@ -45,6 +45,15 @@ export type EntryProblem =
 
 export type EntryResult = { kind: 'ok'; entry: DiaryEntryView } | EntryProblem;
 
+export interface DiaryStats {
+  /** Days with at least one entry, up to `today`. */
+  loggedDays: number;
+  /** See `currentStreak` in @fitplan/core. */
+  currentStreak: number;
+  /** Entries up to `today`. */
+  totalEntries: number;
+}
+
 type EntryRow = typeof diaryEntries.$inferSelect;
 
 function toView(row: EntryRow): DiaryEntryView {
@@ -72,6 +81,17 @@ export async function getDiaryDay(db: Db, userId: string, date: string): Promise
   const entries = rows.map(toView);
   const { totals, unknown } = sumNutrients(entries.map((e) => e.nutrients));
   return { date, entries, totals, unknown, target: await getLatestTargets(db, userId) };
+}
+
+/** Totals for the profile page. `today` is the user's local date; later dates are ignored. */
+export async function getDiaryStats(db: Db, userId: string, today: string): Promise<DiaryStats> {
+  const upToToday = and(eq(diaryEntries.userId, userId), lte(diaryEntries.date, today));
+  const [days, [entries]] = await db.batch([
+    db.selectDistinct({ date: diaryEntries.date }).from(diaryEntries).where(upToToday),
+    db.select({ n: count() }).from(diaryEntries).where(upToToday),
+  ]);
+  const dates = days.map((d) => d.date);
+  return { loggedDays: dates.length, currentStreak: currentStreak(dates, today), totalEntries: entries?.n ?? 0 };
 }
 
 type Amount = { portionId: string | null; quantity: number };

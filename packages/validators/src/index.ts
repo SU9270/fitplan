@@ -60,6 +60,23 @@ export const consentInputSchema = z.object({
 
 export type ConsentInput = z.infer<typeof consentInputSchema>;
 
+/** PATCH /api/me/settings: display preferences only (they never change the targets). */
+export const settingsPatchSchema = z
+  .object({
+    unitSystem: profileInputSchema.shape.unitSystem.optional(),
+    locale: profileInputSchema.shape.locale.optional(),
+  })
+  .refine((s) => s.unitSystem !== undefined || s.locale !== undefined, {
+    message: 'nothing_to_update',
+    path: ['_root'],
+  });
+
+export type SettingsPatch = z.infer<typeof settingsPatchSchema>;
+
+/** The display name (Better Auth's `user.name`), changed on the profile page. */
+export const NICKNAME_MAX_LENGTH = 40;
+export const nicknameSchema = z.string().trim().min(1).max(NICKNAME_MAX_LENGTH);
+
 /** Keep only the fields core's target calculation consumes. */
 export function toTargetInput(p: ProfileInput): TargetInput {
   return {

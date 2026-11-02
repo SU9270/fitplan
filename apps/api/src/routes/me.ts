@@ -1,9 +1,9 @@
-import { consentInputSchema, profileInputSchema } from '@fitplan/validators';
+import { consentInputSchema, profileInputSchema, settingsPatchSchema } from '@fitplan/validators';
 import { Hono } from 'hono';
 import { createDb } from '../db/client';
 import type { AppEnv } from '../env';
 import { requireSession } from '../middleware/require-session';
-import { getProfile, hasHealthDataConsent, recordConsent, saveProfile } from '../profile-service';
+import { getProfile, hasHealthDataConsent, recordConsent, saveProfile, updateSettings } from '../profile-service';
 import { parseBody } from './parse';
 
 export const meRoutes = new Hono<AppEnv>()
@@ -26,4 +26,10 @@ export const meRoutes = new Hono<AppEnv>()
     }
     const outcome = await saveProfile(db, userId, body.data);
     return c.json(outcome.body, outcome.status);
+  })
+  .patch('/settings', async (c) => {
+    const body = await parseBody(c.req.raw, settingsPatchSchema);
+    if (!body.ok) return c.json({ error: 'invalid_input' as const, fields: body.fields }, 400);
+    const settings = await updateSettings(createDb(c.env.DB), c.var.user.id, body.data);
+    return settings ? c.json({ settings }) : c.json({ code: 'not_found' as const }, 404);
   });
