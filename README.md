@@ -110,7 +110,7 @@ pnpm --filter @fitplan/api invite:create -- --uses 5
 pnpm --filter @fitplan/api food:import -- --dir <解压出来的文件夹>
 ```
 
-输出会显示导入的食物数（约 7,800 种）、其中有中文名的数量和份量数。USDA 数据属于公有领域（CC0），不随仓库分发；常见食物的中文名在 `apps/api/data/usda-zh.csv`，欢迎补充（按 NDB 编号对应）。
+输出应为 `Foods: 7793 (223 with a Chinese name), portions: 14449`。USDA 数据属于公有领域（CC0），不随仓库分发；常见食物的中文名在 `apps/api/data/usda-zh.csv`，欢迎补充（按 NDB 编号对应）。
 
 **6. 启动后端**
 
@@ -157,7 +157,6 @@ cd apps/mobile && npx expo export --platform ios
 - **部署前必须替换 D1 的 `database_id`**：`apps/api/wrangler.jsonc` 里是占位值，部署前运行 `wrangler d1 create fitplan` 并把返回的 id 填进去；本地开发不需要。
 - **`ENVIRONMENT` 不得在生产环境设为 `development`**：该值会信任 `exp://` 来源与重定向。生产环境保持 `wrangler.jsonc` 里的 `"production"`，且不要把 `.dev.vars` 带到线上。
 - **登录 / 注册有频率限制**：同一 IP 每分钟最多登录 5 次、注册 3 次（计数存 D1，见 `apps/api/src/auth.ts` 的 `RATE_LIMIT_RULES`），本地开发同样生效；多人共用一个出口 IP（如校园网）时可能互相影响，需要时调高。
-- **食物导入尚未用真实下载包跑过**：开发环境访问不到 FoodData Central，导入脚本只用按官方 CSV 格式构造的样例测过；第一次用真实下载包导入时请核对食物数量和几种常见食物的数值，有问题请提 issue。
 - **份量文字是英文**（如 `1 cup, chopped`），旁边总会显示克数；中文翻译以后再做。
 - **饮食日记里的目标是最新目标**：翻看以前的日子时，对比的是现在的目标，而不是当天生效的目标。
 - **语言选择尚未持久化**：App 按系统语言自动选择，设置里切换语言后，重启 App 会回到系统语言。
