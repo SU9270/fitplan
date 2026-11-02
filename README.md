@@ -75,6 +75,22 @@ fitplan/
 
 ## 本地运行 Run locally
 
+### 一键启动 Quick start
+
+```bash
+pnpm install
+pnpm dev
+```
+
+`pnpm dev` 会自动完成第一次运行需要的准备（创建 `apps/api/.dev.vars` 并生成密钥、创建 `apps/mobile/.env`、应用本地数据库迁移），然后启动后端、等它就绪，再启动 App 并打开 iOS 模拟器。按一次 `Ctrl+C` 全部停止。
+
+- `pnpm dev --android`：改为打开 Android 模拟器（第一次运行会把 `apps/mobile/.env` 写成 `http://10.0.2.2:8787`）
+- `pnpm dev --no-open`：只启动，不自动打开模拟器，之后在 Expo 提示里按 `i` / `a`
+
+第一次使用还需要：生成邀请码（下面第 4 步）和导入食物数据（第 5 步，可选）。用真机调试仍按下面的分步说明操作。
+
+### 分步说明 Step by step
+
 在仓库根目录执行。
 
 **1. 安装依赖**
