@@ -64,3 +64,6 @@ export const CONSULT_BMI = 35;
 
 /** BMI is reported with 1 decimal: round(x * 10) / 10. */
 export const BMI_ROUND_FACTOR = 10;
+
+/** Food nutrient values are stored per this many grams (USDA convention). */
+export const NUTRIENT_BASIS_G = 100;
