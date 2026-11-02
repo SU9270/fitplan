@@ -73,3 +73,5 @@ export function toTargetInput(p: ProfileInput): TargetInput {
     healthFlags: { ...p.healthFlags },
   };
 }
+
+export * from './food';
