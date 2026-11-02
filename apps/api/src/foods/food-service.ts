@@ -57,7 +57,7 @@ function toSummary(row: FoodRow): FoodSummary {
 /**
  * Every word must appear in the search text (names and aliases, one per line). Ranking: a whole
  * line equals the query → a line starts with it → has a Chinese name → the rest; within a tier
- * the user's own foods first, then shorter names.
+ * shown names starting with the query first, then the user's own foods, then shorter names.
  */
 export async function searchFoods(db: Db, userId: string, query: FoodSearchQuery): Promise<FoodSummary[]> {
   const whole = query.q.toLowerCase();
@@ -70,11 +70,16 @@ export async function searchFoods(db: Db, userId: string, query: FoodSearchQuery
     WHEN ${foods.nameZh} IS NOT NULL THEN 2
     ELSE 3 END`;
 
+  // Within a tier, a shown name that starts with the query beats one that merely contains it
+  // ("鸡蛋（生）" before "煎蛋" when both have the alias 鸡蛋).
+  const shownName = sql`lower(coalesce(${foods.nameZh}, ${foods.name}))`;
+  const shownPrefix = sql`CASE WHEN ${shownName} LIKE ${`${escapeLike(whole)}%`} ESCAPE '\\' THEN 0 ELSE 1 END`;
+
   const rows = await db
     .select()
     .from(foods)
     .where(and(visibleTo(userId), ...matches))
-    .orderBy(tier, sql`${foods.ownerUserId} IS NULL`, sql`length(coalesce(${foods.nameZh}, ${foods.name}))`, asc(foods.name))
+    .orderBy(tier, shownPrefix, sql`${foods.ownerUserId} IS NULL`, sql`length(${shownName})`, asc(foods.name))
     .limit(query.limit);
   return rows.map(toSummary);
 }

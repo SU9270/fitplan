@@ -32,35 +32,35 @@ ndb_number,name_zh,aliases
 18368,馄饨皮,饺子皮|春卷皮|wonton wrapper
 20081,面粉,中筋面粉|all-purpose flour
 32013,冷冻锅贴 / 馄饨（猪肉蔬菜）,饺子|锅贴|煎饺|馄饨|potsticker|dumpling
-05062,鸡胸肉（生）,鸡胸|鸡胸肉|chicken breast raw
-05064,鸡胸肉（烤）,鸡胸|鸡胸肉|chicken breast
+05062,鸡胸肉（生）,鸡肉|鸡胸|鸡胸肉|chicken breast raw
+05064,鸡胸肉（烤）,鸡肉|鸡胸|鸡胸肉|chicken breast
 05065,鸡胸肉（炖煮）,鸡胸|水煮鸡胸|chicken breast
 05096,鸡腿肉（生，去皮）,鸡腿|鸡腿肉|chicken thigh raw
-05098,鸡腿肉（烤，去皮）,鸡腿|鸡腿肉|chicken thigh
+05098,鸡腿肉（烤，去皮）,鸡肉|鸡腿|鸡腿肉|chicken thigh
 05103,鸡翅（烤，带皮）,鸡翅|chicken wings
 05342,烤鸡胸肉（超市烤鸡）,烤鸡|rotisserie chicken
 05305,火鸡肉末（生）,火鸡肉馅|ground turkey raw
 05306,火鸡肉末（熟）,火鸡肉馅|ground turkey
 05220,火鸡胸肉（烤）,火鸡胸|turkey breast
 05142,鸭肉（烤，去皮）,鸭肉|烤鸭|duck
-23567,牛肉末 85%瘦（生）,牛肉馅|绞肉|ground beef raw
+23567,牛肉末 85%瘦（生）,牛肉|牛肉馅|绞肉|ground beef raw
 23570,牛肉末 85%瘦（炒熟）,牛肉馅|绞肉|ground beef
-23562,牛肉末 90%瘦（生）,牛肉馅|绞肉|lean ground beef raw
+23562,牛肉末 90%瘦（生）,牛肉|牛肉馅|绞肉|lean ground beef raw
 23565,牛肉末 90%瘦（炒熟）,牛肉馅|绞肉|lean ground beef
 23476,牛肉末 93%瘦（炒熟）,牛肉馅|绞肉|extra lean ground beef
-13454,西冷牛排（瘦肉，烤）,牛排|西冷|sirloin steak
+13454,西冷牛排（瘦肉，烤）,牛肉|牛排|西冷|sirloin steak
 13068,侧腹牛排（瘦肉，生）,牛排|牛腹肉|flank steak
 13070,侧腹牛排（瘦肉，烤）,牛排|牛腹肉|flank steak
 13368,牛胸肉（瘦肉，炖）,牛腩|brisket
-10219,猪肉末（生）,猪肉馅|绞肉|ground pork raw
+10219,猪肉末（生）,猪肉|猪肉馅|绞肉|ground pork raw
 10220,猪肉末（熟）,猪肉馅|绞肉|ground pork
 10005,五花肉（生）,猪五花|五花肉|pork belly
-10061,猪里脊（烤）,里脊|猪柳|pork tenderloin
+10061,猪里脊（烤）,猪肉|里脊|猪柳|pork tenderloin
 10163,猪排（去骨，瘦肉，煎）,猪排|pork chop
 10089,猪肋排（炖）,排骨|spare ribs
 10862,培根（煎）,培根|bacon
 10183,火腿（去骨，烤）,火腿|ham
-07945,牛肉热狗肠,热狗|香肠|hot dog
+07945,热狗肠（牛肉）,热狗|香肠|hot dog
 17225,羊肉末（熟）,羊肉|ground lamb
 15236,三文鱼（养殖，生）,三文鱼|鲑鱼|salmon raw
 15237,三文鱼（养殖，熟）,三文鱼|鲑鱼|salmon

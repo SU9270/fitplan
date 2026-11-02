@@ -69,6 +69,16 @@ describe('GET /api/foods', () => {
     expect(await search(cookie, t, 2)).toHaveLength(2);
   });
 
+  it('within a tier, a shown name starting with the query comes first', async () => {
+    const { cookie } = await signedInUser();
+    const t = token();
+    // All three have the alias t (tier 0); only the longest name starts with it.
+    const fried = await seedUsdaFood({ name: `Egg fried ${t}`, nameZh: `煎${t}`, aliases: [t] });
+    const boiled = await seedUsdaFood({ name: `Egg boiled ${t}`, nameZh: `水煮${t}`, aliases: [t] });
+    const raw = await seedUsdaFood({ name: `Egg raw ${t}`, nameZh: `${t}（生，带壳）`, aliases: [t] });
+    expect((await search(cookie, t)).map((f) => f.id)).toEqual([raw.id, fried.id, boiled.id]);
+  });
+
   it('escapes LIKE wildcards', async () => {
     const { cookie } = await signedInUser();
     const t = token();
