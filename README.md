@@ -8,17 +8,25 @@ FitPlan is an open-source fitness-diet app for Chinese international students in
 
 ## 当前状态 Status
 
-目前处于第一阶段「地基」（foundation）。已完成：
+第一阶段「地基」已完成，第二阶段「食物库」实施中。
+
+第一阶段「地基」：
 
 - 邀请码注册 / 登录（邮箱 + 密码）
 - 分步问卷：目标与速度、基础信息（公制 / 英制可切换）、生活与训练、健康筛查与数据使用同意
 - 身体报告：BMI、BMR、TDEE、每日热量与三大营养素目标，含三级安全限制
-- 今日页可「重新填写问卷」：预填已保存的答案，修改后重新计算目标
+- 「重新填写问卷」：预填已保存的答案，修改后重新计算目标
 - 中英双语界面，数据保存在服务器，重新登录不丢失
+
+第二阶段「食物库」（[设计文档](docs/superpowers/specs/2026-11-02-food-library-design.md)）：
+
+- 食物数据来自 USDA SR Legacy，约 220 种常见食物配有中文名与别名
+- 中英文搜索食物，按份量或克数记到某天的某一餐
+- 今日页变成饮食日记：当天已吃、还剩多少、三大营养素进度，可以翻看前几天
+- 搜不到的食物可以照营养成分表自己添加（仅自己可见）
 
 后续阶段（各自单独设计、计划、实施）：
 
-2. 食物库：数据导入、搜索、饮食记录
 3. 搭盘子与缺口反馈
 4. 灵感库与内容生产流程
 5. 打卡、体重与趋势
@@ -31,6 +39,7 @@ fitplan/
 ├─ apps/
 │  ├─ mobile/         Expo App（Expo Router）          @fitplan/mobile
 │  └─ api/            Hono + Cloudflare Workers + D1   @fitplan/api
+│     └─ data/        USDA 食物的中文名对照表（usda-zh.csv）
 ├─ packages/
 │  ├─ core/           纯 TypeScript 计算核心，零运行时依赖  @fitplan/core
 │  └─ validators/     前后端共用的 Zod 输入规则           @fitplan/validators
@@ -92,7 +101,18 @@ pnpm --filter @fitplan/api invite:create -- --uses 5
 
 输出形如 `Invite code (5 uses, local): ABCDE23456`，记下这个码。
 
-**5. 启动后端**
+**5. 导入食物数据**（不导入也能跑，只是搜不到 USDA 食物，只能用自定义食物）
+
+1. 打开 [FoodData Central 下载页](https://fdc.nal.usda.gov/download-datasets)，下载 **SR Legacy** 的 CSV 压缩包并解压。
+2. 导入（可以重复执行，已有数据会被更新，不会重复）：
+
+```bash
+pnpm --filter @fitplan/api food:import -- --dir <解压出来的文件夹>
+```
+
+输出应为 `Foods: 7793 (223 with a Chinese name), portions: 14449`。USDA 数据属于公有领域（CC0），不随仓库分发；常见食物的中文名在 `apps/api/data/usda-zh.csv`，欢迎补充（按 NDB 编号对应）。
+
+**6. 启动后端**
 
 ```bash
 pnpm --filter @fitplan/api dev
@@ -100,7 +120,7 @@ pnpm --filter @fitplan/api dev
 
 默认监听 `http://localhost:8787`。验证：`curl http://localhost:8787/health` 返回 `{"ok":true}`。
 
-**6. 配置并启动 App**（另开一个终端）
+**7. 配置并启动 App**（另开一个终端）
 
 ```bash
 cp apps/mobile/.env.example apps/mobile/.env
@@ -114,7 +134,7 @@ pnpm --filter @fitplan/mobile start
 - 真机：改成 `http://<电脑的局域网 IP>:8787`，手机和电脑需在同一网络。
 - `EXPO_PUBLIC_*` 在打包时写入，修改 `.env` 后需重启 `expo start`。
 
-**7. 注册并完成问卷**：在 App 里用第 4 步的邀请码注册，走完四步问卷，即可看到身体报告。
+**8. 注册并完成问卷**：在 App 里用第 4 步的邀请码注册，走完四步问卷，即可看到身体报告；之后在今日页搜索食物、记录饮食。
 
 ## 测试与检查 Tests and checks
 
@@ -137,6 +157,8 @@ cd apps/mobile && npx expo export --platform ios
 - **部署前必须替换 D1 的 `database_id`**：`apps/api/wrangler.jsonc` 里是占位值，部署前运行 `wrangler d1 create fitplan` 并把返回的 id 填进去；本地开发不需要。
 - **`ENVIRONMENT` 不得在生产环境设为 `development`**：该值会信任 `exp://` 来源与重定向。生产环境保持 `wrangler.jsonc` 里的 `"production"`，且不要把 `.dev.vars` 带到线上。
 - **登录 / 注册有频率限制**：同一 IP 每分钟最多登录 5 次、注册 3 次（计数存 D1，见 `apps/api/src/auth.ts` 的 `RATE_LIMIT_RULES`），本地开发同样生效；多人共用一个出口 IP（如校园网）时可能互相影响，需要时调高。
+- **份量文字是英文**（如 `1 cup, chopped`），旁边总会显示克数；中文翻译以后再做。
+- **饮食日记里的目标是最新目标**：翻看以前的日子时，对比的是现在的目标，而不是当天生效的目标。
 - **语言选择尚未持久化**：App 按系统语言自动选择，设置里切换语言后，重启 App 会回到系统语言。
 - 计算参数尚未经专业人士复核（集中定义在 `packages/core/src/constants.ts`，复核后只需改一处）。
 

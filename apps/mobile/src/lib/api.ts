@@ -16,3 +16,4 @@ export const api = hc<AppType>(getBaseUrl(), {
   },
   init: { credentials: 'omit' },
 });
+

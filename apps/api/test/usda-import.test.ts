@@ -1,0 +1,136 @@
+import { env } from 'cloudflare:workers';
+import { describe, expect, it } from 'vitest';
+import zhCsv from '../data/usda-zh.csv?raw';
+import { buildUsdaImport, parseZhNames, portionLabel, toImportSql, type UsdaCsvFiles } from '../src/foods/usda-import';
+import { unique } from './helpers';
+
+// Synthetic rows in the layout of the FoodData Central SR Legacy CSV download (every field
+// quoted, columns as in the real files). The numbers are made up for the test, not USDA data.
+const files: UsdaCsvFiles = {
+  food: [
+    '"fdc_id","data_type","description","food_category_id","publication_date"',
+    '"900001","sr_legacy_food","Test chicken, roasted","5","2019-04-01"',
+    '"900002","sr_legacy_food","Test sauce, ""special""","6","2019-04-01"',
+    '"900003","foundation_food","Not an SR Legacy food","5","2020-01-01"',
+  ].join('\n'),
+  srLegacyFood: ['"fdc_id","NDB_number"', '"900001","5064"', '"900002","06176"'].join('\n'),
+  foodNutrient: [
+    '"id","fdc_id","nutrient_id","amount","data_points","derivation_id","min","max","median","footnote","min_year_acquired"',
+    '"1","900001","1008","160","","","","","","",""',
+    '"2","900001","1003","30.5","","","","","","",""',
+    '"3","900001","1004","3.5","","","","","","",""',
+    '"4","900001","1005","0","","","","","","",""',
+    '"5","900001","1093","74","","","","","","",""',
+    '"6","900001","1018","1.2","","","","","","",""',
+    '"7","900002","1008","51","","","","","","",""',
+    '"8","900002","1005","","","","","","","",""',
+    '"9","900003","1008","999","","","","","","",""',
+  ].join('\n'),
+  foodPortion: [
+    '"id","fdc_id","seq_num","amount","measure_unit_id","portion_description","modifier","gram_weight","data_points","footnote","min_year_acquired"',
+    '"80001","900001","1","1","9999","","cup, chopped or diced","140","","",""',
+    '"80002","900001","2","0.5","9999","","breast, bone and skin removed","86","","",""',
+    '"80003","900002","1","1","9999","","tbsp","0","","",""',
+    '"80004","900002","2","1","1000","","","18","","",""',
+  ].join('\n'),
+  measureUnit: ['"id","name"', '"1000","cup"', '"9999","undetermined"'].join('\n'),
+};
+
+const zh = parseZhNames('ndb_number,name_zh,aliases\n05064,测试鸡胸,鸡胸| chicken breast \n99999,不存在,\n');
+
+describe('parseZhNames', () => {
+  it('reads names and trims aliases', () => {
+    expect(zh[0]).toEqual({ ndbNumber: '05064', nameZh: '测试鸡胸', aliases: ['鸡胸', 'chicken breast'] });
+    expect(zh[1]?.aliases).toEqual([]);
+  });
+
+  it('rejects duplicates (with or without leading zeros) and blank names', () => {
+    expect(() => parseZhNames('ndb_number,name_zh,aliases\n05064,a,\n5064,b,\n')).toThrow(/duplicate/);
+    expect(() => parseZhNames('ndb_number,name_zh,aliases\n05064, ,\n')).toThrow(/empty name_zh/);
+    expect(() => parseZhNames('ndb_number,name_zh,aliases\nabc,a,\n')).toThrow(/bad ndb_number/);
+  });
+
+  it('the shipped table is well-formed', () => {
+    const names = parseZhNames(zhCsv);
+    expect(names.length).toBeGreaterThan(200);
+    for (const name of names) expect(name.aliases.every((a) => a === a.trim() && a !== '')).toBe(true);
+  });
+});
+
+describe('portionLabel', () => {
+  it('drops the "undetermined" unit and formats the amount', () => {
+    expect(portionLabel(1, 'undetermined', 'cup, chopped')).toBe('1 cup, chopped');
+    expect(portionLabel(0.5, 'cup', '')).toBe('0.5 cup');
+    expect(portionLabel(1 / 3, undefined, 'slice')).toBe('0.33 slice');
+    expect(portionLabel(null, undefined, 'large')).toBe('large');
+  });
+});
+
+describe('buildUsdaImport', () => {
+  const data = buildUsdaImport(files, zh);
+
+  it('keeps SR Legacy foods only and maps the nutrients (missing → null, others ignored)', () => {
+    expect(data.foods.map((f) => f.id)).toEqual(['usda-900001', 'usda-900002']);
+    expect(data.foods[0]).toMatchObject({
+      fdcId: 900001,
+      name: 'Test chicken, roasted',
+      kcal: 160,
+      proteinG: 30.5,
+      fatG: 3.5,
+      carbsG: 0,
+      sodiumMg: 74,
+      fiberG: null,
+      sugarsG: null,
+    });
+    expect(data.foods[1]).toMatchObject({ name: 'Test sauce, "special"', kcal: 51, carbsG: null, proteinG: null });
+  });
+
+  it('applies Chinese names by NDB number and builds the search text', () => {
+    expect(data.foods[0]).toMatchObject({
+      nameZh: '测试鸡胸',
+      aliases: '鸡胸|chicken breast',
+      searchText: 'test chicken, roasted\n测试鸡胸\n鸡胸\nchicken breast',
+    });
+    expect(data.foods[1]).toMatchObject({ nameZh: null, aliases: null, searchText: 'test sauce, "special"' });
+    expect(data.unmatchedNdbNumbers).toEqual(['99999']);
+  });
+
+  it('builds portion labels and drops portions without a positive weight', () => {
+    expect(data.portions).toEqual([
+      { id: 'usda-portion-80001', foodId: 'usda-900001', label: '1 cup, chopped or diced', grams: 140, sortOrder: 1 },
+      { id: 'usda-portion-80002', foodId: 'usda-900001', label: '0.5 breast, bone and skin removed', grams: 86, sortOrder: 2 },
+      { id: 'usda-portion-80004', foodId: 'usda-900002', label: '1 cup', grams: 18, sortOrder: 2 },
+    ]);
+  });
+});
+
+describe('toImportSql', () => {
+  async function run(statements: string[]) {
+    for (const statement of statements) await env.DB.prepare(statement).run();
+  }
+
+  it('can run twice: rows are updated in place and custom foods are untouched', async () => {
+    const data = buildUsdaImport(files, zh);
+    const ownerId = unique('owner');
+    await env.DB.prepare('INSERT INTO user (id, name, email) VALUES (?, ?, ?)').bind(ownerId, 'o', `${ownerId}@example.com`).run();
+    await env.DB.prepare(
+      "INSERT INTO foods (id, source, owner_user_id, name, search_text) VALUES (?, 'custom', ?, 'My bar', 'my bar')",
+    )
+      .bind(`custom-${ownerId}`, ownerId)
+      .run();
+
+    await run(toImportSql(data, '2026-11-02T00:00:00.000Z'));
+    const renamed = { ...data, foods: data.foods.map((f) => ({ ...f, nameZh: f.nameZh && `${f.nameZh}2` })) };
+    await run(toImportSql(renamed, '2026-11-03T00:00:00.000Z'));
+
+    const foods = await env.DB.prepare("SELECT id, name, name_zh, kcal, carbs_g, created_at, updated_at FROM foods WHERE id LIKE 'usda-9000%' ORDER BY id").all();
+    expect(foods.results).toEqual([
+      { id: 'usda-900001', name: 'Test chicken, roasted', name_zh: '测试鸡胸2', kcal: 160, carbs_g: 0, created_at: '2026-11-02T00:00:00.000Z', updated_at: '2026-11-03T00:00:00.000Z' },
+      { id: 'usda-900002', name: 'Test sauce, "special"', name_zh: null, kcal: 51, carbs_g: null, created_at: '2026-11-02T00:00:00.000Z', updated_at: '2026-11-03T00:00:00.000Z' },
+    ]);
+    const portions = await env.DB.prepare("SELECT count(*) AS n FROM food_portions WHERE food_id LIKE 'usda-9000%'").first<{ n: number }>();
+    expect(portions?.n).toBe(3);
+    const custom = await env.DB.prepare('SELECT name FROM foods WHERE id = ?').bind(`custom-${ownerId}`).first();
+    expect(custom).toEqual({ name: 'My bar' });
+  });
+});

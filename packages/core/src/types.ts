@@ -46,3 +46,20 @@ export interface TargetResult {
   targets: MacroTargets | null;
   effectivePace: Pace;
 }
+
+/** kcal and macro grams; `null` means the value is unknown (never stored as 0). */
+export interface Nutrients {
+  kcal: number | null;
+  proteinG: number | null;
+  carbsG: number | null;
+  fatG: number | null;
+}
+
+export type NutrientKey = keyof Nutrients;
+
+export interface NutrientTotals {
+  /** Rounded sums (kcal and whole grams); unknown values count as 0. */
+  totals: MacroTargets;
+  /** Nutrients that were unknown for at least one item, in `NUTRIENT_KEYS` order. */
+  unknown: NutrientKey[];
+}

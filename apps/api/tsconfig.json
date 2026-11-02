@@ -1,7 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "types": ["@cloudflare/workers-types", "@cloudflare/vitest-plugin/types"]
+    "types": ["@cloudflare/workers-types", "@cloudflare/vitest-plugin/types"],
+    // src/foods/usda-import.ts is also run by Node (scripts/import-usda.ts), which needs explicit .ts imports.
+    "allowImportingTsExtensions": true
   },
   "include": ["src", "test"]
 }

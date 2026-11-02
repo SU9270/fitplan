@@ -2,12 +2,16 @@ import { Hono } from 'hono';
 import { createAuth } from './auth';
 import type { AppEnv } from './env';
 import { handleError } from './errors';
+import { diaryRoutes } from './routes/diary';
+import { foodRoutes } from './routes/foods';
 import { meRoutes } from './routes/me';
 
 const app = new Hono<AppEnv>()
   .get('/health', (c) => c.json({ ok: true }))
   .on(['GET', 'POST'], '/api/auth/*', (c) => createAuth(c.env).handler(c.req.raw))
-  .route('/api/me', meRoutes);
+  .route('/api/me', meRoutes)
+  .route('/api/foods', foodRoutes)
+  .route('/api/diary', diaryRoutes);
 
 app.onError(handleError);
 

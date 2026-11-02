@@ -16,7 +16,8 @@ export const unstable_settings = {
 
 /**
  * Route guard (protected routes, as in the Expo Router authentication guide):
- * signed out → (auth); signed in without a goal → (onboarding); with a goal → today, plus
+ * signed out → (auth); signed in without a goal → (onboarding); with a goal → today (and the
+ * food / entry screens on top of it), plus
  * (onboarding) while the user edits their answers (see `routeAccess`).
  * `index` stays reachable and redirects, so a guard flip (sign-in, sign-out, goal saved)
  * always lands on the right screen.
@@ -41,6 +42,8 @@ function RootNavigator() {
       </Stack.Protected>
       <Stack.Protected guard={access.today}>
         <Stack.Screen name="today" />
+        <Stack.Screen name="food" />
+        <Stack.Screen name="entry" />
       </Stack.Protected>
     </Stack>
   );

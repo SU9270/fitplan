@@ -39,6 +39,14 @@ pnpm --filter @fitplan/api invite:create -- --uses 5
 
 约定：时间用 ISO-8601 UTC 文本；营养数值未知存 `NULL`，不存 0；枚举用 `CHECK` 约束并与 `packages/validators` 的 Zod 规则一致；`goal_versions` 只追加不修改。
 
+## 食物数据 Food data
+
+USDA 原始数据不进仓库，导入步骤见 README 的「导入食物数据」。常见食物的中文名与别名在 `apps/api/data/usda-zh.csv`：
+
+- 一行一种食物：`ndb_number,name_zh,aliases`，别名之间用 `|` 分隔；NDB 编号见 SR Legacy 的 `sr_legacy_food.csv`。
+- 名称写清生熟和做法（如「鸡胸肉（烤）」「白米饭」），别名放常见叫法和英文俗称，方便搜索。
+- 改完重新运行 `food:import`；脚本会列出对照表里找不到的编号。`pnpm --filter @fitplan/api test` 会检查格式与重复编号。
+
 ## 计算参数 Calculation parameters
 
 所有计算参数（公式系数、活动系数、赤字 / 盈余比例、热量下限、蛋白质与脂肪系数等）**只**在 `packages/core/src/constants.ts` 定义一次，其他地方不得出现魔法数字。修改参数必须：
