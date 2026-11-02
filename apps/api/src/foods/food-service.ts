@@ -3,7 +3,7 @@ import type { CustomFoodInput, FoodSearchQuery } from '@fitplan/validators';
 import { and, asc, eq, isNull, or, sql, type SQL } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { foodPortions, foods } from '../db/schema';
-import { buildSearchText } from './usda-import';
+import { buildSearchText } from './search-text';
 
 export type FoodSource = 'usda' | 'custom';
 

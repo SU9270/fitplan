@@ -2,6 +2,7 @@
 // `food_portions`, and those rows into idempotent SQL. Pure (no file system): the CLI in
 // scripts/import-usda.ts reads the files and runs wrangler. See the phase 2 spec, section 2.
 import { csvRecords } from './csv.ts';
+import { ALIAS_SEPARATOR, buildSearchText } from './search-text.ts';
 
 /** FDC `nutrient.id`s we keep (SR Legacy values are per 100 g of edible portion). */
 export const FDC_NUTRIENT_IDS = {
@@ -63,17 +64,6 @@ const usdaPortionId = (portionId: string) => `usda-portion-${portionId}`;
 
 /** "01001" and "1001" are the same NDB number. */
 const normalizeNdb = (ndb: string) => ndb.trim().replace(/^0+(?=\d)/, '');
-
-/** `|`-separated aliases; joined back the same way when stored. */
-export const ALIAS_SEPARATOR = '|';
-
-/** What the search matches against: lowercased names and aliases, one per line. */
-export function buildSearchText(name: string, nameZh: string | null, aliases: readonly string[]): string {
-  return [name, nameZh, ...aliases]
-    .filter((part): part is string => part !== null && part.trim() !== '')
-    .map((part) => part.trim().toLowerCase())
-    .join('\n');
-}
 
 /** Reads apps/api/data/usda-zh.csv (`ndb_number,name_zh,aliases`). Throws on duplicates or blanks. */
 export function parseZhNames(text: string): ZhName[] {
