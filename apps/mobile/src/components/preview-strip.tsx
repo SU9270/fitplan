@@ -40,36 +40,41 @@ export function PreviewStrip({ preview }: { preview: Preview | null }) {
 
 const styles = StyleSheet.create({
   container: {
-    gap: tokens.space.md,
-    padding: tokens.space.lg,
+    gap: tokens.card.gap,
+    padding: tokens.card.padding,
     borderRadius: tokens.radius.lg,
-    backgroundColor: tokens.color.primarySoft,
+    backgroundColor: tokens.color.card,
   },
   header: {
+    paddingHorizontal: tokens.card.headerInset,
+    paddingTop: tokens.card.headerInset,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   title: {
-    color: tokens.color.primary,
-    fontSize: tokens.fontSize.caption,
-    fontWeight: tokens.fontWeight.semibold,
+    color: tokens.color.textSecondary,
+    fontSize: tokens.fontSize.label,
+    fontWeight: tokens.fontWeight.medium,
   },
   bmi: {
     color: tokens.color.textSecondary,
     fontSize: tokens.fontSize.caption,
   },
   kcal: {
+    paddingHorizontal: tokens.card.headerInset,
     color: tokens.color.text,
-    fontSize: tokens.fontSize.title,
-    fontWeight: tokens.fontWeight.bold,
+    fontSize: tokens.fontSize.display,
+    fontWeight: tokens.fontWeight.medium,
   },
   blocked: {
+    paddingHorizontal: tokens.card.headerInset,
     color: tokens.color.text,
     fontSize: tokens.fontSize.body,
     fontWeight: tokens.fontWeight.semibold,
   },
   footnote: {
+    paddingHorizontal: tokens.card.headerInset,
     color: tokens.color.textSecondary,
     fontSize: tokens.fontSize.caption,
   },

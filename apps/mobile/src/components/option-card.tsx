@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.lg,
     borderWidth: 1.5,
     borderColor: tokens.color.border,
-    backgroundColor: tokens.color.surface,
+    backgroundColor: tokens.color.card,
   },
   cardSelected: {
     borderColor: tokens.color.primary,
@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
   title: {
     color: tokens.color.text,
     fontSize: tokens.fontSize.subtitle,
-    fontWeight: tokens.fontWeight.semibold,
+    fontWeight: tokens.fontWeight.medium,
   },
   titleSelected: {
     color: tokens.color.primary,

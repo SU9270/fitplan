@@ -54,20 +54,21 @@ const styles = StyleSheet.create({
   label: {
     color: tokens.color.text,
     fontSize: tokens.fontSize.title,
-    fontWeight: tokens.fontWeight.bold,
+    fontWeight: tokens.fontWeight.semibold,
   },
   arrow: {
     width: tokens.touchTarget,
     height: tokens.touchTarget,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: tokens.radius.pill,
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    borderColor: tokens.color.border,
     backgroundColor: tokens.color.surface,
   },
   arrowText: {
-    color: tokens.color.primary,
+    color: tokens.color.text,
     fontSize: tokens.fontSize.title,
-    fontWeight: tokens.fontWeight.semibold,
   },
   pressed: {
     opacity: 0.6,
