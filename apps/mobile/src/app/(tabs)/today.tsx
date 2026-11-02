@@ -1,32 +1,25 @@
 import type { MacroTargets } from '@fitplan/core';
 import type { Meal } from '@fitplan/validators';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { Card } from '../components/card';
-import { DateSwitcher } from '../components/date-switcher';
-import { ErrorText, PrimaryButton, TextButton } from '../components/form';
-import { ListRow } from '../components/list-row';
-import { ProgressBar } from '../components/progress-bar';
-import { Screen } from '../components/screen';
-import { SegmentedControl } from '../components/segmented-control';
-import { formatNumber } from '../diary/amount';
-import type { DiaryDay, DiaryEntry } from '../diary/api-types';
-import { localDate } from '../diary/dates';
-import { displayName, entryAmount, groupByMeal, progress } from '../diary/display';
-import { rememberEntries } from '../diary/entry-store';
-import { useLocale, type Locale, type MessageKey } from '../i18n';
-import { api } from '../lib/api';
-import { useGate } from '../lib/gate';
-import { signOutIfUnauthorized } from '../lib/unauthorized';
-import { useSignOut } from '../lib/use-sign-out';
-import type { SavedProfile } from '../onboarding/draft-model';
-import { useOnboarding } from '../onboarding/draft';
-import { tokens } from '../theme/tokens';
+import { Card } from '../../components/card';
+import { DateSwitcher } from '../../components/date-switcher';
+import { ErrorText, PrimaryButton, TextButton } from '../../components/form';
+import { ListRow } from '../../components/list-row';
+import { ProgressBar } from '../../components/progress-bar';
+import { Screen } from '../../components/screen';
+import { formatNumber } from '../../diary/amount';
+import type { DiaryDay, DiaryEntry } from '../../diary/api-types';
+import { localDate } from '../../diary/dates';
+import { displayName, entryAmount, groupByMeal, progress } from '../../diary/display';
+import { rememberEntries } from '../../diary/entry-store';
+import { useLocale, type MessageKey } from '../../i18n';
+import { api } from '../../lib/api';
+import { signOutIfUnauthorized } from '../../lib/unauthorized';
+import { tokens } from '../../theme/tokens';
 
 type DayState = { state: 'loading' } | { state: 'error' } | { state: 'ready'; day: DiaryDay };
-
-const LOCALES = ['zh', 'en'] as const satisfies readonly Locale[];
 
 const MACROS = [
   { key: 'proteinG', label: 'macro.protein', color: tokens.color.protein },
@@ -35,20 +28,15 @@ const MACROS = [
 ] as const satisfies readonly { key: keyof MacroTargets; label: MessageKey; color: string }[];
 
 /**
- * Today: the food diary for one day (today by default; ‹ › moves between days, never past
+ * Today tab: the food diary for one day (today by default; ‹ › moves between days, never past
  * today), its totals against the latest daily target, and the four meals with their entries.
- * "Edit my answers" re-opens the questionnaire pre-filled from the saved profile.
+ * Profile, settings and "Edit my answers" live on the Me tab.
  */
 export default function Today() {
-  const { t, locale, setLocale } = useLocale();
-  const signOut = useSignOut();
-  const { editing, startEditing, stopEditing } = useGate();
-  const { ownerId, editFrom } = useOnboarding();
+  const { t, locale } = useLocale();
   const [today, setToday] = useState(() => localDate(new Date()));
   const [date, setDate] = useState(today);
   const [day, setDay] = useState<DayState>({ state: 'loading' });
-  const [profile, setProfile] = useState<SavedProfile | null>(null);
-  const [openWizard, setOpenWizard] = useState(false);
   /** Only the latest request may update the screen (switching days quickly). */
   const latestRequest = useRef(0);
 
@@ -68,55 +56,20 @@ export default function Today() {
     }
   }, []);
 
-  // Back on Today: close the questionnaire if it was open (back button / swipe from the first
-  // step), pick up a new calendar day, and reload the diary (an entry may have been added).
+  // Reload on focus (an entry may have been added or changed) and pick up a new calendar day.
   useFocusEffect(
     useCallback(() => {
-      stopEditing();
       setToday(localDate(new Date()));
       void load(date);
-    }, [stopEditing, load, date]),
+    }, [load, date]),
   );
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await api.api.me.profile.$get();
-        if (await signOutIfUnauthorized(res)) return;
-        if (!res.ok) return;
-        const body = await res.json();
-        if (!cancelled) setProfile(body.profile);
-      } catch {
-        // Without the profile only "Edit my answers" is hidden.
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // The guard opens (onboarding) only after `editing` has rendered, so navigate from here
-  // rather than in the press handler (a push before that would be refused).
-  useEffect(() => {
-    if (!openWizard || !editing) return;
-    setOpenWizard(false);
-    router.push('/goal');
-  }, [openWizard, editing]);
-
-  function editAnswers(saved: SavedProfile) {
-    if (ownerId === null) return;
-    editFrom(saved, ownerId);
-    startEditing();
-    setOpenWizard(true);
-  }
 
   function addTo(meal: Meal) {
     router.push({ pathname: '/food/search', params: { date, meal } });
   }
 
   return (
-    <Screen>
+    <Screen inTabs>
       <DateSwitcher date={date} today={today} onChange={setDate} />
 
       {day.state === 'loading' ? (
@@ -159,19 +112,6 @@ export default function Today() {
         </>
       )}
 
-      <View style={styles.settings}>
-        <Text accessibilityRole="header" style={styles.cardTitle}>
-          {t('today.settings')}
-        </Text>
-        {profile ? <TextButton title={t('today.editAnswers')} onPress={() => editAnswers(profile)} /> : null}
-        <SegmentedControl
-          label={t('lang.label')}
-          value={locale}
-          options={LOCALES.map((l) => ({ value: l, label: t(`lang.${l}`) }))}
-          onChange={setLocale}
-        />
-        <TextButton title={t('auth.signOut')} onPress={() => void signOut()} />
-      </View>
     </Screen>
   );
 }
@@ -281,9 +221,5 @@ const styles = StyleSheet.create({
   mealKcal: {
     color: tokens.color.textSecondary,
     fontSize: tokens.fontSize.body,
-  },
-  settings: {
-    gap: tokens.space.sm,
-    marginTop: tokens.space.xl,
   },
 });

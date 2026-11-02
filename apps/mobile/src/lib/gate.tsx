@@ -1,4 +1,5 @@
 import { createContext, use, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { setLocale } from '../i18n';
 import { api } from './api';
 import { authClient } from './auth-client';
 import { isEditing } from './route-access';
@@ -58,6 +59,8 @@ export function GateProvider({ children }: { children: ReactNode }) {
         if (!res.ok) throw new Error(`GET /api/me/profile → ${res.status}`);
         const body = await res.json();
         result = body.latestGoal === null ? 'needsGoal' : 'ready';
+        // The language saved on the profile (Me → Settings) wins over the device language.
+        if (body.profile && !cancelled) setLocale(body.profile.locale);
       } catch {
         result = 'error';
       }
