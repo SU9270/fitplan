@@ -14,3 +14,8 @@ export function rememberEntries(list: readonly DiaryEntry[]): void {
 export function rememberedEntry(id: string): DiaryEntry | undefined {
   return entries.get(id);
 }
+
+/** All entries Today last loaded (to name a meal being saved as "我的餐"). */
+export function rememberedEntries(): DiaryEntry[] {
+  return [...entries.values()];
+}

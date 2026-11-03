@@ -2,7 +2,7 @@ import type { MealShares } from '@fitplan/core';
 import type { InferResponseType } from 'hono/client';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 import { Card, CardHeader, Tile } from '../../components/card';
 import { ErrorText, PrimaryButton, SoftButton, TextButton, TextField } from '../../components/form';
 import { InfoRow } from '../../components/info-row';
@@ -11,6 +11,7 @@ import { MacroTiles } from '../../components/macro-tiles';
 import { MealSharesEditor } from '../../components/meal-shares-editor';
 import { Screen } from '../../components/screen';
 import { SegmentedControl } from '../../components/segmented-control';
+import type { MealTemplate } from '../../diary/api-types';
 import { localDate } from '../../diary/dates';
 import { useLocale, type Locale, type MessageKey } from '../../i18n';
 import { api } from '../../lib/api';
@@ -46,6 +47,13 @@ async function fetchStats(): Promise<Stats | null> {
   return res.json();
 }
 
+async function fetchTemplates(): Promise<MealTemplate[] | null> {
+  const res = await api.api['meal-templates'].$get();
+  if (await signOutIfUnauthorized(res)) return null;
+  if (!res.ok) throw new Error(`GET /api/meal-templates → ${res.status}`);
+  return (await res.json()).templates;
+}
+
 async function fetchOwnFoods(): Promise<OwnFoods | null> {
   const res = await api.api.foods.mine.$get();
   if (await signOutIfUnauthorized(res)) return null;
@@ -65,6 +73,7 @@ export default function Me() {
   const [profile, setProfile] = useState<Loaded<ProfileBody>>({ state: 'loading' });
   const [stats, setStats] = useState<Loaded<Stats>>({ state: 'loading' });
   const [foods, setFoods] = useState<Loaded<OwnFoods>>({ state: 'loading' });
+  const [templates, setTemplates] = useState<Loaded<MealTemplate[]>>({ state: 'loading' });
   const [settingsError, setSettingsError] = useState(false);
   const [openWizard, setOpenWizard] = useState(false);
 
@@ -79,6 +88,7 @@ export default function Me() {
     void settle(setProfile, fetchProfile());
     void settle(setStats, fetchStats());
     void settle(setFoods, fetchOwnFoods());
+    void settle(setTemplates, fetchTemplates());
   }, []);
 
   // Back on Me: close the questionnaire if it was left without saving, and refresh everything
@@ -105,6 +115,28 @@ export default function Me() {
     editFrom(saved, ownerId);
     startEditing();
     setOpenWizard(true);
+  }
+
+  function confirmDeleteTemplate(template: MealTemplate) {
+    Alert.alert(t('templates.delete.title', { name: template.name }), t('templates.delete.body'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('common.delete'),
+        style: 'destructive',
+        onPress: () =>
+          void (async () => {
+            try {
+              const res = await api.api['meal-templates'][':id'].$delete({ param: { id: template.id } });
+              if (await signOutIfUnauthorized(res)) return;
+              setTemplates((current) =>
+                current.state === 'ready' ? { state: 'ready', data: current.data.filter((x) => x.id !== template.id) } : current,
+              );
+            } catch {
+              setSettingsError(true);
+            }
+          })(),
+      },
+    ]);
   }
 
   async function saveMealShares(mealShares: MealShares): Promise<boolean> {
@@ -222,6 +254,34 @@ export default function Me() {
           <ActivityIndicator color={tokens.color.primary} accessibilityLabel={t('gate.loading')} />
         )}
         <SoftButton title={`+ ${t('profile.foods.add')}`} onPress={() => router.push('/food/custom')} />
+      </Card>
+
+      <Card>
+        <CardHeader label={t('templates.title')} />
+        {templates.state === 'ready' ? (
+          templates.data.length === 0 ? (
+            <Tile>
+              <Text style={styles.muted}>{t('templates.empty')}</Text>
+            </Tile>
+          ) : (
+            templates.data.map((template) => (
+              <ListRow
+                key={template.id}
+                title={template.name}
+                subtitle={t('templates.items', { n: template.items.length })}
+                value={t('report.kcal', { n: template.kcal })}
+                accessibilityLabel={`${template.name}. ${t('templates.delete')}`}
+                onPress={() => confirmDeleteTemplate(template)}
+              />
+            ))
+          )
+        ) : templates.state === 'error' ? (
+          <Tile>
+            <ErrorText message={t('profile.loadError')} />
+          </Tile>
+        ) : (
+          <ActivityIndicator color={tokens.color.primary} accessibilityLabel={t('gate.loading')} />
+        )}
       </Card>
 
       <Card>

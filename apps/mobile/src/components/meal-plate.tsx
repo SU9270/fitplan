@@ -1,7 +1,7 @@
 import type { PlateSlot } from '@fitplan/core';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { DiaryEntry } from '../diary/api-types';
-import { displayName } from '../diary/display';
+import { entryName } from '../diary/efficiency';
 import { feedbackLines, groupBySlot, suggestionText, type MealView, type SuggestionView } from '../diary/plate-view';
 import { useLocale } from '../i18n';
 import { tokens } from '../theme/tokens';
@@ -29,7 +29,7 @@ type Props = {
  */
 export function MealPlate({ view, entries, onOpenEntry, onApply, applying }: Props) {
   const { t, locale } = useLocale();
-  const name = (item: { name: string; nameZh: string | null }) => displayName(item, locale);
+  const name = (item: { name: string; nameZh: string | null; quick?: boolean }) => entryName(item, locale, t);
   const lines = feedbackLines(view, t);
 
   return (

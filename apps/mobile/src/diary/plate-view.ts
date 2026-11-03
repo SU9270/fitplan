@@ -45,7 +45,7 @@ export function feedbackLines(view: { meal: Meal; gap: MealGap | null; hasVegeta
 }
 
 /** "1.5 × 1 cup" or "150 克": an amount as portions of a label, or grams when there is no portion. */
-function amountText(quantity: number, portionId: string | null, portionLabel: string | null, t: T): string {
+export function amountLabel(quantity: number, portionId: string | null, portionLabel: string | null, t: T): string {
   if (portionId === null) return t('common.grams', { n: formatNumber(quantity) });
   const n = formatNumber(quantity, 2);
   return portionLabel === null ? t('food.servings', { n }) : t('diary.portionAmount', { n, label: portionLabel });
@@ -57,7 +57,7 @@ export function suggestionText(
   displayName: (item: { name: string; nameZh: string | null }) => string,
   t: T,
 ): { action: string; effect: string } {
-  const amount = amountText(s.quantity, s.portionId, s.portionLabel, t);
+  const amount = amountLabel(s.quantity, s.portionId, s.portionLabel, t);
   const food = displayName(s);
   if (s.kind === 'adjust' && s.reason === 'kcal') {
     return {
