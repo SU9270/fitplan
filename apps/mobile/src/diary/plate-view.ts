@@ -59,7 +59,7 @@ export function suggestionText(
 ): { action: string; effect: string } {
   const amount = amountText(s.quantity, s.portionId, s.portionLabel, t);
   const food = displayName(s);
-  if (s.kind === 'reduce') {
+  if (s.kind === 'adjust' && s.reason === 'kcal') {
     return {
       action: t('suggest.reduce', { food, amount }),
       effect: t('suggest.effect.kcal', { n: Math.round(Math.abs(s.change.kcal ?? 0)) }),
@@ -68,7 +68,7 @@ export function suggestionText(
   const gained =
     s.reason === 'protein' ? s.change.proteinG : s.reason === 'staple' ? s.change.carbsG : s.change.kcal;
   return {
-    action: t('suggest.add', { food, amount }),
+    action: t(s.kind === 'add' ? 'suggest.add' : 'suggest.increase', { food, amount }),
     effect: t(`suggest.effect.${s.reason}`, { n: Math.round(gained ?? 0) }),
   };
 }

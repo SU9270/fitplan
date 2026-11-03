@@ -224,6 +224,7 @@ export const zh = {
   'suggest.title': '可以这样调',
   'suggest.add': '加 {amount} {food}',
   'suggest.reduce': '{food} 减到 {amount}',
+  'suggest.increase': '{food} 加到 {amount}',
   'suggest.effect.protein': '+{n} 克蛋白质',
   'suggest.effect.staple': '+{n} 克碳水',
   'suggest.effect.vegetable': '+{n} 千卡',

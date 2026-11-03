@@ -27,7 +27,7 @@ interface Gap {
   diff: number;
 }
 interface Suggestion {
-  kind: 'add' | 'reduce';
+  kind: 'add' | 'adjust';
   reason: string;
   foodId?: string;
   entryId?: string;
@@ -181,7 +181,7 @@ describe('plates', () => {
 
     const snack = meal(await day(cookie), 'snack');
     expect(snack.gap?.kcal.status).toBe('over');
-    const reduce = snack.suggestions.find((s) => s.kind === 'reduce');
+    const reduce = snack.suggestions.find((s) => s.kind === 'adjust');
     expect(reduce).toMatchObject({ reason: 'kcal', entryId: entry.id, portionId: `${rice.id}-p0`, portionLabel: '1 cup', quantity: 1.5 });
 
     const res = await authed(cookie, 'PATCH', `/api/diary/entries/${entry.id}`, { portionId: reduce?.portionId, quantity: reduce?.quantity });

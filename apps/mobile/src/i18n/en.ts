@@ -223,6 +223,7 @@ export const en: Record<MessageKey, string> = {
   'suggest.title': 'Try one of these',
   'suggest.add': 'Add {amount} {food}',
   'suggest.reduce': 'Cut {food} to {amount}',
+  'suggest.increase': 'Have {amount} {food}',
   'suggest.effect.protein': '+{n} g protein',
   'suggest.effect.staple': '+{n} g carbs',
   'suggest.effect.vegetable': '+{n} kcal',

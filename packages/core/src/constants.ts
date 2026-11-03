@@ -84,6 +84,12 @@ export const MEAL_SHARES_TOTAL = 100;
 
 /** USDA categories that go to the vegetable cell regardless of macros. */
 export const VEGETABLE_CATEGORIES: readonly string[] = ['Vegetables and Vegetable Products'];
+/**
+ * Foods in a vegetable category with at least this many kcal per 100 g are starchy (potato,
+ * sweet potato, corn, taro, peas) and are placed by their macros instead (usually staple), as in
+ * Chinese meals; leafy and other vegetables stay well below it (broccoli 35, carrot 41).
+ */
+export const STARCHY_VEGETABLE_MIN_KCAL = 70;
 /** USDA categories that go to "other" (fruit, drinks, snacks, fats, condiments) regardless of macros. */
 export const OTHER_CATEGORIES: readonly string[] = [
   'Fruits and Fruit Juices',
@@ -112,6 +118,11 @@ export const MAX_SUGGESTIONS = 3;
 export const SUGGESTION_PORTION_STEP = 0.5;
 /** … and at most this many portions. */
 export const SUGGESTION_MAX_PORTIONS = 3;
+/**
+ * A short protein / staple cell is topped up from a food already in it ("one more egg") when at
+ * most this many extra portions close the gap; otherwise a new food is suggested.
+ */
+export const MAX_TOP_UP_PORTIONS = 1;
 /** "Halve it" for an entry logged in grams rounds to this many grams. */
 export const REDUCE_GRAMS_STEP = 5;
 /** The suggested vegetable is the one whose portion is closest to this weight (a side dish). */

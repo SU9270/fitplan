@@ -52,7 +52,7 @@ export interface DiaryEntryView {
 export type SuggestionView = Suggestion & {
   name: string;
   nameZh: string | null;
-  /** Null for a "halve it" on an entry logged in grams. */
+  /** Null for an adjustment of an entry logged in grams. */
   portionLabel: string | null;
 };
 

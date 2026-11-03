@@ -69,7 +69,7 @@ describe('suggestionText', () => {
     const reduce = {
       name: 'Rice, white, long-grain, regular, enriched, cooked',
       nameZh: '白米饭',
-      kind: 'reduce',
+      kind: 'adjust',
       reason: 'kcal',
       entryId: 'e1',
       portionId: 'p',
@@ -81,6 +81,24 @@ describe('suggestionText', () => {
     expect(suggestionText({ ...reduce, portionId: null, portionLabel: null, quantity: 15 } as SuggestionView, name, t).action).toBe(
       '白米饭 减到 15 克',
     );
+  });
+});
+
+describe('suggestionText for a top-up', () => {
+  it('reads "加到" with the amount after the change', () => {
+    setLocale('zh');
+    const more = {
+      name: 'Rice, white, long-grain, regular, enriched, cooked',
+      nameZh: '白米饭',
+      kind: 'adjust',
+      reason: 'staple',
+      entryId: 'e1',
+      portionId: 'p',
+      portionLabel: '1 cup',
+      quantity: 1.5,
+      change: { kcal: 102.7, proteinG: 2.1, carbsG: 22.25, fatG: 0.2 },
+    } as SuggestionView;
+    expect(suggestionText(more, (i) => i.nameZh ?? i.name, t)).toEqual({ action: '白米饭 加到 1.5 × 1 cup', effect: '+22 克碳水' });
   });
 });
 

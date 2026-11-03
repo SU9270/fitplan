@@ -16,6 +16,10 @@ const food = {
   blackBeans: { kcal: 132, proteinG: 8.86, carbsG: 23.71, fatG: 0.54 },
   broccoli: { kcal: 34, proteinG: 2.82, carbsG: 6.64, fatG: 0.37 },
   spinach: { kcal: 23, proteinG: 2.86, carbsG: 3.63, fatG: 0.39 },
+  bakedPotato: { kcal: 93, proteinG: 2.5, carbsG: 21.15, fatG: 0.13 },
+  bakedSweetPotato: { kcal: 90, proteinG: 2.01, carbsG: 20.71, fatG: 0.15 },
+  edamame: { kcal: 109, proteinG: 11.22, carbsG: 7.61, fatG: 4.73 },
+  carrot: { kcal: 41, proteinG: 0.93, carbsG: 9.58, fatG: 0.24 },
   apple: { kcal: 52, proteinG: 0.26, carbsG: 13.81, fatG: 0.17 },
   oliveOil: { kcal: 884, proteinG: 0, carbsG: 0, fatG: 100 },
   peanutButter: { kcal: 598, proteinG: 22.21, carbsG: 22.31, fatG: 51.36 },
@@ -46,8 +50,17 @@ describe('plateSlot', () => {
     expect(plateSlot({ category: VEG, per100g: food.broccoli })).toBe('vegetable');
     expect(plateSlot({ category: 'Fruits and Fruit Juices', per100g: food.apple })).toBe('other');
     expect(plateSlot({ category: 'Fats and Oils', per100g: food.oliveOil })).toBe('other');
+    expect(plateSlot({ category: VEG, per100g: food.carrot })).toBe('vegetable');
     // Without the category an apple is a carb food.
     expect(plateSlot({ category: null, per100g: food.apple })).toBe('staple');
+  });
+
+  it('places starchy vegetables (>= 70 kcal / 100 g) by their macros, like a Chinese meal would', () => {
+    expect(plateSlot({ category: VEG, per100g: food.bakedPotato })).toBe('staple');
+    expect(plateSlot({ category: VEG, per100g: food.bakedSweetPotato })).toBe('staple');
+    expect(plateSlot({ category: VEG, per100g: food.edamame })).toBe('protein');
+    expect(plateSlot({ category: VEG, per100g: { kcal: 69, proteinG: 1, carbsG: 15, fatG: 0 } })).toBe('vegetable');
+    expect(plateSlot({ category: VEG, per100g: { kcal: 70, proteinG: 1, carbsG: 15, fatG: 0 } })).toBe('staple');
   });
 
   it('treats unknown nutrients as 0 and an all-unknown food as "other"', () => {
@@ -173,7 +186,7 @@ describe('suggestAdjustments', () => {
     });
     // 3 cups of rice (616 kcal) is the biggest: halve to 1.5 cups.
     expect(s).toEqual([
-      expect.objectContaining({ kind: 'reduce', reason: 'kcal', entryId: 'rice', portionId: 'usda-rice-p', quantity: 1.5 }),
+      expect.objectContaining({ kind: 'adjust', reason: 'kcal', entryId: 'rice', portionId: 'usda-rice-p', quantity: 1.5 }),
     ]);
     expect(s[0]?.change.kcal).toBeCloseTo(-130 * 1.58 * 1.5, 6);
   });
@@ -185,7 +198,7 @@ describe('suggestAdjustments', () => {
       entries: [entry('oil', 'usda-oil', 'other', food.oliveOil, 33, false)],
       candidates,
     });
-    expect(big).toEqual([expect.objectContaining({ kind: 'reduce', portionId: null, quantity: 15 })]);
+    expect(big).toEqual([expect.objectContaining({ kind: 'adjust', reason: 'kcal', portionId: null, quantity: 15 })]);
     const tiny = suggestAdjustments({
       meal: 'snack',
       target: { kcal: 10, proteinG: 0, carbsG: 0, fatG: 0 },
@@ -193,6 +206,32 @@ describe('suggestAdjustments', () => {
       candidates,
     });
     expect(tiny).toEqual([]);
+  });
+
+  it('tops up a food already in the cell when at most one more portion closes the gap', () => {
+    // 1 cup of rice (44.5 g carbs) for a 74 g carbs lunch: half a cup more (+22 g) instead of a new staple.
+    const rice = { ...entry('r', 'usda-rice', 'staple', food.rice, 158), quantity: 1 };
+    const chicken = entry('c', 'usda-chicken', 'protein', food.chicken, 140);
+    const s = suggestAdjustments({ meal: 'lunch', target: lunchTarget, entries: [rice, chicken], candidates });
+    expect(s[0]).toMatchObject({ kind: 'adjust', reason: 'staple', entryId: 'r', quantity: 1.5 });
+    expect(s[0]?.change.carbsG).toBeCloseTo(28.17 * 0.79, 6);
+
+    // 2 eggs, 6 g protein short: one more egg.
+    const eggs = { ...entry('e', 'usda-egg', 'protein', food.boiledEgg, 100), quantity: 2 };
+    const breakfast = suggestAdjustments({
+      meal: 'breakfast',
+      target: { kcal: 400, proteinG: 19, carbsG: 0, fatG: 25 },
+      entries: [eggs],
+      candidates,
+    });
+    expect(breakfast[0]).toMatchObject({ kind: 'adjust', reason: 'protein', entryId: 'e', quantity: 3 });
+  });
+
+  it('adds a new food when topping up would need more than one more portion', () => {
+    const eggs = { ...entry('e', 'usda-egg', 'protein', food.boiledEgg, 100), quantity: 2 };
+    const s = suggestAdjustments({ meal: 'breakfast', target: { kcal: 500, proteinG: 35, carbsG: 0, fatG: 30 }, entries: [eggs], candidates });
+    // 22 g short = 3.5 more eggs: suggest another food instead.
+    expect(s[0]).toMatchObject({ kind: 'add', reason: 'protein' });
   });
 
   it('does not suggest a staple when kcal is over, nor foods already in the meal', () => {

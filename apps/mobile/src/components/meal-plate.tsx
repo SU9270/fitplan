@@ -79,7 +79,7 @@ export function MealPlate({ view, entries, onOpenEntry, onApply, applying }: Pro
           {view.suggestions.map((s) => {
             const { action, effect } = suggestionText(s, name, t);
             return (
-              <View key={s.kind === 'add' ? `add-${s.foodId}` : `reduce-${s.entryId}`} style={styles.suggestion}>
+              <View key={s.kind === 'add' ? `add-${s.foodId}` : `adjust-${s.entryId}`} style={styles.suggestion}>
                 <View style={styles.suggestionTexts}>
                   <Text style={styles.suggestionAction}>{action}</Text>
                   <Text style={styles.suggestionEffect}>{effect}</Text>
