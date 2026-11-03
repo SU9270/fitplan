@@ -1,4 +1,4 @@
-import { per100gFromServing, type Nutrients } from '@fitplan/core';
+import { per100gFromServing, plateSlot, type Nutrients, type PlateSlot } from '@fitplan/core';
 import type { CustomFoodInput, FoodSearchQuery } from '@fitplan/validators';
 import { and, asc, desc, eq, exists, isNull, or, sql, type SQL } from 'drizzle-orm';
 import type { Db } from '../db/client';
@@ -14,6 +14,8 @@ export interface FoodSummary {
   nameZh: string | null;
   /** Per 100 g, unrounded; null = unknown. */
   per100g: Nutrients;
+  /** The plate cell this food goes to. */
+  slot: PlateSlot;
 }
 
 export interface FoodPortionView {
@@ -45,12 +47,14 @@ export function escapeLike(text: string): string {
 const visibleTo = (userId: string) => or(isNull(foods.ownerUserId), eq(foods.ownerUserId, userId));
 
 function toSummary(row: FoodRow): FoodSummary {
+  const per100g = { kcal: row.kcal, proteinG: row.proteinG, carbsG: row.carbsG, fatG: row.fatG };
   return {
     id: row.id,
     source: row.source === 'custom' ? 'custom' : 'usda',
     name: row.name,
     nameZh: row.nameZh,
-    per100g: { kcal: row.kcal, proteinG: row.proteinG, carbsG: row.carbsG, fatG: row.fatG },
+    per100g,
+    slot: plateSlot({ category: row.category, per100g }),
   };
 }
 

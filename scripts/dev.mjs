@@ -79,17 +79,23 @@ function migrate() {
   say('Local database is up to date');
 }
 
-/** Tells the user how to import the USDA foods when none are there yet. */
+/**
+ * Tells the user how to import the USDA foods when none are there yet, or to import again when
+ * they were imported before plates existed (no categories / suggestion candidates).
+ */
 function checkFoods() {
   const result = spawnSync(
     'pnpm',
     ['--filter', '@fitplan/api', 'exec', 'wrangler', 'd1', 'execute', 'fitplan', '--local', '--json', '--command',
-      "SELECT count(*) AS n FROM foods WHERE source = 'usda_sr_legacy'"],
+      "SELECT count(*) AS n, count(category) AS categorized FROM foods WHERE source = 'usda_sr_legacy'"],
     { cwd: ROOT, encoding: 'utf8' },
   );
   const count = /"n":\s*(\d+)/.exec(result.stdout ?? '')?.[1];
+  const categorized = /"categorized":\s*(\d+)/.exec(result.stdout ?? '')?.[1];
   if (count === '0') {
     warn('No USDA foods yet: search will only find custom foods. See "导入食物数据" in README.md.');
+  } else if (categorized === '0') {
+    warn('USDA foods were imported before plates existed: run food:import again for plate cells and suggestions.');
   }
 }
 

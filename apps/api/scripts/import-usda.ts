@@ -18,6 +18,7 @@ const DATABASE_NAME = 'fitplan';
 const API_DIR = fileURLToPath(new URL('..', import.meta.url));
 const FILES = {
   food: 'food.csv',
+  foodCategory: 'food_category.csv',
   srLegacyFood: 'sr_legacy_food.csv',
   foodNutrient: 'food_nutrient.csv',
   foodPortion: 'food_portion.csv',
@@ -64,6 +65,13 @@ const data = buildUsdaImport(files, parseZhNames(readFileSync(path.resolve(invok
 if (data.foods.length === 0) fail(`No SR Legacy foods found in ${dataDir}.`);
 const named = data.foods.filter((f) => f.nameZh !== null).length;
 console.log(`Foods: ${data.foods.length} (${named} with a Chinese name), portions: ${data.portions.length}`);
+if (data.unmatchedSuggestPortions.length > 0) {
+  fail(
+    `data/usda-zh.csv suggest_portion labels without a matching portion (fix the label):\n  ${data.unmatchedSuggestPortions.join('\n  ')}`,
+  );
+}
+const suggestable = data.foods.filter((f) => f.suggestPortionId !== null).length;
+console.log(`Suggestion candidates: ${suggestable}`);
 if (data.unmatchedNdbNumbers.length > 0) {
   console.warn(`Chinese names without a matching food (check data/usda-zh.csv): ${data.unmatchedNdbNumbers.join(', ')}`);
 }

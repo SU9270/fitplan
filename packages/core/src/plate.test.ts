@@ -137,7 +137,7 @@ describe('suggestAdjustments', () => {
     expect(suggestAdjustments({ meal: 'lunch', target: lunchTarget, entries: [], candidates })).toEqual([]);
   });
 
-  it('fills a protein gap, then a staple gap, then adds the lightest vegetable', () => {
+  it('fills a protein gap, then a staple gap, then adds the vegetable portion closest to 100 g', () => {
     // Half a cup of rice only: protein short by ~40 g, carbs short, no vegetables.
     const s = suggestAdjustments({
       meal: 'lunch',
@@ -155,7 +155,8 @@ describe('suggestAdjustments', () => {
     expect(s[0]).toMatchObject({ foodId: 'usda-greek-yogurt', portionId: 'usda-greek-yogurt-p', quantity: 2 });
     expect(s[0]?.change.proteinG).toBeCloseTo(10.19 * 1.7 * 2, 6);
     expect(s[1]).toMatchObject({ kind: 'add', foodId: 'usda-rice' });
-    expect(s[2]).toMatchObject({ foodId: 'usda-spinach', quantity: 1 });
+    // Broccoli 91 g is closer to 100 g than spinach 30 g.
+    expect(s[2]).toMatchObject({ foodId: 'usda-broccoli', quantity: 1 });
   });
 
   it('halves the biggest staple or "other" entry when the meal is over its kcal band', () => {

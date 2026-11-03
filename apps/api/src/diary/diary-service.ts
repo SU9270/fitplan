@@ -1,4 +1,22 @@
-import { currentStreak, scaleNutrients, sumNutrients, type MacroTargets, type NutrientKey, type Nutrients } from '@fitplan/core';
+import {
+  MEALS,
+  currentStreak,
+  mealGap,
+  mealTargets,
+  plateSlot,
+  scaleNutrients,
+  suggestAdjustments,
+  sumNutrients,
+  type MacroTargets,
+  type MealGap,
+  type MealShares,
+  type NutrientKey,
+  type Nutrients,
+  type PlateEntry,
+  type PlateSlot,
+  type Suggestion,
+  type SuggestionCandidate,
+} from '@fitplan/core';
 import {
   MAX_ENTRY_GRAMS,
   isDateWithinLogWindow,
@@ -6,11 +24,11 @@ import {
   type DiaryEntryPatch,
   type Meal,
 } from '@fitplan/validators';
-import { and, asc, count, eq, lte, sql } from 'drizzle-orm';
+import { and, asc, count, eq, isNotNull, lte, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { diaryEntries, foodPortions } from '../db/schema';
+import { diaryEntries, foodPortions, foods } from '../db/schema';
 import { findVisibleFood } from '../foods/food-service';
-import { getLatestTargets } from '../profile-service';
+import { getLatestTargets, getMealShares } from '../profile-service';
 
 export interface DiaryEntryView {
   id: string;
@@ -26,6 +44,29 @@ export interface DiaryEntryView {
   grams: number;
   /** What was eaten (scaled to `grams`), unrounded; null = unknown. */
   nutrients: Nutrients;
+  /** The plate cell (from the category and per-100 g snapshot). */
+  slot: PlateSlot;
+}
+
+/** A suggestion with what the app needs to show it. `change` is unrounded. */
+export type SuggestionView = Suggestion & {
+  name: string;
+  nameZh: string | null;
+  /** Null for a "halve it" on an entry logged in grams. */
+  portionLabel: string | null;
+};
+
+export interface MealView {
+  meal: Meal;
+  /** This meal's share of the latest daily target; null without a target. */
+  target: MacroTargets | null;
+  /** Rounded meal totals. */
+  totals: MacroTargets;
+  /** Null without a target or before anything is logged in this meal. */
+  gap: MealGap | null;
+  hasVegetables: boolean;
+  /** Up to three, see `suggestAdjustments`. */
+  suggestions: SuggestionView[];
 }
 
 export interface DiaryDay {
@@ -36,6 +77,9 @@ export interface DiaryDay {
   unknown: NutrientKey[];
   /** The latest goal's daily targets (not necessarily the one in effect on `date`). */
   target: MacroTargets | null;
+  mealShares: MealShares;
+  /** Breakfast, lunch, dinner, snack. */
+  meals: MealView[];
 }
 
 /** Field-level problems the schema cannot see (they need the clock or the database). */
@@ -56,6 +100,10 @@ export interface DiaryStats {
 
 type EntryRow = typeof diaryEntries.$inferSelect;
 
+function per100gOf(row: EntryRow): Nutrients {
+  return { kcal: row.kcal, proteinG: row.proteinG, carbsG: row.carbsG, fatG: row.fatG };
+}
+
 function toView(row: EntryRow): DiaryEntryView {
   return {
     id: row.id,
@@ -68,8 +116,77 @@ function toView(row: EntryRow): DiaryEntryView {
     portionLabel: row.portionLabel,
     quantity: row.quantity,
     grams: row.grams,
-    nutrients: scaleNutrients({ kcal: row.kcal, proteinG: row.proteinG, carbsG: row.carbsG, fatG: row.fatG }, row.grams),
+    nutrients: scaleNutrients(per100gOf(row), row.grams),
+    slot: plateSlot({ category: row.foodCategory, per100g: per100gOf(row) }),
   };
+}
+
+type Candidate = SuggestionCandidate & { name: string; nameZh: string | null; portionLabel: string | null };
+
+/** USDA foods curated as suggestions (data/usda-zh.csv `suggest_portion`), with that portion. */
+async function suggestionCandidates(db: Db): Promise<Candidate[]> {
+  const rows = await db
+    .select({ food: foods, portion: foodPortions })
+    .from(foods)
+    .innerJoin(foodPortions, eq(foodPortions.id, foods.suggestPortionId))
+    .where(isNotNull(foods.suggestPortionId));
+  return rows.map(({ food, portion }) => {
+    const per100g = { kcal: food.kcal, proteinG: food.proteinG, carbsG: food.carbsG, fatG: food.fatG };
+    return {
+      foodId: food.id,
+      slot: plateSlot({ category: food.category, per100g }),
+      per100g,
+      portion: { id: portion.id, grams: portion.grams },
+      name: food.name,
+      nameZh: food.nameZh,
+      portionLabel: portion.label,
+    };
+  });
+}
+
+function describe(suggestion: Suggestion, candidates: readonly Candidate[], rows: readonly EntryRow[]): SuggestionView | null {
+  if (suggestion.kind === 'add') {
+    const c = candidates.find((x) => x.foodId === suggestion.foodId);
+    return c ? { ...suggestion, name: c.name, nameZh: c.nameZh, portionLabel: c.portionLabel } : null;
+  }
+  const row = rows.find((r) => r.id === suggestion.entryId);
+  return row ? { ...suggestion, name: row.foodName, nameZh: row.foodNameZh, portionLabel: row.portionLabel } : null;
+}
+
+function mealViews(
+  rows: readonly EntryRow[],
+  daily: MacroTargets | null,
+  shares: MealShares,
+  candidates: readonly Candidate[],
+): MealView[] {
+  const targets = daily ? mealTargets(daily, shares) : null;
+  return MEALS.map((meal) => {
+    const inMeal = rows.filter((r) => r.meal === meal);
+    const plate: PlateEntry[] = inMeal.map((r) => ({
+      id: r.id,
+      foodId: r.foodId,
+      slot: plateSlot({ category: r.foodCategory, per100g: per100gOf(r) }),
+      per100g: per100gOf(r),
+      grams: r.grams,
+      quantity: r.quantity,
+      portionId: r.portionId,
+    }));
+    const { totals } = sumNutrients(plate.map((e) => scaleNutrients(e.per100g, e.grams)));
+    const target = targets ? targets[meal] : null;
+    const suggestions = target
+      ? suggestAdjustments({ meal, target, entries: plate, candidates })
+          .map((s) => describe(s, candidates, inMeal))
+          .filter((s): s is SuggestionView => s !== null)
+      : [];
+    return {
+      meal,
+      target,
+      totals,
+      gap: target && plate.length > 0 ? mealGap(target, totals) : null,
+      hasVegetables: plate.some((e) => e.slot === 'vegetable'),
+      suggestions,
+    };
+  });
 }
 
 export async function getDiaryDay(db: Db, userId: string, date: string): Promise<DiaryDay> {
@@ -80,7 +197,9 @@ export async function getDiaryDay(db: Db, userId: string, date: string): Promise
     .orderBy(asc(diaryEntries.createdAt), asc(sql`rowid`));
   const entries = rows.map(toView);
   const { totals, unknown } = sumNutrients(entries.map((e) => e.nutrients));
-  return { date, entries, totals, unknown, target: await getLatestTargets(db, userId) };
+  const [target, mealShares] = await Promise.all([getLatestTargets(db, userId), getMealShares(db, userId)]);
+  const candidates = target && rows.length > 0 ? await suggestionCandidates(db) : [];
+  return { date, entries, totals, unknown, target, mealShares, meals: mealViews(rows, target, mealShares, candidates) };
 }
 
 /** Totals for the profile page. `today` is the user's local date; later dates are ignored. */
@@ -141,6 +260,7 @@ export async function addDiaryEntry(db: Db, userId: string, input: DiaryEntryInp
       foodId: food.id,
       foodName: food.name,
       foodNameZh: food.nameZh,
+      foodCategory: food.category,
       ...resolved.amount,
       kcal: food.kcal,
       proteinG: food.proteinG,

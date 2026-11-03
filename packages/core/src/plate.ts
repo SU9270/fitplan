@@ -13,6 +13,7 @@ import {
   SUGGESTION_PORTION_STEP,
   VEGETABLE_CATEGORIES,
   VEGETABLE_HINT_MEALS,
+  VEGETABLE_SUGGESTION_GRAMS,
 } from './constants';
 import { scaleNutrients, sumNutrients } from './nutrition';
 import type { MacroTargets, Meal, MealShares, Nutrients, PlateSlot } from './types';
@@ -196,7 +197,7 @@ function halved(entry: PlateEntry): Suggestion | null {
 /**
  * Up to three adjustments for one meal, in this order: protein short → add a protein food;
  * kcal over → halve the biggest staple / "other" entry; carbs short (and kcal not over) → add a
- * staple; lunch / dinner without vegetables → add a vegetable. Foods already in the meal are
+ * staple; lunch / dinner without vegetables → add a ~100 g vegetable portion. Foods already in the meal are
  * not suggested. An empty meal gets no suggestions (feedback only after the user has chosen).
  */
 export function suggestAdjustments({ meal, target, entries, candidates }: SuggestionInput): Suggestion[] {
@@ -231,11 +232,10 @@ export function suggestAdjustments({ meal, target, entries, candidates }: Sugges
   }
 
   if (VEGETABLE_HINT_MEALS.includes(meal) && !entries.some((e) => e.slot === 'vegetable')) {
-    // The lightest vegetable portion: it adds volume and fibre without moving the totals much.
-    const vegetable = available('vegetable')
-      .map((c) => ({ candidate: c, kcal: ((c.per100g.kcal ?? 0) * c.portion.grams) / 100 }))
-      .sort((a, b) => a.kcal - b.kcal || byFoodId(a.candidate, b.candidate))[0];
-    if (vegetable) suggestions.push(addition('vegetable', { candidate: vegetable.candidate, quantity: 1 }));
+    // One portion of the vegetable whose portion is closest to a side-dish weight (100 g).
+    const distance = (c: SuggestionCandidate) => Math.abs(c.portion.grams - VEGETABLE_SUGGESTION_GRAMS);
+    const vegetable = available('vegetable').sort((a, b) => distance(a) - distance(b) || byFoodId(a, b))[0];
+    if (vegetable) suggestions.push(addition('vegetable', { candidate: vegetable, quantity: 1 }));
   }
 
   return suggestions.slice(0, MAX_SUGGESTIONS);

@@ -114,5 +114,7 @@ export const SUGGESTION_PORTION_STEP = 0.5;
 export const SUGGESTION_MAX_PORTIONS = 3;
 /** "Halve it" for an entry logged in grams rounds to this many grams. */
 export const REDUCE_GRAMS_STEP = 5;
+/** The suggested vegetable is the one whose portion is closest to this weight (a side dish). */
+export const VEGETABLE_SUGGESTION_GRAMS = 100;
 /** Score penalty for a suggestion that is not a whole number of portions. */
 export const FRACTIONAL_PORTION_PENALTY = 0.05;
