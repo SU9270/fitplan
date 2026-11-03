@@ -5,7 +5,9 @@
 //      pnpm --filter @fitplan/api food:import -- --dir <unzipped folder> --remote   # deployed database
 //
 // Safe to run again: rows are upserted by their FDC ids and custom foods are never touched.
-// The local database must have migrations applied first (`pnpm db:migrate:local`).
+// The local database gets its pending migrations applied first (the import writes columns that
+// newer migrations add). The deployed database is never migrated from here: run
+// `pnpm db:migrate:remote` yourself before `--remote`.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -18,6 +20,7 @@ const DATABASE_NAME = 'fitplan';
 const API_DIR = fileURLToPath(new URL('..', import.meta.url));
 const FILES = {
   food: 'food.csv',
+  foodCategory: 'food_category.csv',
   srLegacyFood: 'sr_legacy_food.csv',
   foodNutrient: 'food_nutrient.csv',
   foodPortion: 'food_portion.csv',
@@ -64,8 +67,30 @@ const data = buildUsdaImport(files, parseZhNames(readFileSync(path.resolve(invok
 if (data.foods.length === 0) fail(`No SR Legacy foods found in ${dataDir}.`);
 const named = data.foods.filter((f) => f.nameZh !== null).length;
 console.log(`Foods: ${data.foods.length} (${named} with a Chinese name), portions: ${data.portions.length}`);
+if (data.unmatchedSuggestPortions.length > 0) {
+  fail(
+    `data/usda-zh.csv suggest_portion labels without a matching portion (fix the label):\n  ${data.unmatchedSuggestPortions.join('\n  ')}`,
+  );
+}
+const suggestable = data.foods.filter((f) => f.suggestPortionId !== null).length;
+console.log(`Suggestion candidates: ${suggestable}`);
 if (data.unmatchedNdbNumbers.length > 0) {
   console.warn(`Chinese names without a matching food (check data/usda-zh.csv): ${data.unmatchedNdbNumbers.join(', ')}`);
+}
+
+if (!values.remote) {
+  // CI=1 answers wrangler's "apply these migrations?" prompt.
+  const migrated = spawnSync('pnpm', ['exec', 'wrangler', 'd1', 'migrations', 'apply', DATABASE_NAME, '--local'], {
+    cwd: API_DIR,
+    env: { ...process.env, CI: '1' },
+    encoding: 'utf8',
+  });
+  if (migrated.status !== 0) {
+    process.stdout.write(migrated.stdout ?? '');
+    process.stderr.write(migrated.stderr ?? '');
+    fail('Applying the local database migrations failed (output above).');
+  }
+  console.log('Local database migrations are up to date.');
 }
 
 const workDir = mkdtempSync(path.join(tmpdir(), 'fitplan-usda-'));
@@ -78,5 +103,11 @@ const result = spawnSync(
   { cwd: API_DIR, stdio: 'inherit' },
 );
 rmSync(workDir, { recursive: true, force: true });
-if (result.status !== 0) fail('wrangler d1 execute failed; see the output above.');
+if (result.status !== 0) {
+  fail(
+    values.remote
+      ? 'wrangler d1 execute failed; see the output above. If a column or table is missing, run `pnpm db:migrate:remote` first.'
+      : 'wrangler d1 execute failed; see the output above.',
+  );
+}
 console.log(`Imported into the ${values.remote ? 'remote' : 'local'} database.`);

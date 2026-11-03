@@ -6,31 +6,37 @@ import { ActivityRings } from '../../components/activity-rings';
 import { Card, CardHeader, Tile } from '../../components/card';
 import { DateSwitcher } from '../../components/date-switcher';
 import { ErrorText, PrimaryButton, SoftButton } from '../../components/form';
-import { ListRow } from '../../components/list-row';
+import { MealPlate } from '../../components/meal-plate';
 import { MACROS, MacroTiles } from '../../components/macro-tiles';
 import { Screen } from '../../components/screen';
-import { formatNumber } from '../../diary/amount';
-import type { DiaryDay, DiaryEntry } from '../../diary/api-types';
+import type { DiaryDay } from '../../diary/api-types';
 import { localDate } from '../../diary/dates';
-import { displayName, entryAmount, groupByMeal, progress } from '../../diary/display';
+import { progress } from '../../diary/display';
 import { rememberEntries } from '../../diary/entry-store';
+import type { SuggestionView } from '../../diary/plate-view';
 import { useLocale } from '../../i18n';
 import { api } from '../../lib/api';
 import { signOutIfUnauthorized } from '../../lib/unauthorized';
+import { withJson } from '../../lib/with-json';
+import { createInFlightGuard } from '../../onboarding/in-flight';
 import { tokens } from '../../theme/tokens';
 
 type DayState = { state: 'loading' } | { state: 'error' } | { state: 'ready'; day: DiaryDay };
 
 /**
  * Today tab: the food diary for one day (today by default; ‹ › moves between days, never past
- * today), its totals against the latest daily target, and the four meals with their entries.
- * Profile, settings and "Edit my answers" live on the Me tab.
+ * today), its totals against the latest daily target, and each meal as a four-cell plate with
+ * the meal's gap feedback and one-tap adjustments. Profile and settings live on the Me tab.
  */
 export default function Today() {
   const { t, locale } = useLocale();
   const [today, setToday] = useState(() => localDate(new Date()));
   const [date, setDate] = useState(today);
   const [day, setDay] = useState<DayState>({ state: 'loading' });
+  const [applying, setApplying] = useState(false);
+  /** The meal whose suggestion could not be applied. */
+  const [applyError, setApplyError] = useState<Meal | null>(null);
+  const [runExclusive] = useState(createInFlightGuard);
   /** Only the latest request may update the screen (switching days quickly). */
   const latestRequest = useRef(0);
 
@@ -58,6 +64,31 @@ export default function Today() {
     }, [load, date]),
   );
 
+  /** Apply a suggestion: add the suggested food, or set the entry to the suggested amount. */
+  function apply(meal: Meal, suggestion: SuggestionView) {
+    void runExclusive(async () => {
+      setApplying(true);
+      setApplyError(null);
+      try {
+        const res =
+          suggestion.kind === 'add'
+            ? await api.api.diary.entries.$post({
+                json: { date, meal, foodId: suggestion.foodId, portionId: suggestion.portionId, quantity: suggestion.quantity },
+              })
+            : await api.api.diary.entries[':id'].$patch(
+                withJson({ id: suggestion.entryId }, { portionId: suggestion.portionId, quantity: suggestion.quantity }),
+              );
+        if (await signOutIfUnauthorized(res)) return;
+        if (!res.ok) throw new Error(`apply suggestion → ${res.status}`);
+        await load(date);
+      } catch {
+        setApplyError(meal);
+      } finally {
+        setApplying(false);
+      }
+    });
+  }
+
   function addTo(meal: Meal) {
     router.push({ pathname: '/food/search', params: { date, meal } });
   }
@@ -78,35 +109,31 @@ export default function Today() {
       ) : (
         <>
           <Summary day={day.day} />
-          {groupByMeal(day.day.entries).map((group) => (
-            <Card key={group.meal}>
+          {day.day.meals.map((view) => (
+            <Card key={view.meal}>
               <CardHeader
                 strong
-                label={t(`meal.${group.meal}`)}
+                label={t(`meal.${view.meal}`)}
                 right={
-                  group.entries.length > 0 ? (
-                    <Text style={styles.subtotal}>{t('report.kcal', { n: group.subtotal.totals.kcal })}</Text>
-                  ) : undefined
+                  <Text style={styles.subtotal}>
+                    {view.target
+                      ? t('plate.mealKcal', { eaten: view.totals.kcal, target: view.target.kcal })
+                      : t('report.kcal', { n: view.totals.kcal })}
+                  </Text>
                 }
               />
-              {group.entries.length === 0 ? (
-                <Tile>
-                  <Text style={styles.muted}>{t('diary.empty')}</Text>
-                </Tile>
-              ) : null}
-              {group.entries.map((entry) => (
-                <ListRow
-                  key={entry.id}
-                  title={displayName(entry, locale)}
-                  subtitle={amountText(entry, t)}
-                  value={entry.nutrients.kcal === null ? t('food.unknown') : t('report.kcal', { n: Math.round(entry.nutrients.kcal) })}
-                  onPress={() => router.push({ pathname: '/entry/[id]', params: { id: entry.id } })}
-                />
-              ))}
+              <MealPlate
+                view={view}
+                entries={day.day.entries.filter((e) => e.meal === view.meal)}
+                onOpenEntry={(entry) => router.push({ pathname: '/entry/[id]', params: { id: entry.id } })}
+                onApply={(suggestion) => apply(view.meal, suggestion)}
+                applying={applying}
+              />
+              {applyError === view.meal ? <ErrorText message={t('suggest.error')} /> : null}
               <SoftButton
                 title={`+ ${t('diary.add')}`}
-                accessibilityLabel={t('diary.addTo', { meal: t(`meal.${group.meal}`) })}
-                onPress={() => addTo(group.meal)}
+                accessibilityLabel={t('diary.addTo', { meal: t(`meal.${view.meal}`) })}
+                onPress={() => addTo(view.meal)}
               />
             </Card>
           ))}
@@ -114,15 +141,6 @@ export default function Today() {
       )}
     </Screen>
   );
-}
-
-type T = ReturnType<typeof useLocale>['t'];
-
-function amountText(entry: DiaryEntry, t: T): string {
-  const amount = entryAmount(entry);
-  if (amount.kind === 'grams') return t('common.grams', { n: formatNumber(amount.grams) });
-  const n = formatNumber(amount.quantity, 2);
-  return amount.label === null ? t('food.servings', { n }) : t('diary.portionAmount', { n, label: amount.label });
 }
 
 /** Eaten vs target: kcal and what is left (or over), concentric rings, and a tile per macro. */
@@ -190,8 +208,9 @@ const styles = StyleSheet.create({
     fontSize: tokens.fontSize.caption,
     fontWeight: tokens.fontWeight.medium,
   },
+  // Neutral, not a red warning (requirements §3.3).
   over: {
-    backgroundColor: tokens.color.dangerSoft,
-    color: tokens.color.danger,
+    backgroundColor: tokens.color.border,
+    color: tokens.color.textSecondary,
   },
 });

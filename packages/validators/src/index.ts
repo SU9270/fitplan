@@ -1,8 +1,10 @@
 import { z } from 'zod';
+import { MEAL_SHARE_STEP, MEAL_SHARES_TOTAL } from '@fitplan/core';
 import type {
   ActivityLevel,
   Goal,
   HealthFlags,
+  MealShares,
   Pace,
   Sex,
   TargetInput,
@@ -60,13 +62,26 @@ export const consentInputSchema = z.object({
 
 export type ConsentInput = z.infer<typeof consentInputSchema>;
 
-/** PATCH /api/me/settings: display preferences only (they never change the targets). */
+const mealShare = z.number().int().min(0).max(MEAL_SHARES_TOTAL).multipleOf(MEAL_SHARE_STEP);
+
+/** How the daily targets are split over the meals (whole percent, steps of 5, total 100). */
+export const mealSharesSchema = z
+  .object({ breakfast: mealShare, lunch: mealShare, dinner: mealShare, snack: mealShare })
+  .refine((s) => s.breakfast + s.lunch + s.dinner + s.snack === MEAL_SHARES_TOTAL, {
+    message: 'shares_must_total_100',
+    path: ['_root'],
+  });
+
+assertSameType<z.infer<typeof mealSharesSchema>, MealShares>(true);
+
+/** PATCH /api/me/settings: preferences that never change the daily targets. */
 export const settingsPatchSchema = z
   .object({
     unitSystem: profileInputSchema.shape.unitSystem.optional(),
     locale: profileInputSchema.shape.locale.optional(),
+    mealShares: mealSharesSchema.optional(),
   })
-  .refine((s) => s.unitSystem !== undefined || s.locale !== undefined, {
+  .refine((s) => s.unitSystem !== undefined || s.locale !== undefined || s.mealShares !== undefined, {
     message: 'nothing_to_update',
     path: ['_root'],
   });

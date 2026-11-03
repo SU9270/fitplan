@@ -3,6 +3,7 @@ import {
   CONSENT_VERSION,
   NICKNAME_MAX_LENGTH,
   consentInputSchema,
+  mealSharesSchema,
   nicknameSchema,
   profileInputSchema,
   settingsPatchSchema,
@@ -165,5 +166,22 @@ describe('nicknameSchema', () => {
     expect(nicknameSchema.safeParse('   ').success).toBe(false);
     expect(nicknameSchema.safeParse('a'.repeat(NICKNAME_MAX_LENGTH)).success).toBe(true);
     expect(nicknameSchema.safeParse('a'.repeat(NICKNAME_MAX_LENGTH + 1)).success).toBe(false);
+  });
+});
+
+describe('mealSharesSchema', () => {
+  it('accepts shares in steps of 5 that total 100', () => {
+    expect(mealSharesSchema.safeParse({ breakfast: 25, lunch: 30, dinner: 30, snack: 15 }).success).toBe(true);
+    expect(mealSharesSchema.safeParse({ breakfast: 0, lunch: 50, dinner: 50, snack: 0 }).success).toBe(true);
+  });
+
+  it('rejects totals other than 100, odd steps and out-of-range values', () => {
+    expect(mealSharesSchema.safeParse({ breakfast: 25, lunch: 30, dinner: 30, snack: 10 }).success).toBe(false);
+    expect(mealSharesSchema.safeParse({ breakfast: 23, lunch: 32, dinner: 30, snack: 15 }).success).toBe(false);
+    expect(mealSharesSchema.safeParse({ breakfast: -5, lunch: 40, dinner: 50, snack: 15 }).success).toBe(false);
+  });
+
+  it('is accepted alone by settingsPatchSchema', () => {
+    expect(settingsPatchSchema.safeParse({ mealShares: { breakfast: 20, lunch: 35, dinner: 35, snack: 10 } }).success).toBe(true);
   });
 });

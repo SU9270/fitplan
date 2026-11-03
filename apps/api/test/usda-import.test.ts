@@ -13,6 +13,7 @@ const files: UsdaCsvFiles = {
     '"900002","sr_legacy_food","Test sauce, ""special""","6","2019-04-01"',
     '"900003","foundation_food","Not an SR Legacy food","5","2020-01-01"',
   ].join('\n'),
+  foodCategory: ['"id","code","description"', '"5","0500","Poultry Products"', '"6","0600","Soups, Sauces, and Gravies"'].join('\n'),
   srLegacyFood: ['"fdc_id","NDB_number"', '"900001","5064"', '"900002","06176"'].join('\n'),
   foodNutrient: [
     '"id","fdc_id","nutrient_id","amount","data_points","derivation_id","min","max","median","footnote","min_year_acquired"',
@@ -36,12 +37,19 @@ const files: UsdaCsvFiles = {
   measureUnit: ['"id","name"', '"1000","cup"', '"9999","undetermined"'].join('\n'),
 };
 
-const zh = parseZhNames('ndb_number,name_zh,aliases\n05064,测试鸡胸,鸡胸| chicken breast \n99999,不存在,\n');
+const zh = parseZhNames(
+  'ndb_number,name_zh,aliases,suggest_portion\n05064,测试鸡胸,鸡胸| chicken breast ,"0.5 breast, bone and skin removed"\n99999,不存在,,\n',
+);
 
 describe('parseZhNames', () => {
   it('reads names and trims aliases', () => {
-    expect(zh[0]).toEqual({ ndbNumber: '05064', nameZh: '测试鸡胸', aliases: ['鸡胸', 'chicken breast'] });
-    expect(zh[1]?.aliases).toEqual([]);
+    expect(zh[0]).toEqual({
+      ndbNumber: '05064',
+      nameZh: '测试鸡胸',
+      aliases: ['鸡胸', 'chicken breast'],
+      suggestPortion: '0.5 breast, bone and skin removed',
+    });
+    expect(zh[1]).toMatchObject({ aliases: [], suggestPortion: null });
   });
 
   it('rejects duplicates (with or without leading zeros) and blank names', () => {
@@ -53,6 +61,7 @@ describe('parseZhNames', () => {
   it('the shipped table is well-formed', () => {
     const names = parseZhNames(zhCsv);
     expect(names.length).toBeGreaterThan(200);
+    expect(names.filter((n) => n.suggestPortion !== null).length).toBeGreaterThan(20);
     for (const name of names) expect(name.aliases.every((a) => a === a.trim() && a !== '')).toBe(true);
   });
 });
@@ -83,6 +92,19 @@ describe('buildUsdaImport', () => {
       sugarsG: null,
     });
     expect(data.foods[1]).toMatchObject({ name: 'Test sauce, "special"', kcal: 51, carbsG: null, proteinG: null });
+  });
+
+  it('keeps the USDA category and resolves the suggestion portion by its label', () => {
+    expect(data.foods[0]).toMatchObject({ category: 'Poultry Products', suggestPortionId: 'usda-portion-80002' });
+    expect(data.foods[1]).toMatchObject({ category: 'Soups, Sauces, and Gravies', suggestPortionId: null });
+    expect(data.unmatchedSuggestPortions).toEqual([]);
+  });
+
+  it('reports suggestion portion labels that match no portion', () => {
+    const typo = parseZhNames('ndb_number,name_zh,aliases,suggest_portion\n05064,测试鸡胸,,1 breast\n');
+    const result = buildUsdaImport(files, typo);
+    expect(result.unmatchedSuggestPortions).toEqual(['05064: 1 breast']);
+    expect(result.foods[0]?.suggestPortionId).toBeNull();
   });
 
   it('applies Chinese names by NDB number and builds the search text', () => {
@@ -123,10 +145,12 @@ describe('toImportSql', () => {
     const renamed = { ...data, foods: data.foods.map((f) => ({ ...f, nameZh: f.nameZh && `${f.nameZh}2` })) };
     await run(toImportSql(renamed, '2026-11-03T00:00:00.000Z'));
 
-    const foods = await env.DB.prepare("SELECT id, name, name_zh, kcal, carbs_g, created_at, updated_at FROM foods WHERE id LIKE 'usda-9000%' ORDER BY id").all();
+    const foods = await env.DB.prepare(
+      "SELECT id, name, name_zh, category, suggest_portion_id, kcal, carbs_g, created_at, updated_at FROM foods WHERE id LIKE 'usda-9000%' ORDER BY id",
+    ).all();
     expect(foods.results).toEqual([
-      { id: 'usda-900001', name: 'Test chicken, roasted', name_zh: '测试鸡胸2', kcal: 160, carbs_g: 0, created_at: '2026-11-02T00:00:00.000Z', updated_at: '2026-11-03T00:00:00.000Z' },
-      { id: 'usda-900002', name: 'Test sauce, "special"', name_zh: null, kcal: 51, carbs_g: null, created_at: '2026-11-02T00:00:00.000Z', updated_at: '2026-11-03T00:00:00.000Z' },
+      { id: 'usda-900001', name: 'Test chicken, roasted', name_zh: '测试鸡胸2', category: 'Poultry Products', suggest_portion_id: 'usda-portion-80002', kcal: 160, carbs_g: 0, created_at: '2026-11-02T00:00:00.000Z', updated_at: '2026-11-03T00:00:00.000Z' },
+      { id: 'usda-900002', name: 'Test sauce, "special"', name_zh: null, category: 'Soups, Sauces, and Gravies', suggest_portion_id: null, kcal: 51, carbs_g: null, created_at: '2026-11-02T00:00:00.000Z', updated_at: '2026-11-03T00:00:00.000Z' },
     ]);
     const portions = await env.DB.prepare("SELECT count(*) AS n FROM food_portions WHERE food_id LIKE 'usda-9000%'").first<{ n: number }>();
     expect(portions?.n).toBe(3);

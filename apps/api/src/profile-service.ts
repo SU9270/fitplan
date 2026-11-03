@@ -1,5 +1,5 @@
-import { computeTargets } from '@fitplan/core';
-import type { GuardrailReason, MacroTargets, TargetInput, TargetResult, TargetStatus } from '@fitplan/core';
+import { DEFAULT_MEAL_SHARES, computeTargets } from '@fitplan/core';
+import type { GuardrailReason, MacroTargets, MealShares, TargetInput, TargetResult, TargetStatus } from '@fitplan/core';
 import { toTargetInput } from '@fitplan/validators';
 import type { ConsentInput, ProfileInput, SettingsPatch } from '@fitplan/validators';
 import { and, desc, eq, sql } from 'drizzle-orm';
@@ -51,8 +51,10 @@ export function serializeTargetInput(i: TargetInput): string {
 
 type ProfileRow = typeof profiles.$inferSelect;
 type GoalRow = typeof goalVersions.$inferSelect;
+type MealShareColumn = 'mealShareBreakfast' | 'mealShareLunch' | 'mealShareDinner' | 'mealShareSnack';
 
-function toProfileView(row: ProfileRow, now: Date): ProfileView {
+/** The questionnaire answers; meal shares are settings (see `getMealShares`), not part of the view. */
+function toProfileView(row: Omit<ProfileRow, MealShareColumn>, now: Date): ProfileView {
   return {
     age: utcYear(now) - row.birthYear,
     sex: row.sex,
@@ -108,13 +110,49 @@ export async function updateSettings(
   userId: string,
   patch: SettingsPatch,
   now = new Date(),
-): Promise<Pick<ProfileView, 'unitSystem' | 'locale'> | null> {
+): Promise<(Pick<ProfileView, 'unitSystem' | 'locale'> & { mealShares: MealShares }) | null> {
+  const { mealShares, ...display } = patch;
   const [row] = await db
     .update(profiles)
-    .set({ ...patch, updatedAt: now.toISOString() })
+    .set({
+      ...display,
+      ...(mealShares
+        ? {
+            mealShareBreakfast: mealShares.breakfast,
+            mealShareLunch: mealShares.lunch,
+            mealShareDinner: mealShares.dinner,
+            mealShareSnack: mealShares.snack,
+          }
+        : {}),
+      updatedAt: now.toISOString(),
+    })
     .where(eq(profiles.userId, userId))
-    .returning({ unitSystem: profiles.unitSystem, locale: profiles.locale });
-  return row ?? null;
+    .returning();
+  return row ? { unitSystem: row.unitSystem, locale: row.locale, mealShares: mealSharesOf(row) } : null;
+}
+
+function mealSharesOf(row: Pick<ProfileRow, MealShareColumn>): MealShares {
+  return {
+    breakfast: row.mealShareBreakfast,
+    lunch: row.mealShareLunch,
+    dinner: row.mealShareDinner,
+    snack: row.mealShareSnack,
+  };
+}
+
+/** The user's meal shares; the defaults (25/30/30/15) before a profile exists. */
+export async function getMealShares(db: Db, userId: string): Promise<MealShares> {
+  const [row] = await db
+    .select({
+      mealShareBreakfast: profiles.mealShareBreakfast,
+      mealShareLunch: profiles.mealShareLunch,
+      mealShareDinner: profiles.mealShareDinner,
+      mealShareSnack: profiles.mealShareSnack,
+    })
+    .from(profiles)
+    .where(eq(profiles.userId, userId))
+    .limit(1);
+  return row ? mealSharesOf(row) : { ...DEFAULT_MEAL_SHARES };
 }
 
 /** Records a consent decision (append-only). Returns the new row id. */
@@ -146,12 +184,13 @@ export async function getProfile(
   db: Db,
   userId: string,
   now = new Date(),
-): Promise<{ profile: ProfileView | null; latestGoal: GoalVersionView | null }> {
+): Promise<{ profile: ProfileView | null; latestGoal: GoalVersionView | null; mealShares: MealShares }> {
   const [row] = await db.select().from(profiles).where(eq(profiles.userId, userId)).limit(1);
   const goal = await latestGoalRow(db, userId);
   return {
     profile: row ? toProfileView(row, now) : null,
     latestGoal: goal ? toGoalVersionView(goal) : null,
+    mealShares: row ? mealSharesOf(row) : { ...DEFAULT_MEAL_SHARES },
   };
 }
 

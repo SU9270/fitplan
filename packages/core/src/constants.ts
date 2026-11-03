@@ -1,4 +1,4 @@
-import type { ActivityLevel, Goal, Pace, Sex } from './types';
+import type { ActivityLevel, Goal, Meal, MealShares, Pace, PlateSlot, Sex } from './types';
 
 // Mifflin-St Jeor: BMR = 10*kg + 6.25*cm - 5*age + sexConstant
 export const BMR_WEIGHT_COEF = 10;
@@ -67,3 +67,65 @@ export const BMI_ROUND_FACTOR = 10;
 
 /** Food nutrient values are stored per this many grams (USDA convention). */
 export const NUTRIENT_BASIS_G = 100;
+
+// ---------------------------------------------------------------------------
+// Plates and gap feedback (phase 3 spec, docs/superpowers/specs/2026-11-03-plate-feedback-design.md)
+// ---------------------------------------------------------------------------
+
+export const MEALS = ['breakfast', 'lunch', 'dinner', 'snack'] as const satisfies readonly Meal[];
+
+export const PLATE_SLOTS = ['protein', 'staple', 'vegetable', 'other'] as const satisfies readonly PlateSlot[];
+
+/** Requirements v2.1 §10.8 suggestion: breakfast 25 %, lunch 30 %, dinner 30 %, snacks 15 %. */
+export const DEFAULT_MEAL_SHARES: MealShares = { breakfast: 25, lunch: 30, dinner: 30, snack: 15 };
+/** Meal shares change in steps of this many percent. */
+export const MEAL_SHARE_STEP = 5;
+export const MEAL_SHARES_TOTAL = 100;
+
+/** USDA categories that go to the vegetable cell regardless of macros. */
+export const VEGETABLE_CATEGORIES: readonly string[] = ['Vegetables and Vegetable Products'];
+/**
+ * Foods in a vegetable category with at least this many kcal per 100 g are starchy (potato,
+ * sweet potato, corn, taro, peas) and are placed by their macros instead (usually staple), as in
+ * Chinese meals; leafy and other vegetables stay well below it (broccoli 35, carrot 41).
+ */
+export const STARCHY_VEGETABLE_MIN_KCAL = 70;
+/** USDA categories that go to "other" (fruit, drinks, snacks, fats, condiments) regardless of macros. */
+export const OTHER_CATEGORIES: readonly string[] = [
+  'Fruits and Fruit Juices',
+  'Beverages',
+  'Alcoholic Beverages',
+  'Sweets',
+  'Snacks',
+  'Fats and Oils',
+  'Spices and Herbs',
+  'Soups, Sauces, and Gravies',
+];
+/**
+ * A food whose protein supplies at least this share of its energy goes to the protein cell.
+ * "Largest energy source" (requirements §3.4) would put eggs (34 % protein, 61 % fat), tofu and
+ * salmon under "other".
+ */
+export const PROTEIN_SLOT_MIN_ENERGY_SHARE = 0.3;
+
+/** Within ±10 % of a meal target counts as met (requirements §3.3). */
+export const GAP_TOLERANCE = 0.1;
+/** Meals that get the "no vegetables yet" hint. */
+export const VEGETABLE_HINT_MEALS: readonly Meal[] = ['lunch', 'dinner'];
+
+export const MAX_SUGGESTIONS = 3;
+/** Suggested amounts are multiples of half a portion … */
+export const SUGGESTION_PORTION_STEP = 0.5;
+/** … and at most this many portions. */
+export const SUGGESTION_MAX_PORTIONS = 3;
+/**
+ * A short protein / staple cell is topped up from a food already in it ("one more egg") when at
+ * most this many extra portions close the gap; otherwise a new food is suggested.
+ */
+export const MAX_TOP_UP_PORTIONS = 1;
+/** "Halve it" for an entry logged in grams rounds to this many grams. */
+export const REDUCE_GRAMS_STEP = 5;
+/** The suggested vegetable is the one whose portion is closest to this weight (a side dish). */
+export const VEGETABLE_SUGGESTION_GRAMS = 100;
+/** Score penalty for a suggestion that is not a whole number of portions. */
+export const FRACTIONAL_PORTION_PENALTY = 0.05;

@@ -71,6 +71,10 @@ export interface SeedFood {
   carbsG?: number | null;
   fatG?: number | null;
   portions?: { label: string; grams: number }[];
+  /** USDA category, e.g. "Vegetables and Vegetable Products". */
+  category?: string | null;
+  /** Index into `portions` of the portion suggestions use; omitted = not a suggestion candidate. */
+  suggestPortion?: number;
 }
 
 /**
@@ -85,8 +89,8 @@ export async function seedUsdaFood(food: SeedFood): Promise<{ id: string; portio
   const aliases = food.aliases ?? [];
   const searchText = [food.name, nameZh, ...aliases].filter((p): p is string => !!p).map((p) => p.toLowerCase()).join('\n');
   await env.DB.prepare(
-    `INSERT INTO foods (id, source, fdc_id, name, name_zh, aliases, search_text, kcal, protein_g, carbs_g, fat_g)
-     VALUES (?, 'usda_sr_legacy', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO foods (id, source, fdc_id, name, name_zh, aliases, search_text, category, suggest_portion_id, kcal, protein_g, carbs_g, fat_g)
+     VALUES (?, 'usda_sr_legacy', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       id,
@@ -95,6 +99,8 @@ export async function seedUsdaFood(food: SeedFood): Promise<{ id: string; portio
       nameZh,
       aliases.length > 0 ? aliases.join('|') : null,
       searchText,
+      food.category ?? null,
+      food.suggestPortion === undefined ? null : `${id}-p${food.suggestPortion}`,
       food.kcal === undefined ? 100 : food.kcal,
       food.proteinG === undefined ? 10 : food.proteinG,
       food.carbsG === undefined ? 10 : food.carbsG,

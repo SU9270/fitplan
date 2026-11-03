@@ -1,224 +1,224 @@
-ndb_number,name_zh,aliases
-20044,白米（生）,大米|白米|生米|rice uncooked
-20045,白米饭,米饭|白饭|rice|white rice|cooked rice
-20051,中粒白米饭,米饭|寿司米|medium grain rice
-20453,短粒白米饭,米饭|日本米|珍珠米|short grain rice
-20036,糙米（生）,糙米|brown rice uncooked
-20037,糙米饭,糙米|brown rice
-20035,藜麦（生）,藜麦|quinoa uncooked
-20137,藜麦（熟）,藜麦|quinoa
-08120,燕麦片（干）,燕麦|麦片|oatmeal|oats
-08121,燕麦粥,燕麦|麦片粥|oatmeal|porridge
-20120,意面（干）,意大利面|pasta|spaghetti
-20121,意面（煮熟）,意大利面|pasta|spaghetti
-20110,鸡蛋面（煮熟）,面条|蛋面|egg noodles
-20134,米粉（煮熟）,米粉|河粉|rice noodles
-20133,米粉（干）,米粉|河粉|rice noodles
-16082,粉丝（干）,粉丝|绿豆粉丝|glass noodles
-20115,荞麦面（煮熟）,荞麦面|soba
-06583,方便面（干）,泡面|方便面|拉面|ramen|instant noodles
-18069,白面包,吐司|面包|白吐司|white bread|toast
-18075,全麦面包,全麦吐司|面包|whole wheat bread
-18029,法棍,法式面包|酸种面包|baguette|sourdough
-18001,贝果,百吉饼|bagel
-18258,英式松饼,英式玛芬|english muffin
-18239,牛角面包,可颂|croissant
-18364,面粉薄饼,卷饼|墨西哥饼|flour tortilla
-18363,玉米薄饼,玉米饼|corn tortilla
-18041,皮塔饼,口袋饼|pita
-18293,美式煎饼,松饼|薄煎饼|pancake
-18255,甜甜圈,多拿滋|donut|doughnut
-18228,苏打饼干,咸饼干|saltine crackers
-18368,馄饨皮,饺子皮|春卷皮|wonton wrapper
-20081,面粉,中筋面粉|all-purpose flour
-32013,冷冻锅贴 / 馄饨（猪肉蔬菜）,饺子|锅贴|煎饺|馄饨|potsticker|dumpling
-05062,鸡胸肉（生）,鸡肉|鸡胸|鸡胸肉|chicken breast raw
-05064,鸡胸肉（烤）,鸡肉|鸡胸|鸡胸肉|chicken breast
-05065,鸡胸肉（炖煮）,鸡胸|水煮鸡胸|chicken breast
-05096,鸡腿肉（生，去皮）,鸡腿|鸡腿肉|chicken thigh raw
-05098,鸡腿肉（烤，去皮）,鸡肉|鸡腿|鸡腿肉|chicken thigh
-05103,鸡翅（烤，带皮）,鸡翅|chicken wings
-05342,烤鸡胸肉（超市烤鸡）,烤鸡|rotisserie chicken
-05305,火鸡肉末（生）,火鸡肉馅|ground turkey raw
-05306,火鸡肉末（熟）,火鸡肉馅|ground turkey
-05220,火鸡胸肉（烤）,火鸡胸|turkey breast
-05142,鸭肉（烤，去皮）,鸭肉|烤鸭|duck
-23567,牛肉末 85%瘦（生）,牛肉|牛肉馅|绞肉|ground beef raw
-23570,牛肉末 85%瘦（炒熟）,牛肉馅|绞肉|ground beef
-23562,牛肉末 90%瘦（生）,牛肉|牛肉馅|绞肉|lean ground beef raw
-23565,牛肉末 90%瘦（炒熟）,牛肉馅|绞肉|lean ground beef
-23476,牛肉末 93%瘦（炒熟）,牛肉馅|绞肉|extra lean ground beef
-13454,西冷牛排（瘦肉，烤）,牛肉|牛排|西冷|sirloin steak
-13068,侧腹牛排（瘦肉，生）,牛排|牛腹肉|flank steak
-13070,侧腹牛排（瘦肉，烤）,牛排|牛腹肉|flank steak
-13368,牛胸肉（瘦肉，炖）,牛腩|brisket
-10219,猪肉末（生）,猪肉|猪肉馅|绞肉|ground pork raw
-10220,猪肉末（熟）,猪肉馅|绞肉|ground pork
-10005,五花肉（生）,猪五花|五花肉|pork belly
-10061,猪里脊（烤）,猪肉|里脊|猪柳|pork tenderloin
-10163,猪排（去骨，瘦肉，煎）,猪排|pork chop
-10089,猪肋排（炖）,排骨|spare ribs
-10862,培根（煎）,培根|bacon
-10183,火腿（去骨，烤）,火腿|ham
-07945,热狗肠（牛肉）,热狗|香肠|hot dog
-17225,羊肉末（熟）,羊肉|ground lamb
-15236,三文鱼（养殖，生）,三文鱼|鲑鱼|salmon raw
-15237,三文鱼（养殖，熟）,三文鱼|鲑鱼|salmon
-15076,三文鱼（野生，生）,三文鱼|鲑鱼|wild salmon
-15086,红鲑（熟）,三文鱼|鲑鱼|sockeye salmon
-15149,虾（生）,虾仁|虾|shrimp raw
-15151,虾（煮熟）,虾仁|白灼虾|shrimp
-15261,罗非鱼（生）,罗非鱼|tilapia raw
-15262,罗非鱼（熟）,罗非鱼|tilapia
-15015,鳕鱼（生）,鳕鱼|cod raw
-15016,鳕鱼（熟）,鳕鱼|cod
-15067,狭鳕鱼（熟）,鳕鱼|pollock
-15235,鲶鱼（养殖，熟）,鲶鱼|catfish
-15047,鲭鱼（熟）,青花鱼|鲭鱼|mackerel
-15121,水浸金枪鱼罐头,金枪鱼|吞拿鱼|tuna canned
-15175,鱿鱼（生）,鱿鱼|squid
-90240,扇贝（蒸）,扇贝|带子|scallops
-15159,蛤蜊（煮熟）,蛤蜊|花甲|clams
-01123,鸡蛋（生）,鸡蛋|蛋|egg
-01129,水煮蛋,鸡蛋|白煮蛋|hard boiled egg
-01128,煎蛋,鸡蛋|荷包蛋|fried egg
-01132,炒蛋,鸡蛋|scrambled eggs
-01124,蛋清（生）,蛋白|egg white
-16126,北豆腐（老豆腐）,豆腐|老豆腐|firm tofu
-16127,嫩豆腐,豆腐|南豆腐|soft tofu
-16159,特硬豆腐,豆腐|extra firm tofu
-16129,油豆腐,豆腐泡|fried tofu
-16120,豆浆（原味）,豆奶|soy milk
-16222,无糖豆浆,豆奶|unsweetened soy milk
-11211,毛豆（冷冻）,毛豆|edamame
-16015,黑豆（煮熟）,黑豆|black beans
-16057,鹰嘴豆（煮熟）,鹰嘴豆|chickpeas|garbanzo
-16070,小扁豆（煮熟）,扁豆|兵豆|lentils
-16033,红腰豆（煮熟）,芸豆|kidney beans
-16080,绿豆（干）,绿豆|mung beans
-01077,全脂牛奶,牛奶|whole milk
-01079,低脂牛奶 2%,牛奶|2% milk
-01082,低脂牛奶 1%,牛奶|1% milk
-01085,脱脂牛奶,牛奶|skim milk
-01103,巧克力牛奶（低脂）,巧克力奶|chocolate milk
-01256,希腊酸奶（原味，脱脂）,希腊酸奶|酸奶|greek yogurt
-01287,希腊酸奶（原味，低脂）,希腊酸奶|酸奶|greek yogurt
-01293,希腊酸奶（原味，全脂）,希腊酸奶|酸奶|greek yogurt
-01116,原味酸奶（全脂）,酸奶|yogurt
-01009,切达奶酪,芝士|奶酪|cheddar
-01028,马苏里拉奶酪（部分脱脂）,芝士|奶酪|mozzarella
-01016,茅屋奶酪（低脂）,白软干酪|cottage cheese
-01017,奶油奶酪,芝士|cream cheese
-01032,帕玛森奶酪（碎）,芝士|parmesan
-01001,黄油（含盐）,黄油|牛油|butter
-14066,乳清蛋白粉,蛋白粉|whey protein
-14058,分离乳清蛋白粉,蛋白粉|whey isolate
-11090,西兰花（生）,西兰花|花椰菜|broccoli
-11091,西兰花（煮熟）,西兰花|broccoli
-11994,芥蓝（生）,芥兰|chinese broccoli|gai lan
-11969,芥蓝（熟）,芥兰|chinese broccoli|gai lan
-11457,菠菜（生）,菠菜|spinach
-11458,菠菜（煮熟）,菠菜|spinach
-11116,小白菜（生）,青菜|上海青|白菜|bok choy
-11117,小白菜（煮熟）,青菜|上海青|白菜|bok choy
-11119,大白菜（生）,白菜|黄芽白|napa cabbage
-11109,卷心菜（生）,包菜|洋白菜|圆白菜|cabbage
-11124,胡萝卜（生）,红萝卜|carrot
-11529,番茄（生）,西红柿|tomato
-11205,黄瓜（生）,青瓜|cucumber
-11674,土豆（烤，带皮）,马铃薯|土豆|potato
-11365,土豆（水煮）,马铃薯|土豆|potato
-11507,红薯（生）,地瓜|番薯|sweet potato
-11508,红薯（烤）,地瓜|番薯|烤红薯|sweet potato
-11167,甜玉米（生）,玉米|corn
-11168,甜玉米（煮熟）,玉米|corn
-11260,白蘑菇（生）,口蘑|蘑菇|mushroom
-11238,香菇（生）,香菇|shiitake
-11269,香菇（熟）,香菇|shiitake
-11282,洋葱（生）,洋葱|onion
-11333,青椒（生）,甜椒|青椒|bell pepper
-11821,红椒（生）,甜椒|红椒|bell pepper
-11052,四季豆（生）,豆角|green beans
-11251,罗马生菜（生）,生菜|romaine
-11252,球生菜（生）,生菜|iceberg lettuce
-11135,菜花（生）,花菜|花椰菜|cauliflower
-11143,西芹（生）,芹菜|celery
-11209,茄子（生）,茄子|eggplant
-11477,西葫芦（生）,西葫芦|zucchini
-11011,芦笋（生）,芦笋|asparagus
-11233,羽衣甘蓝（生）,羽衣甘蓝|kale
-11215,大蒜（生）,蒜|garlic
-11216,生姜,姜|ginger
-11304,青豆（生）,豌豆|peas
-11422,南瓜（生）,南瓜|pumpkin
-11278,秋葵（生）,秋葵|okra
-11043,绿豆芽,豆芽|bean sprouts
-11254,莲藕（生）,藕|lotus root
-11518,芋头（生）,芋头|taro
-11026,竹笋（生）,竹笋|bamboo shoots
-11446,紫菜（生）,海苔|紫菜|laver|nori
-11445,海带（生）,海带|kelp
-11669,裙带菜（生）,海带芽|wakame
-11118,韩式泡菜,泡菜|kimchi
-09003,苹果（带皮）,苹果|apple
-09040,香蕉,香蕉|banana
-09200,橙子,橙|甜橙|orange
-09132,葡萄（无籽）,葡萄|grapes
-09316,草莓,草莓|strawberries
-09050,蓝莓,蓝莓|blueberries
-09037,牛油果,鳄梨|avocado
-09326,西瓜,西瓜|watermelon
-09148,猕猴桃,奇异果|kiwi
-09176,芒果,芒果|mango
-09252,梨,梨|pear
-09236,桃子,黄桃|peach
-09266,菠萝,凤梨|pineapple
-09070,樱桃,车厘子|cherries
-09181,哈密瓜,甜瓜|cantaloupe
-09206,鲜榨橙汁,橙汁|orange juice
-16098,花生酱（含盐）,花生酱|peanut butter
-12061,杏仁,巴旦木|almonds
-12155,核桃,核桃|walnuts
-12087,腰果（生）,腰果|cashews
-12024,熟芝麻,芝麻|sesame seeds
-04053,橄榄油,橄榄油|olive oil
-04582,菜籽油,芥花油|canola oil
-04044,大豆油,色拉油|食用油|soybean oil|vegetable oil
-19296,蜂蜜,蜂蜜|honey
-19335,白砂糖,白糖|砂糖|sugar
-16123,酱油（生抽）,酱油|生抽|soy sauce
-06176,蚝油,蚝油|oyster sauce
-06175,海鲜酱,海鲜酱|hoisin sauce
-11935,番茄酱,番茄酱|ketchup
-04639,田园沙拉酱,沙拉酱|ranch
-02048,苹果醋,醋|apple cider vinegar
-36602,炒饭（中餐馆，无肉）,炒饭|蛋炒饭|fried rice
-36619,宫保鸡丁（中餐馆）,宫保鸡丁|kung pao chicken
-36618,左宗棠鸡（中餐馆）,左宗棠鸡|general tso's chicken
-36629,陈皮鸡（中餐馆）,陈皮鸡|橙子鸡|orange chicken
-36633,芝麻鸡（中餐馆）,芝麻鸡|sesame chicken
-36621,甜酸鸡（中餐馆）,咕咾鸡|sweet and sour chicken
-36622,咕咾肉（中餐馆）,咕噜肉|糖醋里脊|sweet and sour pork
-36617,柠檬鸡（中餐馆）,柠檬鸡|lemon chicken
-36623,鸡肉炒面（中餐馆）,炒面|chicken chow mein
-36625,蔬菜捞面（中餐馆）,捞面|lo mein
-36603,牛肉炒蔬菜（中餐馆）,西兰花牛肉|beef and broccoli
-36626,鸡肉炒蔬菜（中餐馆）,鸡肉炒菜|chicken and vegetables
-36620,虾仁炒蔬菜（中餐馆）,虾仁炒菜|shrimp and vegetables
-36601,春卷（中餐馆）,春卷|egg roll
-27002,馄饨汤（中餐馆）,馄饨|云吞|wonton soup
-21238,麦当劳薯条,薯条|french fries|mcdonald's
-21237,麦当劳巨无霸,汉堡|big mac|mcdonald's
-21233,麦当劳吉士汉堡,汉堡|cheeseburger|mcdonald's
-21309,麦当劳麦乐鸡块,鸡块|chicken nuggets|mcdonald's
-21211,赛百味烤鸡潜艇堡,三明治|subway
-21143,福来鸡鸡柳,鸡柳|chick-fil-a
-21224,芝士披萨（冷冻，烤熟）,披萨|pizza
-36014,炸薯条（餐馆）,薯条|french fries
-19095,香草冰淇淋,冰淇淋|雪糕|ice cream
-19904,黑巧克力 70-85%,巧克力|dark chocolate
-19411,薯片（原味）,薯片|potato chips
-18159,巧克力曲奇,曲奇|饼干|chocolate chip cookies
-14209,黑咖啡,咖啡|美式|coffee
-14355,红茶,茶|black tea
-14148,可乐,可口可乐|汽水|coke|cola
+ndb_number,name_zh,aliases,suggest_portion
+20044,白米（生）,大米|白米|生米|rice uncooked,
+20045,白米饭,米饭|白饭|rice|white rice|cooked rice,1 cup
+20051,中粒白米饭,米饭|寿司米|medium grain rice,
+20453,短粒白米饭,米饭|日本米|珍珠米|short grain rice,
+20036,糙米（生）,糙米|brown rice uncooked,
+20037,糙米饭,糙米|brown rice,1 cup
+20035,藜麦（生）,藜麦|quinoa uncooked,
+20137,藜麦（熟）,藜麦|quinoa,1 cup
+08120,燕麦片（干）,燕麦|麦片|oatmeal|oats,
+08121,燕麦粥,燕麦|麦片粥|oatmeal|porridge,1 cup
+20120,意面（干）,意大利面|pasta|spaghetti,
+20121,意面（煮熟）,意大利面|pasta|spaghetti,1 cup spaghetti not packed
+20110,鸡蛋面（煮熟）,面条|蛋面|egg noodles,
+20134,米粉（煮熟）,米粉|河粉|rice noodles,
+20133,米粉（干）,米粉|河粉|rice noodles,
+16082,粉丝（干）,粉丝|绿豆粉丝|glass noodles,
+20115,荞麦面（煮熟）,荞麦面|soba,
+06583,方便面（干）,泡面|方便面|拉面|ramen|instant noodles,
+18069,白面包,吐司|面包|白吐司|white bread|toast,
+18075,全麦面包,全麦吐司|面包|whole wheat bread,1 slice
+18029,法棍,法式面包|酸种面包|baguette|sourdough,
+18001,贝果,百吉饼|bagel,1 bagel
+18258,英式松饼,英式玛芬|english muffin,
+18239,牛角面包,可颂|croissant,
+18364,面粉薄饼,卷饼|墨西哥饼|flour tortilla,1 tortilla
+18363,玉米薄饼,玉米饼|corn tortilla,
+18041,皮塔饼,口袋饼|pita,
+18293,美式煎饼,松饼|薄煎饼|pancake,
+18255,甜甜圈,多拿滋|donut|doughnut,
+18228,苏打饼干,咸饼干|saltine crackers,
+18368,馄饨皮,饺子皮|春卷皮|wonton wrapper,
+20081,面粉,中筋面粉|all-purpose flour,
+32013,冷冻锅贴 / 馄饨（猪肉蔬菜）,饺子|锅贴|煎饺|馄饨|potsticker|dumpling,
+05062,鸡胸肉（生）,鸡肉|鸡胸|鸡胸肉|chicken breast raw,
+05064,鸡胸肉（烤）,鸡肉|鸡胸|鸡胸肉|chicken breast,"0.5 breast, bone and skin removed"
+05065,鸡胸肉（炖煮）,鸡胸|水煮鸡胸|chicken breast,
+05096,鸡腿肉（生，去皮）,鸡腿|鸡腿肉|chicken thigh raw,
+05098,鸡腿肉（烤，去皮）,鸡肉|鸡腿|鸡腿肉|chicken thigh,
+05103,鸡翅（烤，带皮）,鸡翅|chicken wings,
+05342,烤鸡胸肉（超市烤鸡）,烤鸡|rotisserie chicken,3 oz
+05305,火鸡肉末（生）,火鸡肉馅|ground turkey raw,
+05306,火鸡肉末（熟）,火鸡肉馅|ground turkey,
+05220,火鸡胸肉（烤）,火鸡胸|turkey breast,
+05142,鸭肉（烤，去皮）,鸭肉|烤鸭|duck,
+23567,牛肉末 85%瘦（生）,牛肉|牛肉馅|绞肉|ground beef raw,
+23570,牛肉末 85%瘦（炒熟）,牛肉馅|绞肉|ground beef,
+23562,牛肉末 90%瘦（生）,牛肉|牛肉馅|绞肉|lean ground beef raw,
+23565,牛肉末 90%瘦（炒熟）,牛肉馅|绞肉|lean ground beef,3 oz
+23476,牛肉末 93%瘦（炒熟）,牛肉馅|绞肉|extra lean ground beef,
+13454,西冷牛排（瘦肉，烤）,牛肉|牛排|西冷|sirloin steak,
+13068,侧腹牛排（瘦肉，生）,牛排|牛腹肉|flank steak,
+13070,侧腹牛排（瘦肉，烤）,牛排|牛腹肉|flank steak,
+13368,牛胸肉（瘦肉，炖）,牛腩|brisket,
+10219,猪肉末（生）,猪肉|猪肉馅|绞肉|ground pork raw,
+10220,猪肉末（熟）,猪肉馅|绞肉|ground pork,
+10005,五花肉（生）,猪五花|五花肉|pork belly,
+10061,猪里脊（烤）,猪肉|里脊|猪柳|pork tenderloin,
+10163,猪排（去骨，瘦肉，煎）,猪排|pork chop,
+10089,猪肋排（炖）,排骨|spare ribs,
+10862,培根（煎）,培根|bacon,
+10183,火腿（去骨，烤）,火腿|ham,
+07945,热狗肠（牛肉）,热狗|香肠|hot dog,
+17225,羊肉末（熟）,羊肉|ground lamb,
+15236,三文鱼（养殖，生）,三文鱼|鲑鱼|salmon raw,
+15237,三文鱼（养殖，熟）,三文鱼|鲑鱼|salmon,3 oz
+15076,三文鱼（野生，生）,三文鱼|鲑鱼|wild salmon,
+15086,红鲑（熟）,三文鱼|鲑鱼|sockeye salmon,
+15149,虾（生）,虾仁|虾|shrimp raw,
+15151,虾（煮熟）,虾仁|白灼虾|shrimp,3 oz
+15261,罗非鱼（生）,罗非鱼|tilapia raw,
+15262,罗非鱼（熟）,罗非鱼|tilapia,1 fillet
+15015,鳕鱼（生）,鳕鱼|cod raw,
+15016,鳕鱼（熟）,鳕鱼|cod,3 oz
+15067,狭鳕鱼（熟）,鳕鱼|pollock,
+15235,鲶鱼（养殖，熟）,鲶鱼|catfish,
+15047,鲭鱼（熟）,青花鱼|鲭鱼|mackerel,
+15121,水浸金枪鱼罐头,金枪鱼|吞拿鱼|tuna canned,1 can
+15175,鱿鱼（生）,鱿鱼|squid,
+90240,扇贝（蒸）,扇贝|带子|scallops,
+15159,蛤蜊（煮熟）,蛤蜊|花甲|clams,
+01123,鸡蛋（生）,鸡蛋|蛋|egg,
+01129,水煮蛋,鸡蛋|白煮蛋|hard boiled egg,1 large
+01128,煎蛋,鸡蛋|荷包蛋|fried egg,
+01132,炒蛋,鸡蛋|scrambled eggs,
+01124,蛋清（生）,蛋白|egg white,
+16126,北豆腐（老豆腐）,豆腐|老豆腐|firm tofu,0.25 block
+16127,嫩豆腐,豆腐|南豆腐|soft tofu,
+16159,特硬豆腐,豆腐|extra firm tofu,
+16129,油豆腐,豆腐泡|fried tofu,
+16120,豆浆（原味）,豆奶|soy milk,
+16222,无糖豆浆,豆奶|unsweetened soy milk,
+11211,毛豆（冷冻）,毛豆|edamame,
+16015,黑豆（煮熟）,黑豆|black beans,1 cup
+16057,鹰嘴豆（煮熟）,鹰嘴豆|chickpeas|garbanzo,
+16070,小扁豆（煮熟）,扁豆|兵豆|lentils,
+16033,红腰豆（煮熟）,芸豆|kidney beans,
+16080,绿豆（干）,绿豆|mung beans,
+01077,全脂牛奶,牛奶|whole milk,
+01079,低脂牛奶 2%,牛奶|2% milk,
+01082,低脂牛奶 1%,牛奶|1% milk,
+01085,脱脂牛奶,牛奶|skim milk,
+01103,巧克力牛奶（低脂）,巧克力奶|chocolate milk,
+01256,希腊酸奶（原味，脱脂）,希腊酸奶|酸奶|greek yogurt,1 container
+01287,希腊酸奶（原味，低脂）,希腊酸奶|酸奶|greek yogurt,
+01293,希腊酸奶（原味，全脂）,希腊酸奶|酸奶|greek yogurt,
+01116,原味酸奶（全脂）,酸奶|yogurt,
+01009,切达奶酪,芝士|奶酪|cheddar,
+01028,马苏里拉奶酪（部分脱脂）,芝士|奶酪|mozzarella,
+01016,茅屋奶酪（低脂）,白软干酪|cottage cheese,4 oz
+01017,奶油奶酪,芝士|cream cheese,
+01032,帕玛森奶酪（碎）,芝士|parmesan,
+01001,黄油（含盐）,黄油|牛油|butter,
+14066,乳清蛋白粉,蛋白粉|whey protein,
+14058,分离乳清蛋白粉,蛋白粉|whey isolate,
+11090,西兰花（生）,西兰花|花椰菜|broccoli,
+11091,西兰花（煮熟）,西兰花|broccoli,"0.5 cup, chopped"
+11994,芥蓝（生）,芥兰|chinese broccoli|gai lan,
+11969,芥蓝（熟）,芥兰|chinese broccoli|gai lan,1 cup
+11457,菠菜（生）,菠菜|spinach,
+11458,菠菜（煮熟）,菠菜|spinach,1 cup
+11116,小白菜（生）,青菜|上海青|白菜|bok choy,
+11117,小白菜（煮熟）,青菜|上海青|白菜|bok choy,"1 cup, shredded"
+11119,大白菜（生）,白菜|黄芽白|napa cabbage,
+11109,卷心菜（生）,包菜|洋白菜|圆白菜|cabbage,
+11124,胡萝卜（生）,红萝卜|carrot,1 medium
+11529,番茄（生）,西红柿|tomato,"1 medium whole (2-3/5"" dia)"
+11205,黄瓜（生）,青瓜|cucumber,0.5 cup slices
+11674,土豆（烤，带皮）,马铃薯|土豆|potato,1 potato medium
+11365,土豆（水煮）,马铃薯|土豆|potato,
+11507,红薯（生）,地瓜|番薯|sweet potato,
+11508,红薯（烤）,地瓜|番薯|烤红薯|sweet potato,"1 medium (2"" dia, 5"" long, raw)"
+11167,甜玉米（生）,玉米|corn,
+11168,甜玉米（煮熟）,玉米|corn,
+11260,白蘑菇（生）,口蘑|蘑菇|mushroom,
+11238,香菇（生）,香菇|shiitake,
+11269,香菇（熟）,香菇|shiitake,
+11282,洋葱（生）,洋葱|onion,
+11333,青椒（生）,甜椒|青椒|bell pepper,
+11821,红椒（生）,甜椒|红椒|bell pepper,
+11052,四季豆（生）,豆角|green beans,
+11251,罗马生菜（生）,生菜|romaine,1 cup shredded
+11252,球生菜（生）,生菜|iceberg lettuce,
+11135,菜花（生）,花菜|花椰菜|cauliflower,
+11143,西芹（生）,芹菜|celery,
+11209,茄子（生）,茄子|eggplant,
+11477,西葫芦（生）,西葫芦|zucchini,
+11011,芦笋（生）,芦笋|asparagus,
+11233,羽衣甘蓝（生）,羽衣甘蓝|kale,
+11215,大蒜（生）,蒜|garlic,
+11216,生姜,姜|ginger,
+11304,青豆（生）,豌豆|peas,
+11422,南瓜（生）,南瓜|pumpkin,
+11278,秋葵（生）,秋葵|okra,
+11043,绿豆芽,豆芽|bean sprouts,
+11254,莲藕（生）,藕|lotus root,
+11518,芋头（生）,芋头|taro,
+11026,竹笋（生）,竹笋|bamboo shoots,
+11446,紫菜（生）,海苔|紫菜|laver|nori,
+11445,海带（生）,海带|kelp,
+11669,裙带菜（生）,海带芽|wakame,
+11118,韩式泡菜,泡菜|kimchi,
+09003,苹果（带皮）,苹果|apple,
+09040,香蕉,香蕉|banana,
+09200,橙子,橙|甜橙|orange,
+09132,葡萄（无籽）,葡萄|grapes,
+09316,草莓,草莓|strawberries,
+09050,蓝莓,蓝莓|blueberries,
+09037,牛油果,鳄梨|avocado,
+09326,西瓜,西瓜|watermelon,
+09148,猕猴桃,奇异果|kiwi,
+09176,芒果,芒果|mango,
+09252,梨,梨|pear,
+09236,桃子,黄桃|peach,
+09266,菠萝,凤梨|pineapple,
+09070,樱桃,车厘子|cherries,
+09181,哈密瓜,甜瓜|cantaloupe,
+09206,鲜榨橙汁,橙汁|orange juice,
+16098,花生酱（含盐）,花生酱|peanut butter,
+12061,杏仁,巴旦木|almonds,
+12155,核桃,核桃|walnuts,
+12087,腰果（生）,腰果|cashews,
+12024,熟芝麻,芝麻|sesame seeds,
+04053,橄榄油,橄榄油|olive oil,
+04582,菜籽油,芥花油|canola oil,
+04044,大豆油,色拉油|食用油|soybean oil|vegetable oil,
+19296,蜂蜜,蜂蜜|honey,
+19335,白砂糖,白糖|砂糖|sugar,
+16123,酱油（生抽）,酱油|生抽|soy sauce,
+06176,蚝油,蚝油|oyster sauce,
+06175,海鲜酱,海鲜酱|hoisin sauce,
+11935,番茄酱,番茄酱|ketchup,
+04639,田园沙拉酱,沙拉酱|ranch,
+02048,苹果醋,醋|apple cider vinegar,
+36602,炒饭（中餐馆，无肉）,炒饭|蛋炒饭|fried rice,
+36619,宫保鸡丁（中餐馆）,宫保鸡丁|kung pao chicken,
+36618,左宗棠鸡（中餐馆）,左宗棠鸡|general tso's chicken,
+36629,陈皮鸡（中餐馆）,陈皮鸡|橙子鸡|orange chicken,
+36633,芝麻鸡（中餐馆）,芝麻鸡|sesame chicken,
+36621,甜酸鸡（中餐馆）,咕咾鸡|sweet and sour chicken,
+36622,咕咾肉（中餐馆）,咕噜肉|糖醋里脊|sweet and sour pork,
+36617,柠檬鸡（中餐馆）,柠檬鸡|lemon chicken,
+36623,鸡肉炒面（中餐馆）,炒面|chicken chow mein,
+36625,蔬菜捞面（中餐馆）,捞面|lo mein,
+36603,牛肉炒蔬菜（中餐馆）,西兰花牛肉|beef and broccoli,
+36626,鸡肉炒蔬菜（中餐馆）,鸡肉炒菜|chicken and vegetables,
+36620,虾仁炒蔬菜（中餐馆）,虾仁炒菜|shrimp and vegetables,
+36601,春卷（中餐馆）,春卷|egg roll,
+27002,馄饨汤（中餐馆）,馄饨|云吞|wonton soup,
+21238,麦当劳薯条,薯条|french fries|mcdonald's,
+21237,麦当劳巨无霸,汉堡|big mac|mcdonald's,
+21233,麦当劳吉士汉堡,汉堡|cheeseburger|mcdonald's,
+21309,麦当劳麦乐鸡块,鸡块|chicken nuggets|mcdonald's,
+21211,赛百味烤鸡潜艇堡,三明治|subway,
+21143,福来鸡鸡柳,鸡柳|chick-fil-a,
+21224,芝士披萨（冷冻，烤熟）,披萨|pizza,
+36014,炸薯条（餐馆）,薯条|french fries,
+19095,香草冰淇淋,冰淇淋|雪糕|ice cream,
+19904,黑巧克力 70-85%,巧克力|dark chocolate,
+19411,薯片（原味）,薯片|potato chips,
+18159,巧克力曲奇,曲奇|饼干|chocolate chip cookies,
+14209,黑咖啡,咖啡|美式|coffee,
+14355,红茶,茶|black tea,
+14148,可乐,可口可乐|汽水|coke|cola,

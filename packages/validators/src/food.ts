@@ -1,7 +1,9 @@
+import { MEALS, type Meal } from '@fitplan/core';
 import { z } from 'zod';
 
-export const MEALS = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
-export type Meal = (typeof MEALS)[number];
+// The meal list lives in core (meal targets and plates need it); re-exported for existing imports.
+export { MEALS };
+export type { Meal };
 export const mealSchema = z.enum(MEALS);
 
 /** Upper bound for one diary entry, after a portion × quantity is resolved to grams. */

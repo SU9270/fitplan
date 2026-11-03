@@ -23,6 +23,7 @@ const NUTRIENT_FIELD_BY_ID = new Map<string, NutrientField>(
 /** Raw text of the CSV files used from the SR Legacy download. */
 export interface UsdaCsvFiles {
   food: string;
+  foodCategory: string;
   srLegacyFood: string;
   foodNutrient: string;
   foodPortion: string;
@@ -33,6 +34,8 @@ export interface ZhName {
   ndbNumber: string;
   nameZh: string;
   aliases: string[];
+  /** Label of the portion suggestions use (e.g. "1 large"); null = not a suggestion candidate. */
+  suggestPortion: string | null;
 }
 
 export type UsdaFoodRow = {
@@ -42,6 +45,9 @@ export type UsdaFoodRow = {
   nameZh: string | null;
   aliases: string | null;
   searchText: string;
+  /** USDA food category description, e.g. "Vegetables and Vegetable Products". */
+  category: string | null;
+  suggestPortionId: string | null;
 } & Record<NutrientField, number | null>;
 
 export interface UsdaPortionRow {
@@ -57,6 +63,8 @@ export interface UsdaImport {
   portions: UsdaPortionRow[];
   /** NDB numbers in the Chinese name table that are not in the download. */
   unmatchedNdbNumbers: string[];
+  /** `suggest_portion` labels that match none of the food's portions ("<ndb>: <label>"). */
+  unmatchedSuggestPortions: string[];
 }
 
 export const usdaFoodId = (fdcId: number) => `usda-${fdcId}`;
@@ -81,7 +89,8 @@ export function parseZhNames(text: string): ZhName[] {
       .split(ALIAS_SEPARATOR)
       .map((a) => a.trim())
       .filter((a) => a !== '');
-    names.push({ ndbNumber, nameZh, aliases });
+    const suggestPortion = (r.suggest_portion ?? '').trim();
+    names.push({ ndbNumber, nameZh, aliases, suggestPortion: suggestPortion === '' ? null : suggestPortion });
   }
   return names;
 }
@@ -111,7 +120,11 @@ export function buildUsdaImport(files: UsdaCsvFiles, zhNames: readonly ZhName[])
   const ndbByFdc = new Map<string, string>();
   for (const r of csvRecords(files.srLegacyFood)) ndbByFdc.set(r.fdc_id ?? '', normalizeNdb(r.NDB_number ?? ''));
 
+  const categories = new Map<string, string>();
+  for (const r of csvRecords(files.foodCategory)) categories.set(r.id ?? '', (r.description ?? '').trim());
+
   const foodsByFdc = new Map<string, UsdaFoodRow>();
+  const zhByFoodId = new Map<string, ZhName>();
   const matchedNdb = new Set<string>();
   for (const r of csvRecords(files.food)) {
     const fdc = r.fdc_id ?? '';
@@ -120,7 +133,10 @@ export function buildUsdaImport(files: UsdaCsvFiles, zhNames: readonly ZhName[])
     // food.csv of other downloads lists other data types too; keep SR Legacy foods only.
     if (!ndbByFdc.has(fdc) || !Number.isInteger(fdcId) || name === '') continue;
     const zh = zhByNdb.get(ndbByFdc.get(fdc) ?? '');
-    if (zh) matchedNdb.add(normalizeNdb(zh.ndbNumber));
+    if (zh) {
+      matchedNdb.add(normalizeNdb(zh.ndbNumber));
+      zhByFoodId.set(usdaFoodId(fdcId), zh);
+    }
     foodsByFdc.set(fdc, {
       id: usdaFoodId(fdcId),
       fdcId,
@@ -128,6 +144,8 @@ export function buildUsdaImport(files: UsdaCsvFiles, zhNames: readonly ZhName[])
       nameZh: zh?.nameZh ?? null,
       aliases: zh && zh.aliases.length > 0 ? zh.aliases.join(ALIAS_SEPARATOR) : null,
       searchText: buildSearchText(name, zh?.nameZh ?? null, zh?.aliases ?? []),
+      category: categories.get(r.food_category_id ?? '') || null,
+      suggestPortionId: null,
       kcal: null,
       proteinG: null,
       carbsG: null,
@@ -162,10 +180,21 @@ export function buildUsdaImport(files: UsdaCsvFiles, zhNames: readonly ZhName[])
     portions.push({ id: usdaPortionId(r.id), foodId: food.id, label, grams, sortOrder: parseAmount(r.seq_num) ?? 0 });
   }
 
+  // Resolve each curated suggestion portion label to the food's portion id.
+  const unmatchedSuggestPortions: string[] = [];
+  for (const food of foodsByFdc.values()) {
+    const wanted = zhByFoodId.get(food.id)?.suggestPortion;
+    if (!wanted) continue;
+    const portion = portions.find((p) => p.foodId === food.id && p.label === wanted);
+    if (portion) food.suggestPortionId = portion.id;
+    else unmatchedSuggestPortions.push(`${zhByFoodId.get(food.id)?.ndbNumber}: ${wanted}`);
+  }
+
   return {
     foods: [...foodsByFdc.values()],
     portions,
     unmatchedNdbNumbers: zhNames.map((z) => z.ndbNumber).filter((ndb) => !matchedNdb.has(normalizeNdb(ndb))),
+    unmatchedSuggestPortions,
   };
 }
 
@@ -205,6 +234,8 @@ export function toImportSql(data: Pick<UsdaImport, 'foods' | 'portions'>, now: s
         f.nameZh,
         f.aliases,
         f.searchText,
+        f.category,
+        f.suggestPortionId,
         f.kcal,
         f.proteinG,
         f.carbsG,
@@ -217,10 +248,10 @@ export function toImportSql(data: Pick<UsdaImport, 'foods' | 'portions'>, now: s
       ].map(sqlValue),
     );
     statements.push(
-      'INSERT INTO foods (id, source, fdc_id, owner_user_id, name, name_zh, aliases, search_text, kcal, protein_g, carbs_g, fat_g, fiber_g, sugars_g, sodium_mg, created_at, updated_at) VALUES\n' +
+      'INSERT INTO foods (id, source, fdc_id, owner_user_id, name, name_zh, aliases, search_text, category, suggest_portion_id, kcal, protein_g, carbs_g, fat_g, fiber_g, sugars_g, sodium_mg, created_at, updated_at) VALUES\n' +
         values.map((v) => `(${v.join(', ')})`).join(',\n') +
         '\nON CONFLICT(id) DO UPDATE SET name = excluded.name, name_zh = excluded.name_zh, aliases = excluded.aliases, ' +
-        'search_text = excluded.search_text, kcal = excluded.kcal, protein_g = excluded.protein_g, carbs_g = excluded.carbs_g, ' +
+        'search_text = excluded.search_text, category = excluded.category, suggest_portion_id = excluded.suggest_portion_id, kcal = excluded.kcal, protein_g = excluded.protein_g, carbs_g = excluded.carbs_g, ' +
         'fat_g = excluded.fat_g, fiber_g = excluded.fiber_g, sugars_g = excluded.sugars_g, sodium_mg = excluded.sodium_mg, ' +
         'updated_at = excluded.updated_at;',
     );

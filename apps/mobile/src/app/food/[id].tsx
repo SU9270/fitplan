@@ -5,6 +5,7 @@ import { AmountForm, initialAmount, type AmountState } from '../../components/am
 import { Card, CardHeader } from '../../components/card';
 import { ErrorText, PrimaryButton, TextButton } from '../../components/form';
 import { InfoRow } from '../../components/info-row';
+import { SLOT_COLORS } from '../../components/meal-plate';
 import { Screen } from '../../components/screen';
 import { ScreenHeader } from '../../components/screen-header';
 import { checkAmount, formatNumber } from '../../diary/amount';
@@ -139,6 +140,10 @@ export default function FoodScreen() {
         subtitle={locale === 'zh' && detail.nameZh ? detail.name : undefined}
       />
       <Text style={styles.muted}>{t(isCustom ? 'food.source.custom' : 'food.source.usda')}</Text>
+      <View style={styles.slot}>
+        <View style={[styles.swatch, { backgroundColor: SLOT_COLORS[detail.slot] }]} />
+        <Text style={styles.muted}>{t('plate.slotOf', { slot: t(`plate.slot.${detail.slot}`) })}</Text>
+      </View>
 
       <AmountForm per100g={detail.per100g} portions={detail.portions} value={amount} onChange={setAmount} />
 
@@ -183,6 +188,9 @@ function Per100gExtras({ food }: { food: FoodDetail }) {
   );
 }
 
+/** Same as the plate cells' squares. */
+const SWATCH = 10;
+
 const styles = StyleSheet.create({
   muted: {
     color: tokens.color.textSecondary,
@@ -190,5 +198,15 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: tokens.space.xs,
+  },
+  slot: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.space.xs,
+  },
+  swatch: {
+    width: SWATCH,
+    height: SWATCH,
+    borderRadius: tokens.hairline,
   },
 });

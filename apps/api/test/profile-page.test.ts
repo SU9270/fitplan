@@ -103,7 +103,9 @@ describe('PATCH /api/me/settings', () => {
 
     const res = await authed(cookie, 'PATCH', '/api/me/settings', { unitSystem: 'imperial', locale: 'en' });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ settings: { unitSystem: 'imperial', locale: 'en' } });
+    expect(await res.json()).toEqual({
+      settings: { unitSystem: 'imperial', locale: 'en', mealShares: { breakfast: 25, lunch: 30, dinner: 30, snack: 15 } },
+    });
     const saved = (await (await authed(cookie, 'GET', '/api/me/profile')).json()) as { profile: Record<string, unknown> };
     expect(saved.profile).toMatchObject({ unitSystem: 'imperial', locale: 'en', heightCm: 175 });
     expect(await versions()).toEqual(before);

@@ -165,6 +165,12 @@ export const profiles = sqliteTable(
     healthFlags: text('health_flags').notNull(),
     unitSystem: text('unit_system', { enum: ['metric', 'imperial'] }).notNull(),
     locale: text('locale', { enum: ['zh', 'en'] }).notNull(),
+    // Meal shares of the daily targets in percent (phase 3). Range and total (100) are checked by
+    // mealSharesSchema: adding CHECKs to an existing SQLite table would mean rebuilding it.
+    mealShareBreakfast: integer('meal_share_breakfast').notNull().default(25),
+    mealShareLunch: integer('meal_share_lunch').notNull().default(30),
+    mealShareDinner: integer('meal_share_dinner').notNull().default(30),
+    mealShareSnack: integer('meal_share_snack').notNull().default(15),
     updatedAt: text('updated_at').notNull().default(nowIso),
   },
   (table) => [
@@ -251,6 +257,13 @@ export const foods = sqliteTable(
     aliases: text('aliases'),
     /** Lowercased name + name_zh + aliases, matched with LIKE by the search. */
     searchText: text('search_text').notNull(),
+    /** USDA food category (e.g. "Vegetables and Vegetable Products"); NULL for custom foods. */
+    category: text('category'),
+    /**
+     * The portion suggestions are counted in (data/usda-zh.csv `suggest_portion`); NULL = never
+     * suggested. Not a foreign key: the import writes foods before their portions.
+     */
+    suggestPortionId: text('suggest_portion_id'),
     kcal: real('kcal'),
     proteinG: real('protein_g'),
     carbsG: real('carbs_g'),
@@ -307,6 +320,8 @@ export const diaryEntries = sqliteTable(
     foodId: text('food_id').references(() => foods.id, { onDelete: 'set null' }),
     foodName: text('food_name').notNull(),
     foodNameZh: text('food_name_zh'),
+    /** Snapshot of the food's category, for the plate cell (like the nutrient snapshot). */
+    foodCategory: text('food_category'),
     portionId: text('portion_id').references(() => foodPortions.id, { onDelete: 'set null' }),
     /** Snapshot of the portion's label; NULL when the amount was entered in grams. */
     portionLabel: text('portion_label'),
