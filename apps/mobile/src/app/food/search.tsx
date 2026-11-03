@@ -14,13 +14,13 @@ import { displayName } from '../../diary/display';
 import { dateParam, mealParam } from '../../diary/route-params';
 import { useLocale } from '../../i18n';
 import { api } from '../../lib/api';
-import { signOutIfUnauthorized } from '../../lib/unauthorized';
+import { call, failureText, type Failure } from '../../lib/request';
 import { tokens } from '../../theme/tokens';
 
 /** Wait this long after the last keystroke before searching. */
 const DEBOUNCE_MS = 300;
 
-type Results = { state: 'idle' } | { state: 'loading' } | { state: 'error' } | { state: 'ready'; q: string; foods: FoodSummary[] };
+type Results = { state: 'idle' } | { state: 'loading' } | { state: 'error'; failure: Failure } | { state: 'ready'; q: string; foods: FoodSummary[] };
 
 /** Search USDA and the user's own foods; a result opens the food to log it into `meal` on `date`. */
 export default function FoodSearch() {
@@ -42,15 +42,14 @@ export default function FoodSearch() {
     setResults((current) => (current.state === 'ready' ? current : { state: 'loading' }));
     const timer = setTimeout(() => {
       void (async () => {
-        try {
-          const res = await api.api.foods.$get({ query: { q } });
-          if (await signOutIfUnauthorized(res)) return;
-          if (!res.ok) throw new Error(`GET /api/foods → ${res.status}`);
-          const body = await res.json();
-          if (request === latestRequest.current) setResults({ state: 'ready', q, foods: body.foods });
-        } catch {
-          if (request === latestRequest.current) setResults({ state: 'error' });
+        const out = await call('food.search.error', () => api.api.foods.$get({ query: { q } }));
+        if (out.kind === 'signedOut' || request !== latestRequest.current) return;
+        if (out.kind === 'failed') {
+          setResults({ state: 'error', failure: out.failure });
+          return;
         }
+        const body = await out.res.json();
+        if (request === latestRequest.current) setResults({ state: 'ready', q, foods: body.foods });
       })();
     }, DEBOUNCE_MS);
     return () => clearTimeout(timer);
@@ -81,7 +80,7 @@ export default function FoodSearch() {
       {results.state === 'loading' ? (
         <ActivityIndicator color={tokens.color.primary} accessibilityLabel={t('gate.loading')} />
       ) : null}
-      {results.state === 'error' ? <ErrorText message={t('food.search.error')} /> : null}
+      {results.state === 'error' ? <ErrorText message={failureText(results.failure, t)} /> : null}
       {results.state === 'ready' && results.foods.length === 0 ? (
         <Text style={styles.muted}>{t('food.search.noResults', { q: results.q })}</Text>
       ) : null}

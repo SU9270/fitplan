@@ -9,7 +9,7 @@ import { EMPTY_QUICK_FORM, toQuickAddInput, type QuickFormField, type QuickFormV
 import { dateParam, mealParam } from '../../diary/route-params';
 import { useLocale, type MessageKey } from '../../i18n';
 import { api } from '../../lib/api';
-import { signOutIfUnauthorized } from '../../lib/unauthorized';
+import { call, failureText, type Failure } from '../../lib/request';
 import { createInFlightGuard } from '../../onboarding/in-flight';
 
 const FIELDS: readonly { field: QuickFormField; label: MessageKey; placeholder?: MessageKey; numeric: boolean }[] = [
@@ -28,7 +28,7 @@ export default function QuickAdd() {
   const meal = mealParam(params.meal);
   const [values, setValues] = useState<QuickFormValues>(EMPTY_QUICK_FORM);
   const [errors, setErrors] = useState<Partial<Record<QuickFormField, MessageKey>>>({});
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<Failure | null>(null);
   const [busy, setBusy] = useState(false);
   const [runExclusive] = useState(createInFlightGuard);
 
@@ -41,17 +41,11 @@ export default function QuickAdd() {
     setErrors({});
     void runExclusive(async () => {
       setBusy(true);
-      setError(false);
-      try {
-        const res = await api.api.diary.quick.$post({ json: result.input });
-        if (await signOutIfUnauthorized(res)) return;
-        if (!res.ok) throw new Error(`POST /api/diary/quick → ${res.status}`);
-        router.dismissTo('/today');
-      } catch {
-        setError(true);
-      } finally {
-        setBusy(false);
-      }
+      setError(null);
+      const out = await call('food.saveError', () => api.api.diary.quick.$post({ json: result.input }));
+      setBusy(false);
+      if (out.kind === 'failed') setError(out.failure);
+      if (out.kind === 'ok') router.dismissTo('/today');
     });
   }
 
@@ -73,7 +67,7 @@ export default function QuickAdd() {
           </Tile>
         ))}
       </Card>
-      <ErrorText message={error ? t('food.saveError') : null} />
+      <ErrorText message={error && failureText(error, t)} />
       <PrimaryButton title={t('food.addTo', { meal: t(`meal.${meal}`) })} onPress={save} busy={busy} />
     </Screen>
   );

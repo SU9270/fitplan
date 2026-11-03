@@ -8,6 +8,7 @@ import { displayName } from '../diary/display';
 import { amountLabel } from '../diary/plate-view';
 import { useLocale } from '../i18n';
 import { api } from '../lib/api';
+import { call, failureText, type Failure } from '../lib/request';
 import { signOutIfUnauthorized } from '../lib/unauthorized';
 import { withJson } from '../lib/with-json';
 import { createInFlightGuard } from '../onboarding/in-flight';
@@ -27,7 +28,7 @@ export function QuickPicks({ date, meal }: Props) {
   const [recent, setRecent] = useState<RecentFoods | null>(null);
   const [templates, setTemplates] = useState<MealTemplate[] | null>(null);
   const [added, setAdded] = useState<ReadonlySet<string>>(new Set());
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<Failure | null>(null);
   const [runExclusive] = useState(createInFlightGuard);
 
   useFocusEffect(
@@ -54,31 +55,25 @@ export function QuickPicks({ date, meal }: Props) {
 
   function relog(food: RecentFood) {
     void runExclusive(async () => {
-      setError(false);
-      try {
-        const res = await api.api.diary.entries.$post({
+      setError(null);
+      const out = await call('recent.error', () =>
+        api.api.diary.entries.$post({
           json: { date, meal, foodId: food.foodId, portionId: food.portionId, quantity: food.quantity },
-        });
-        if (await signOutIfUnauthorized(res)) return;
-        if (!res.ok) throw new Error(`POST /api/diary/entries → ${res.status}`);
-        setAdded((current) => new Set(current).add(food.foodId));
-      } catch {
-        setError(true);
-      }
+        }),
+      );
+      if (out.kind === 'failed') setError(out.failure);
+      if (out.kind === 'ok') setAdded((current) => new Set(current).add(food.foodId));
     });
   }
 
   function applyTemplate(template: MealTemplate) {
     void runExclusive(async () => {
-      setError(false);
-      try {
-        const res = await api.api['meal-templates'][':id'].apply.$post(withJson({ id: template.id }, { date, meal }));
-        if (await signOutIfUnauthorized(res)) return;
-        if (!res.ok) throw new Error(`apply template → ${res.status}`);
-        router.dismissTo('/today');
-      } catch {
-        setError(true);
-      }
+      setError(null);
+      const out = await call('recent.error', () =>
+        api.api['meal-templates'][':id'].apply.$post(withJson({ id: template.id }, { date, meal })),
+      );
+      if (out.kind === 'failed') setError(out.failure);
+      if (out.kind === 'ok') router.dismissTo('/today');
     });
   }
 
@@ -92,7 +87,7 @@ export function QuickPicks({ date, meal }: Props) {
   return (
     <>
       <SoftButton title={t('quick.open')} onPress={() => router.push({ pathname: '/food/quick', params: { date, meal } })} />
-      <ErrorText message={error ? t('recent.error') : null} />
+      <ErrorText message={error && failureText(error, t)} />
 
       {templates && templates.length > 0 ? (
         <Card>

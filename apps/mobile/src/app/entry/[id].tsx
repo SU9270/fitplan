@@ -14,9 +14,9 @@ import { per100gOf } from '../../diary/display';
 import { entryName } from '../../diary/efficiency';
 import { rememberedEntry } from '../../diary/entry-store';
 import { stringParam } from '../../diary/route-params';
-import { useLocale, type MessageKey } from '../../i18n';
+import { useLocale } from '../../i18n';
 import { api } from '../../lib/api';
-import { signOutIfUnauthorized } from '../../lib/unauthorized';
+import { call, failureText, type Failure } from '../../lib/request';
 import { withJson } from '../../lib/with-json';
 import { createInFlightGuard } from '../../onboarding/in-flight';
 import { tokens } from '../../theme/tokens';
@@ -36,7 +36,7 @@ export default function EntryScreen() {
     entry ? { ...amountFromEntry(entry, []), meal: entry.meal } : null,
   );
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<MessageKey | null>(null);
+  const [error, setError] = useState<Failure | null>(null);
   const [runExclusive] = useState(createInFlightGuard);
 
   useEffect(() => {
@@ -83,19 +83,10 @@ export default function EntryScreen() {
     void runExclusive(async () => {
       setBusy(true);
       setError(null);
-      try {
-        const res = await api.api.diary.entries[':id'].$patch(withJson({ id: entryId }, body));
-        if (await signOutIfUnauthorized(res)) return;
-        if (!res.ok) {
-          setError(res.status === 404 ? 'entry.missing' : 'food.saveError');
-          return;
-        }
-        router.back();
-      } catch {
-        setError('food.saveError');
-      } finally {
-        setBusy(false);
-      }
+      const out = await call('food.saveError', () => api.api.diary.entries[':id'].$patch(withJson({ id: entryId }, body)));
+      setBusy(false);
+      if (out.kind === 'failed') setError(out.failure);
+      if (out.kind === 'ok') router.back();
     });
   }
 
@@ -113,17 +104,15 @@ export default function EntryScreen() {
 
   async function deleteEntry() {
     if (!entry) return;
-    try {
-      const res = await api.api.diary.entries[':id'].$delete({ param: { id: entry.id } });
-      if (await signOutIfUnauthorized(res)) return;
-      if (!res.ok && res.status !== 404) {
-        setError('food.saveError');
-        return;
-      }
-      router.back();
-    } catch {
-      setError('food.saveError');
+    const entryId = entry.id;
+    const out = await call('common.deleteError', () => api.api.diary.entries[':id'].$delete({ param: { id: entryId } }));
+    if (out.kind === 'signedOut') return;
+    // Already gone counts as deleted.
+    if (out.kind === 'failed' && out.failure.problem !== 'notFound') {
+      setError(out.failure);
+      return;
     }
+    router.back();
   }
 
   return (
@@ -155,7 +144,7 @@ export default function EntryScreen() {
           <Text style={styles.muted}>{t('entry.snapshotNote')}</Text>
         </>
       )}
-      <ErrorText message={error && t(error)} />
+      <ErrorText message={error && failureText(error, t)} />
       <PrimaryButton title={t('common.save')} onPress={save} busy={busy} disabled={!quick && !checked.ok} />
       <TextButton title={t('entry.delete')} onPress={confirmDelete} />
     </Screen>
