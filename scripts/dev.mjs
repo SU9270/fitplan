@@ -113,6 +113,7 @@ async function waitForApi(api) {
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
+  signalApi('SIGKILL');
   fail(`The API did not answer ${API_HEALTH} within ${API_START_TIMEOUT_MS / 1000} s.`);
 }
 
@@ -134,20 +135,48 @@ checkFoods();
 
 say('Starting the API on http://localhost:8787 …');
 // Not attached to the terminal: wrangler then skips its own key shortcuts, which would
-// compete with Expo's for the keyboard.
-const api = spawn('pnpm', ['--filter', '@fitplan/api', 'dev'], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
+// compete with Expo's for the keyboard. Its own process group (detached), so stopping it reaches
+// wrangler and workerd too: a signal to `pnpm` alone leaves them running, and this script with them.
+const isWindows = process.platform === 'win32';
+const api = spawn('pnpm', ['--filter', '@fitplan/api', 'dev'], {
+  cwd: ROOT,
+  stdio: ['ignore', 'pipe', 'pipe'],
+  detached: !isWindows,
+});
 prefixLines(api.stdout, process.stdout);
 prefixLines(api.stderr, process.stderr);
 
+/** Give the API this long to shut down before it is killed. */
+const API_STOP_TIMEOUT_MS = 5_000;
+
+function signalApi(signal) {
+  if (api.exitCode !== null || api.signalCode !== null) return;
+  try {
+    if (isWindows) api.kill(signal);
+    else process.kill(-api.pid, signal);
+  } catch {
+    // Already gone.
+  }
+}
+
 let stopping = false;
 function stop(code) {
-  if (stopping) return;
+  if (stopping) {
+    // A second Ctrl+C: don't wait any longer.
+    signalApi('SIGKILL');
+    process.exit(code);
+  }
   stopping = true;
-  if (api.exitCode === null) api.kill('SIGINT');
   process.exitCode = code;
+  signalApi('SIGINT');
+  setTimeout(() => {
+    signalApi('SIGKILL');
+    process.exit(code);
+  }, API_STOP_TIMEOUT_MS).unref();
 }
 process.on('SIGINT', () => stop(0));
 process.on('SIGTERM', () => stop(0));
+process.on('SIGHUP', () => stop(0));
 api.on('exit', (code) => {
   if (!stopping) {
     warn(`The API stopped (exit code ${code}). Press Ctrl+C to quit.`);
