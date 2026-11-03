@@ -29,7 +29,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="today" options={{ title: t('tabs.today'), tabBarIcon: tabIcon('today', 'today-outline') }} />
       <Tabs.Screen
         name="library"
-        options={{ title: t('tabs.library'), tabBarIcon: tabIcon('nutrition', 'nutrition-outline') }}
+        options={{ title: t('tabs.library'), tabBarIcon: tabIcon('basket', 'basket-outline') }}
       />
       <Tabs.Screen name="me" options={{ title: t('tabs.me'), tabBarIcon: tabIcon('person', 'person-outline') }} />
     </Tabs>
