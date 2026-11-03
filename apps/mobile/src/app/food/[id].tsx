@@ -1,6 +1,6 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, StyleSheet, Text, View } from 'react-native';
 import { AmountForm, initialAmount, type AmountState } from '../../components/amount-form';
 import { Card, CardHeader } from '../../components/card';
 import { ErrorText, PrimaryButton, TextButton } from '../../components/form';
@@ -14,6 +14,7 @@ import { localDate } from '../../diary/dates';
 import { displayName } from '../../diary/display';
 import { dateParam, mealParam, stringParam } from '../../diary/route-params';
 import { useLocale, type MessageKey } from '../../i18n';
+import { LIBRARY_IMAGES } from '../../library/images';
 import { api } from '../../lib/api';
 import { call, failureText, type Failure } from '../../lib/request';
 import { createInFlightGuard } from '../../onboarding/in-flight';
@@ -120,8 +121,10 @@ export default function FoodScreen() {
   }
 
   const isCustom = detail.source === 'custom';
+  const image = detail.libraryKey === null ? undefined : LIBRARY_IMAGES[detail.libraryKey];
   return (
     <Screen>
+      {image ? <Image source={image} style={styles.image} resizeMode="contain" accessible={false} /> : null}
       <ScreenHeader
         title={displayName(detail, locale)}
         subtitle={locale === 'zh' && detail.nameZh ? detail.name : undefined}
@@ -178,7 +181,15 @@ function Per100gExtras({ food }: { food: FoodDetail }) {
 /** Same as the plate cells' squares. */
 const SWATCH = 10;
 
+/** The food library picture above the name. */
+const IMAGE_SIZE = 96;
+
 const styles = StyleSheet.create({
+  image: {
+    width: IMAGE_SIZE,
+    height: IMAGE_SIZE,
+    alignSelf: 'center',
+  },
   muted: {
     color: tokens.color.textSecondary,
     fontSize: tokens.fontSize.caption,

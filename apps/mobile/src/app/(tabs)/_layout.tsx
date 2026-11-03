@@ -13,7 +13,7 @@ function tabIcon(focused: IconName, idle: IconName) {
   );
 }
 
-/** Bottom tab bar: Today (the food diary) and Me (profile and settings). */
+/** Bottom tab bar: Today (the food diary), the food library, and Me (profile and settings). */
 export default function TabsLayout() {
   const { t } = useLocale();
   return (
@@ -27,6 +27,10 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="today" options={{ title: t('tabs.today'), tabBarIcon: tabIcon('today', 'today-outline') }} />
+      <Tabs.Screen
+        name="library"
+        options={{ title: t('tabs.library'), tabBarIcon: tabIcon('nutrition', 'nutrition-outline') }}
+      />
       <Tabs.Screen name="me" options={{ title: t('tabs.me'), tabBarIcon: tabIcon('person', 'person-outline') }} />
     </Tabs>
   );

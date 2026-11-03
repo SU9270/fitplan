@@ -129,3 +129,19 @@ export const REDUCE_GRAMS_STEP = 5;
 export const VEGETABLE_SUGGESTION_GRAMS = 100;
 /** Score penalty for a suggestion that is not a whole number of portions. */
 export const FRACTIONAL_PORTION_PENALTY = 0.05;
+
+/** The food library's groups, in display order (docs/superpowers/specs/2026-11-03-food-library-tab-design.md). */
+export const LIBRARY_GROUPS = ['carbs', 'protein', 'fat', 'vegetable', 'fruit', 'fiber', 'omega3'] as const;
+/** USDA category of the library's fruit group. */
+export const FRUIT_CATEGORY = 'Fruits and Fruit Juices';
+/** "Fat" group: fat supplies at least this share of the energy (and protein too little for the protein group). */
+export const FAT_GROUP_MIN_ENERGY_SHARE = 0.5;
+/** "High fiber": GB 28050-2011 「高或富含膳食纤维」, at least 6 g per 100 g. */
+export const HIGH_FIBER_MIN_G = 6;
+/**
+ * "Rich in omega-3": the EU "high omega-3" claim (Regulation (EC) 1924/2006): at least 0.6 g
+ * ALA, or 80 mg EPA + DHA combined, both per 100 g and per 100 kcal. China's GB 28050 has no
+ * omega-3 claim.
+ */
+export const HIGH_OMEGA3_MIN_ALA_G = 0.6;
+export const HIGH_OMEGA3_MIN_EPA_DHA_G = 0.08;

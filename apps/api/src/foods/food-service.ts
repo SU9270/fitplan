@@ -30,10 +30,12 @@ export interface FoodDetail extends FoodSummary {
   fiberG: number | null;
   sugarsG: number | null;
   sodiumMg: number | null;
+  /** Image key in the food library tab; null = not in the library. */
+  libraryKey: string | null;
   portions: FoodPortionView[];
 }
 
-type FoodRow = typeof foods.$inferSelect;
+export type FoodRow = typeof foods.$inferSelect;
 
 /** At most this many words of a query are matched (each must appear in the food's search text). */
 const MAX_SEARCH_TERMS = 5;
@@ -46,7 +48,7 @@ export function escapeLike(text: string): string {
 /** The user's own custom foods plus all USDA foods. */
 export const visibleTo = (userId: string) => or(isNull(foods.ownerUserId), eq(foods.ownerUserId, userId));
 
-function toSummary(row: FoodRow): FoodSummary {
+export function toSummary(row: FoodRow): FoodSummary {
   const per100g = { kcal: row.kcal, proteinG: row.proteinG, carbsG: row.carbsG, fatG: row.fatG };
   return {
     id: row.id,
@@ -107,7 +109,14 @@ async function portionsOf(db: Db, foodId: string): Promise<FoodPortionView[]> {
 }
 
 function toDetail(row: FoodRow, portions: FoodPortionView[]): FoodDetail {
-  return { ...toSummary(row), fiberG: row.fiberG, sugarsG: row.sugarsG, sodiumMg: row.sodiumMg, portions };
+  return {
+    ...toSummary(row),
+    fiberG: row.fiberG,
+    sugarsG: row.sugarsG,
+    sodiumMg: row.sodiumMg,
+    libraryKey: row.libraryKey,
+    portions,
+  };
 }
 
 /** A food the user may see (any USDA food or their own custom food), or null. */
