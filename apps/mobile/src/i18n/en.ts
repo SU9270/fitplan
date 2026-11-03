@@ -228,7 +228,6 @@ export const en: Record<MessageKey, string> = {
   'plate.slot.vegetable': 'Veggies',
   'plate.slot.other': 'Other',
   'plate.nothingYet': 'Nothing logged yet',
-  'plate.missing': 'Not yet: ',
   'plate.mealKcal': '{eaten} / {target} kcal',
   'plate.slotOf': 'Plate: {slot}',
 

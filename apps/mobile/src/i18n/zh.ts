@@ -229,7 +229,6 @@ export const zh = {
   'plate.slot.vegetable': '蔬菜',
   'plate.slot.other': '其他',
   'plate.nothingYet': '还没有记录',
-  'plate.missing': '还没有：',
   'plate.mealKcal': '{eaten} / {target} 千卡',
   'plate.slotOf': '归入：{slot}',
 

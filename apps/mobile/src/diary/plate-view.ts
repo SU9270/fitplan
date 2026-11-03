@@ -42,8 +42,8 @@ export interface FeedbackItem {
 }
 
 /**
- * The meal's feedback in neutral words (requirements §3.3): one item per nutrient that is short
- * or over, one item listing those on target, and the vegetables hint at lunch and dinner.
+ * The meal's feedback in neutral words (requirements §3.3): one item per checked nutrient that
+ * is short or over, one item listing those on target, and the vegetables hint at lunch and dinner.
  * Nothing for a meal without feedback (no target, or nothing logged yet).
  */
 export function feedbackItems(view: { meal: Meal; gap: MealGap | null; hasVegetables: boolean }, t: T): FeedbackItem[] {
@@ -52,7 +52,10 @@ export function feedbackItems(view: { meal: Meal; gap: MealGap | null; hasVegeta
   const items: FeedbackItem[] = [];
   const met: string[] = [];
   for (const key of GAP_ORDER) {
-    const { status, diff } = gap[key];
+    // Breakfast and snacks are not checked on carbs and fat.
+    const nutrient = gap[key];
+    if (!nutrient) continue;
+    const { status, diff } = nutrient;
     if (status === 'met') met.push(t(`gap.name.${key}`));
     else items.push({ text: t(`gap.${key}.${status}`, { n: Math.abs(diff) }), tone: status });
   }

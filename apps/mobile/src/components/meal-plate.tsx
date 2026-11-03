@@ -32,15 +32,15 @@ const TONE_COLORS: Record<FeedbackTone, string> = {
 };
 
 /**
- * One meal as a plate (protein, staple, vegetable, other): the cells with food, then one line
- * naming the empty cells; then the gap feedback as tags and up to three one-tap adjustments
+ * One meal as a plate (protein, staple, vegetable, other): only the cells with food (an empty
+ * meal says so in one line); then the gap feedback as tags and up to three one-tap adjustments
  * in one block (requirements §3.3). Feedback shows once something is logged.
  */
 export function MealPlate({ view, entries, onOpenEntry, onApply, applying }: Props) {
   const { t, locale } = useLocale();
   const name = (item: { name: string; nameZh: string | null; quick?: boolean }) => entryName(item, locale, t);
   const items = feedbackItems(view, t);
-  const { filled, missing } = splitPlate(entries);
+  const { filled } = splitPlate(entries);
 
   return (
     <>
@@ -78,20 +78,6 @@ export function MealPlate({ view, entries, onOpenEntry, onApply, applying }: Pro
       {filled.length === 0 ? (
         <View style={styles.missing}>
           <Text style={styles.missingLabel}>{t('plate.nothingYet')}</Text>
-        </View>
-      ) : missing.length > 0 ? (
-        <View
-          style={styles.missing}
-          accessible
-          accessibilityLabel={`${t('plate.missing')}${missing.map((slot) => t(`plate.slot.${slot}`)).join(t('list.separator'))}`}
-        >
-          <Text style={styles.missingLabel}>{t('plate.missing')}</Text>
-          {missing.map((slot) => (
-            <View key={slot} style={styles.missingSlot}>
-              <View style={[styles.swatch, { backgroundColor: SLOT_COLORS[slot] }]} />
-              <Text style={styles.missingLabel}>{t(`plate.slot.${slot}`)}</Text>
-            </View>
-          ))}
         </View>
       ) : null}
 
@@ -177,17 +163,7 @@ const styles = StyleSheet.create({
     fontWeight: tokens.fontWeight.medium,
   },
   missing: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    columnGap: tokens.space.sm,
-    rowGap: tokens.space.xs,
     paddingHorizontal: tokens.card.headerInset,
-  },
-  missingSlot: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: tokens.space.xs,
   },
   missingLabel: {
     color: tokens.color.textTertiary,

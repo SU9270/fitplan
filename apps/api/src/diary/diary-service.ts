@@ -140,6 +140,7 @@ async function suggestionCandidates(db: Db): Promise<Candidate[]> {
     const per100g = { kcal: food.kcal, proteinG: food.proteinG, carbsG: food.carbsG, fatG: food.fatG };
     return {
       foodId: food.id,
+      category: food.category,
       slot: plateSlot({ category: food.category, per100g }),
       per100g,
       portion: { id: portion.id, grams: portion.grams },
@@ -188,7 +189,7 @@ function mealViews(
       meal,
       target,
       totals,
-      gap: target && plate.length > 0 ? mealGap(target, totals) : null,
+      gap: target && plate.length > 0 ? mealGap(meal, target, totals) : null,
       hasVegetables: plate.some((e) => e.slot === 'vegetable'),
       suggestions,
     };

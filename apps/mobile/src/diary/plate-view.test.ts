@@ -58,6 +58,14 @@ describe('feedbackItems', () => {
   });
 });
 
+describe('feedbackItems at breakfast', () => {
+  it('only mentions the nutrients the meal is checked on', () => {
+    setLocale('zh');
+    const items = feedbackItems({ meal: 'breakfast', hasVegetables: false, gap: { kcal: { status: 'short', diff: -543 }, proteinG: met } }, t);
+    expect(items.map((i) => i.text)).toEqual(['热量还差 543 千卡', '蛋白质已够']);
+  });
+});
+
 describe('splitPlate', () => {
   it('separates the cells with entries from the empty ones, in plate order', () => {
     const entries = [
