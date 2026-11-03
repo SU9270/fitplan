@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
   title: {
     color: tokens.color.text,
     fontSize: tokens.fontSize.title,
-    fontWeight: tokens.fontWeight.bold,
+    fontWeight: tokens.fontWeight.semibold,
   },
   subtitle: {
     color: tokens.color.textSecondary,

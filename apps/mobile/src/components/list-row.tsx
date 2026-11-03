@@ -11,7 +11,7 @@ type Props = {
   onPress: () => void;
 };
 
-/** Tappable row inside a card or list: food search results and diary entries. */
+/** Tappable white tile inside a card: food search results, diary entries, custom foods. */
 export function ListRow({ title, subtitle, value, badge, onPress }: Props) {
   const label = [title, badge, subtitle, value].filter(Boolean).join(', ');
   return (
@@ -45,14 +45,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: tokens.space.md,
-    paddingVertical: tokens.space.sm,
+    paddingHorizontal: tokens.card.tilePaddingX,
+    paddingVertical: tokens.card.tilePaddingY,
+    borderRadius: tokens.radius.md,
+    backgroundColor: tokens.color.surface,
   },
   pressed: {
-    opacity: 0.6,
+    backgroundColor: tokens.color.border,
   },
   texts: {
     flex: 1,
-    gap: tokens.space.xs,
+    gap: tokens.hairline,
   },
   titleRow: {
     flexDirection: 'row',
@@ -67,12 +70,13 @@ const styles = StyleSheet.create({
   },
   badge: {
     paddingHorizontal: tokens.space.sm,
-    paddingVertical: tokens.space.xs / 2,
+    paddingVertical: tokens.hairline,
     overflow: 'hidden',
-    borderRadius: tokens.radius.pill,
+    borderRadius: tokens.radius.sm,
     backgroundColor: tokens.color.primarySoft,
     color: tokens.color.primary,
     fontSize: tokens.fontSize.caption,
+    fontWeight: tokens.fontWeight.medium,
   },
   subtitle: {
     color: tokens.color.textSecondary,
@@ -80,7 +84,7 @@ const styles = StyleSheet.create({
   },
   value: {
     color: tokens.color.text,
-    fontSize: tokens.fontSize.body,
+    fontSize: tokens.fontSize.label,
     fontWeight: tokens.fontWeight.semibold,
   },
 });

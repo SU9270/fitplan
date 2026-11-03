@@ -37,7 +37,8 @@ const styles = StyleSheet.create({
   title: {
     color: tokens.color.text,
     fontSize: tokens.fontSize.display,
-    fontWeight: tokens.fontWeight.bold,
+    fontWeight: tokens.fontWeight.semibold,
+    letterSpacing: -0.5,
   },
   subtitle: {
     color: tokens.color.textSecondary,

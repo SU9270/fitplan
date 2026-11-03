@@ -41,8 +41,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: tokens.radius.sm / 2,
-    borderWidth: 2,
-    borderColor: tokens.color.border,
+    borderWidth: 1.5,
+    borderColor: tokens.color.borderStrong,
     backgroundColor: tokens.color.surface,
   },
   boxChecked: {

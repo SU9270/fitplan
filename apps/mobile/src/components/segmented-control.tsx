@@ -75,6 +75,7 @@ const styles = StyleSheet.create({
   },
   segmentSelected: {
     backgroundColor: tokens.color.surface,
+    ...tokens.shadow.raised,
   },
   segmentText: {
     color: tokens.color.textSecondary,
@@ -83,7 +84,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   segmentTextSelected: {
-    color: tokens.color.primary,
+    color: tokens.color.text,
     fontWeight: tokens.fontWeight.semibold,
   },
   chips: {

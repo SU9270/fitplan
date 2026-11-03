@@ -15,7 +15,7 @@ export function TextField({ label, hint, ...inputProps }: TextFieldProps) {
       <TextInput
         accessibilityLabel={label}
         accessibilityHint={hint}
-        placeholderTextColor={tokens.color.textSecondary}
+        placeholderTextColor={tokens.color.textTertiary}
         style={styles.input}
         {...inputProps}
       />
@@ -39,13 +39,29 @@ export function PrimaryButton({ title, onPress, busy = false, disabled = false }
       accessibilityState={{ disabled: inactive, busy }}
       disabled={inactive}
       onPress={onPress}
-      style={({ pressed }) => [styles.primary, (pressed || inactive) && styles.primaryDimmed]}
+      style={({ pressed }) => [styles.primary, pressed && styles.primaryPressed, inactive && styles.primaryDisabled]}
     >
       {busy ? (
         <ActivityIndicator color={tokens.color.onPrimary} />
       ) : (
         <Text style={styles.primaryText}>{title}</Text>
       )}
+    </Pressable>
+  );
+}
+
+/** Medium-emphasis action on a light-blue background, e.g. "+ 添加" inside a card. */
+export function SoftButton({ title, onPress, accessibilityLabel, disabled = false }: ButtonProps & { accessibilityLabel?: string }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? title}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [styles.soft, (pressed || disabled) && styles.softPressed]}
+    >
+      <Text style={styles.softText}>{title}</Text>
     </Pressable>
   );
 }
@@ -82,16 +98,16 @@ const styles = StyleSheet.create({
     gap: tokens.space.xs,
   },
   label: {
-    color: tokens.color.text,
-    fontSize: tokens.fontSize.caption,
-    fontWeight: tokens.fontWeight.semibold,
+    color: tokens.color.textSecondary,
+    fontSize: tokens.fontSize.label,
+    fontWeight: tokens.fontWeight.medium,
   },
   input: {
     minHeight: tokens.touchTarget,
     paddingHorizontal: tokens.space.md,
     paddingVertical: tokens.space.sm,
     borderRadius: tokens.radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     borderColor: tokens.color.border,
     backgroundColor: tokens.color.surface,
     color: tokens.color.text,
@@ -105,11 +121,30 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.md,
     backgroundColor: tokens.color.primary,
   },
-  primaryDimmed: {
-    opacity: 0.7,
+  primaryPressed: {
+    backgroundColor: tokens.color.primaryPressed,
+  },
+  primaryDisabled: {
+    opacity: 0.5,
   },
   primaryText: {
     color: tokens.color.onPrimary,
+    fontSize: tokens.fontSize.body,
+    fontWeight: tokens.fontWeight.semibold,
+  },
+  soft: {
+    minHeight: tokens.touchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: tokens.space.lg,
+    borderRadius: tokens.radius.md,
+    backgroundColor: tokens.color.primarySoft,
+  },
+  softPressed: {
+    opacity: 0.7,
+  },
+  softText: {
+    color: tokens.color.primary,
     fontSize: tokens.fontSize.body,
     fontWeight: tokens.fontWeight.semibold,
   },

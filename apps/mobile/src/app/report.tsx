@@ -1,6 +1,6 @@
 import { Redirect, router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
-import { Card } from '../components/card';
+import { Card, CardHeader, Tile } from '../components/card';
 import { ErrorText, PrimaryButton, TextButton } from '../components/form';
 import { LanguageSwitch } from '../components/language-switch';
 import { MacroTiles } from '../components/macro-tiles';
@@ -50,10 +50,10 @@ export default function Report() {
 
       {result.reasons.length > 0 ? (
         <Card tone="warning">
-          <Text accessibilityRole="header" style={styles.cardTitle}>
-            {t(reasonsTitle)}
-          </Text>
-          <ReasonList reasons={result.reasons} />
+          <CardHeader strong label={t(reasonsTitle)} />
+          <Tile>
+            <ReasonList reasons={result.reasons} />
+          </Tile>
         </Card>
       ) : null}
 
@@ -65,8 +65,7 @@ export default function Report() {
             <Stat label={t('report.tdee')} hint={t('report.tdee.hint')} value={t('report.kcal', { n: result.tdeeKcal })} />
           </Card>
           <Card>
-            <Text style={styles.cardTitle}>{t('report.target')}</Text>
-            <Text style={styles.kcal}>{t('report.kcal', { n: targets.kcal })}</Text>
+            <CardHeader label={t('report.target')} title={String(targets.kcal)} unit={t('diary.kcalUnit')} />
             <MacroTiles targets={targets} />
           </Card>
         </>
@@ -113,35 +112,29 @@ const styles = StyleSheet.create({
     flex: 1,
     color: tokens.color.text,
     fontSize: tokens.fontSize.title,
-    fontWeight: tokens.fontWeight.bold,
+    fontWeight: tokens.fontWeight.semibold,
   },
   subtitle: {
     color: tokens.color.textSecondary,
     fontSize: tokens.fontSize.body,
-  },
-  cardTitle: {
-    color: tokens.color.text,
-    fontSize: tokens.fontSize.body,
-    fontWeight: tokens.fontWeight.semibold,
-  },
-  kcal: {
-    color: tokens.color.primary,
-    fontSize: tokens.fontSize.display,
-    fontWeight: tokens.fontWeight.bold,
   },
   stat: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: tokens.space.md,
+    paddingHorizontal: tokens.card.tilePaddingX,
+    paddingVertical: tokens.card.tilePaddingY,
+    borderRadius: tokens.radius.md,
+    backgroundColor: tokens.color.surface,
   },
   statText: {
     flex: 1,
-    gap: tokens.space.xs,
+    gap: tokens.hairline,
   },
   statLabel: {
     color: tokens.color.text,
-    fontSize: tokens.fontSize.body,
+    fontSize: tokens.fontSize.label,
     fontWeight: tokens.fontWeight.medium,
   },
   statHint: {
@@ -151,7 +144,7 @@ const styles = StyleSheet.create({
   statValue: {
     color: tokens.color.text,
     fontSize: tokens.fontSize.subtitle,
-    fontWeight: tokens.fontWeight.bold,
+    fontWeight: tokens.fontWeight.semibold,
   },
   disclaimer: {
     color: tokens.color.textSecondary,

@@ -2,8 +2,9 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 import { AmountForm, initialAmount, type AmountState } from '../../components/amount-form';
-import { Card } from '../../components/card';
+import { Card, CardHeader } from '../../components/card';
 import { ErrorText, PrimaryButton, TextButton } from '../../components/form';
+import { InfoRow } from '../../components/info-row';
 import { Screen } from '../../components/screen';
 import { ScreenHeader } from '../../components/screen-header';
 import { checkAmount, formatNumber } from '../../diary/amount';
@@ -174,12 +175,9 @@ function Per100gExtras({ food }: { food: FoodDetail }) {
   ];
   return (
     <Card>
-      <Text style={styles.cardTitle}>{t('food.per100g.title')}</Text>
+      <CardHeader label={t('food.per100g.title')} />
       {rows.map(([label, value]) => (
-        <View key={label} style={styles.row} accessible accessibilityLabel={`${t(label)} ${value}`}>
-          <Text style={styles.rowLabel}>{t(label)}</Text>
-          <Text style={styles.rowValue}>{value}</Text>
-        </View>
+        <InfoRow key={label} label={t(label)} value={value} />
       ))}
     </Card>
   );
@@ -189,23 +187,6 @@ const styles = StyleSheet.create({
   muted: {
     color: tokens.color.textSecondary,
     fontSize: tokens.fontSize.caption,
-  },
-  cardTitle: {
-    color: tokens.color.text,
-    fontSize: tokens.fontSize.caption,
-    fontWeight: tokens.fontWeight.semibold,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  rowLabel: {
-    color: tokens.color.textSecondary,
-    fontSize: tokens.fontSize.body,
-  },
-  rowValue: {
-    color: tokens.color.text,
-    fontSize: tokens.fontSize.body,
   },
   actions: {
     gap: tokens.space.xs,
