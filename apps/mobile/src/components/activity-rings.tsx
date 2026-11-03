@@ -1,5 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
+import { tokens } from '../theme/tokens';
 
 export interface Ring {
   /** 0..1 (see `progress` in diary/display). */
@@ -63,5 +64,6 @@ export function ActivityRings({ rings, accessibilityLabel, size = DEFAULT_SIZE }
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
+    paddingVertical: tokens.space.sm,
   },
 });

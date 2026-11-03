@@ -2,13 +2,13 @@ import { shiftDate } from '@fitplan/core';
 import type { Meal } from '@fitplan/validators';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { ActivityRings } from '../../components/activity-rings';
 import { Card, CardHeader, Tile } from '../../components/card';
 import { DateSwitcher } from '../../components/date-switcher';
 import { ErrorText, PrimaryButton, SoftButton, TextButton } from '../../components/form';
 import { MealPlate } from '../../components/meal-plate';
-import { MACROS } from '../../components/macro-tiles';
+import { MACROS, MacroTiles } from '../../components/macro-tiles';
 import { Screen } from '../../components/screen';
 import type { DiaryDay } from '../../diary/api-types';
 import { localDate } from '../../diary/dates';
@@ -188,13 +188,7 @@ export default function Today() {
   );
 }
 
-/** Size of the summary rings: small enough that the first meal shows without scrolling. */
-const RINGS_SIZE = 124;
-
-/**
- * Eaten vs target in one row: concentric rings (kcal outside, then protein, carbs, fat) beside
- * the kcal eaten, what is left (or over) and each macro's grams.
- */
+/** Eaten vs target: kcal and what is left (or over), concentric rings, and a tile per macro. */
 function Summary({ day }: { day: DiaryDay }) {
   const { t } = useLocale();
   const { totals, target } = day;
@@ -203,57 +197,37 @@ function Summary({ day }: { day: DiaryDay }) {
 
   return (
     <Card>
+      {/* The teal square matches the outer (kcal) ring, as the macro tiles' squares match theirs. */}
+      <CardHeader
+        label={t('diary.eaten')}
+        title={String(totals.kcal)}
+        unit={unit}
+        swatch={target ? tokens.color.kcal : undefined}
+      />
       {target && left !== null ? (
-        <Tile style={styles.summary}>
+        <>
+          <Text style={[styles.left, left < 0 && styles.over]}>
+            {left >= 0 ? t('diary.remaining', { n: left }) : t('diary.over', { n: -left })}
+          </Text>
           <ActivityRings
-            size={RINGS_SIZE}
             accessibilityLabel={`${t('diary.eaten')} ${totals.kcal} ${unit}`}
             rings={[
               { progress: progress(totals.kcal, target.kcal), color: tokens.color.kcal, track: tokens.color.kcalTrack },
               ...MACROS.map(({ field, color, track }) => ({ progress: progress(totals[field], target[field]), color, track })),
             ]}
           />
-          <View style={styles.summaryTexts}>
-            {/* The teal square matches the outer (kcal) ring, as the macro squares match theirs. */}
-            <View style={styles.labelRow}>
-              <View style={[styles.swatch, { backgroundColor: tokens.color.kcal }]} />
-              <Text style={styles.label}>{t('diary.eaten')}</Text>
-            </View>
-            <Text style={styles.kcal}>
-              {totals.kcal}
-              <Text style={styles.unit}> {unit}</Text>
-            </Text>
-            <Text style={[styles.left, left < 0 && styles.over]}>
-              {left >= 0 ? t('diary.remaining', { n: left }) : t('diary.over', { n: -left })}
-            </Text>
-            <View style={styles.macros}>
-              {MACROS.map(({ field, label, color }) => {
-                const value = t('diary.macroAmount', { eaten: totals[field], target: target[field] });
-                return (
-                  <View key={field} style={styles.macro} accessible accessibilityLabel={`${t(label)} ${value}`}>
-                    <View style={[styles.swatch, { backgroundColor: color }]} />
-                    <Text style={styles.macroLabel}>{t(label)}</Text>
-                    <Text style={styles.macroValue}>{value}</Text>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-        </Tile>
-      ) : (
-        <>
-          <CardHeader label={t('diary.eaten')} title={String(totals.kcal)} unit={unit} />
-          <Tile>
-            <Text style={styles.muted}>{t('diary.noTarget')}</Text>
-          </Tile>
+          <MacroTiles targets={target} eaten={totals} />
         </>
+      ) : (
+        <Tile>
+          <Text style={styles.muted}>{t('diary.noTarget')}</Text>
+        </Tile>
       )}
       {day.unknown.length > 0 ? <Text style={[styles.muted, styles.note]}>{t('diary.unknown')}</Text> : null}
     </Card>
   );
 }
 
-const SWATCH = 10;
 /** Digits of equal width, so numbers do not shift as they change. */
 const TABULAR = ['tabular-nums'] as const;
 
@@ -268,64 +242,6 @@ const styles = StyleSheet.create({
   subtotal: {
     color: tokens.color.textSecondary,
     fontSize: tokens.fontSize.label,
-    fontWeight: tokens.fontWeight.medium,
-    fontVariant: TABULAR,
-  },
-  summary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: tokens.space.lg,
-    paddingVertical: tokens.space.md,
-  },
-  summaryTexts: {
-    flex: 1,
-    gap: tokens.space.xs,
-  },
-  labelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: tokens.space.xs,
-  },
-  swatch: {
-    width: SWATCH,
-    height: SWATCH,
-    borderRadius: tokens.hairline,
-  },
-  label: {
-    color: tokens.color.textSecondary,
-    fontSize: tokens.fontSize.label,
-    fontWeight: tokens.fontWeight.medium,
-  },
-  kcal: {
-    color: tokens.color.text,
-    fontSize: tokens.fontSize.display,
-    fontWeight: tokens.fontWeight.medium,
-    fontVariant: TABULAR,
-    letterSpacing: -0.5,
-  },
-  unit: {
-    color: tokens.color.textSecondary,
-    fontSize: tokens.fontSize.caption,
-    fontWeight: tokens.fontWeight.medium,
-    letterSpacing: 0,
-  },
-  macros: {
-    gap: tokens.hairline,
-    marginTop: tokens.space.xs,
-  },
-  macro: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: tokens.space.xs,
-  },
-  macroLabel: {
-    flex: 1,
-    color: tokens.color.textSecondary,
-    fontSize: tokens.fontSize.caption,
-  },
-  macroValue: {
-    color: tokens.color.text,
-    fontSize: tokens.fontSize.caption,
     fontWeight: tokens.fontWeight.medium,
     fontVariant: TABULAR,
   },
