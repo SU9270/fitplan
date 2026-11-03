@@ -80,7 +80,7 @@ describe('/api/me', () => {
     expect(res.status).toBe(403);
     expect(await res.json()).toMatchObject({ code: 'consent_required' });
     const get = await authed(cookie, 'GET', '/api/me/profile');
-    expect(await get.json()).toEqual({ profile: null, latestGoal: null });
+    expect(await get.json()).toEqual({ profile: null, latestGoal: null, mealShares: { breakfast: 25, lunch: 30, dinner: 30, snack: 15 } });
   });
 
   it('PUT /api/me/profile rejects implausible numbers', async () => {
@@ -204,7 +204,7 @@ describe('/api/me', () => {
     const { cookie } = await consentedUser();
     const res = await authed(cookie, 'GET', '/api/me/profile');
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ profile: null, latestGoal: null });
+    expect(await res.json()).toEqual({ profile: null, latestGoal: null, mealShares: { breakfast: 25, lunch: 30, dinner: 30, snack: 15 } });
   });
 
   it('GET /api/me/profile returns saved data', async () => {

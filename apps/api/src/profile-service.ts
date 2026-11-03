@@ -184,12 +184,13 @@ export async function getProfile(
   db: Db,
   userId: string,
   now = new Date(),
-): Promise<{ profile: ProfileView | null; latestGoal: GoalVersionView | null }> {
+): Promise<{ profile: ProfileView | null; latestGoal: GoalVersionView | null; mealShares: MealShares }> {
   const [row] = await db.select().from(profiles).where(eq(profiles.userId, userId)).limit(1);
   const goal = await latestGoalRow(db, userId);
   return {
     profile: row ? toProfileView(row, now) : null,
     latestGoal: goal ? toGoalVersionView(goal) : null,
+    mealShares: row ? mealSharesOf(row) : { ...DEFAULT_MEAL_SHARES },
   };
 }
 

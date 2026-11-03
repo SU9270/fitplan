@@ -33,8 +33,6 @@ export const tokens = {
     borderStrong: '#D4D4D4',
     /** Error text (red-500). */
     danger: '#FB2C36',
-    /** Tinted background for errors and "over target" (red-100). */
-    dangerSoft: '#FFE2E2',
     /** Warning border (yellow-400). */
     warning: '#FDC700',
     /** Nutrient colors (BoardUI chart colors) and their ring tracks (~20 % tints). */
@@ -46,6 +44,9 @@ export const tokens = {
     carbsTrack: '#FFF4C2',
     fat: '#FB64B6',
     fatTrack: '#FEE0F0',
+    /** Plate cells: protein and staple reuse the protein / carbs colors (BoardUI lime and purple). */
+    vegetable: '#9AE600',
+    otherFood: '#C27AFF',
   },
   radius: {
     /** Small chips and badges. */

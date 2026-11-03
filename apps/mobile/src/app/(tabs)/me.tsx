@@ -1,3 +1,4 @@
+import type { MealShares } from '@fitplan/core';
 import type { InferResponseType } from 'hono/client';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -7,6 +8,7 @@ import { ErrorText, PrimaryButton, SoftButton, TextButton, TextField } from '../
 import { InfoRow } from '../../components/info-row';
 import { ListRow } from '../../components/list-row';
 import { MacroTiles } from '../../components/macro-tiles';
+import { MealSharesEditor } from '../../components/meal-shares-editor';
 import { Screen } from '../../components/screen';
 import { SegmentedControl } from '../../components/segmented-control';
 import { localDate } from '../../diary/dates';
@@ -105,6 +107,22 @@ export default function Me() {
     setOpenWizard(true);
   }
 
+  async function saveMealShares(mealShares: MealShares): Promise<boolean> {
+    try {
+      const res = await api.api.me.settings.$patch({ json: { mealShares } });
+      if (await signOutIfUnauthorized(res)) return false;
+      if (!res.ok) throw new Error(`PATCH /api/me/settings → ${res.status}`);
+      const { settings } = await res.json();
+      setProfile((current) =>
+        current.state === 'ready' ? { state: 'ready', data: { ...current.data, mealShares: settings.mealShares } } : current,
+      );
+      return true;
+    } catch {
+      setSettingsError(true);
+      return false;
+    }
+  }
+
   async function saveSettings(patch: { locale?: Locale; unitSystem?: UnitSystem }) {
     setSettingsError(false);
     if (patch.locale) setLocale(patch.locale);
@@ -116,7 +134,13 @@ export default function Me() {
       const { settings } = await res.json();
       setProfile((current) =>
         current.state === 'ready' && current.data.profile
-          ? { state: 'ready', data: { ...current.data, profile: { ...current.data.profile, ...settings } } }
+          ? {
+              state: 'ready',
+              data: {
+                ...current.data,
+                profile: { ...current.data.profile, unitSystem: settings.unitSystem, locale: settings.locale },
+              },
+            }
           : current,
       );
     } catch {
@@ -211,6 +235,11 @@ export default function Me() {
             onChange={(l) => void saveSettings({ locale: l })}
           />
         </Tile>
+        {profile.state === 'ready' && saved ? (
+          <Tile>
+            <MealSharesEditor value={profile.data.mealShares} onSave={saveMealShares} />
+          </Tile>
+        ) : null}
         {saved ? (
           <Tile>
             <Text style={styles.label}>{t('profile.units')}</Text>
