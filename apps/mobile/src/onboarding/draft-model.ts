@@ -158,7 +158,8 @@ export function draftFromProfile(p: SavedProfile): OnboardingDraft {
     activityLevel: p.activityLevel,
     trainingDaysPerWeek: p.trainingDaysPerWeek,
     trainingExperience: p.trainingExperience,
-    healthFlags: { ...p.healthFlags },
+    // No longer asked, so an old answer cannot be seen or changed: drop it.
+    healthFlags: { ...p.healthFlags, pregnantOrNursing: false },
     consent: true,
   };
 }

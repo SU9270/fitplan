@@ -109,7 +109,6 @@ export const zh = {
 
   'onboarding.health.title': '健康确认',
   'onboarding.health.subtitle': '这些问题只用来让方案更稳妥。勾选并不影响使用，我们会采用更保守的方案',
-  'onboarding.health.pregnantOrNursing': '我正处于怀孕或哺乳期',
   'onboarding.health.eatingDisorderHistory': '我有过饮食失调的经历，比如暴食或厌食',
   'onboarding.health.medicalDiet': '我正在遵医嘱控制饮食，比如糖尿病或肾病',
   'onboarding.consent.title': '健康数据使用同意',

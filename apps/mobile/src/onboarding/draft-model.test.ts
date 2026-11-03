@@ -137,6 +137,11 @@ describe('draftFromProfile', () => {
     expect(input.pace).toBe('aggressive');
   });
 
+  it('drops a saved pregnancy / nursing answer, which is no longer asked', () => {
+    const draft = draftFromProfile({ ...saved, healthFlags: { ...saved.healthFlags, pregnantOrNursing: true, medicalDiet: true } });
+    expect(draft.healthFlags).toEqual({ pregnantOrNursing: false, eatingDisorderHistory: false, medicalDiet: true });
+  });
+
   it('reopens a metric profile as typed', () => {
     const draft = draftFromProfile({ ...saved, unitSystem: 'metric', heightCm: 175, weightKg: 70 });
     expect(draft.height).toMatchObject({ source: 'metric', cm: '175' });

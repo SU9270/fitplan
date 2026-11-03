@@ -108,7 +108,6 @@ export const en: Record<MessageKey, string> = {
 
   'onboarding.health.title': 'Health check',
   'onboarding.health.subtitle': 'These questions only help us keep your plan safe. Ticking one does not stop you from using the app; we will use a more conservative plan',
-  'onboarding.health.pregnantOrNursing': 'I am pregnant or nursing',
   'onboarding.health.eatingDisorderHistory': 'I have a history of disordered eating, such as binge eating or anorexia',
   'onboarding.health.medicalDiet': 'I follow a doctor-directed diet, for example for diabetes or kidney disease',
   'onboarding.consent.title': 'Health data consent',
