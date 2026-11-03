@@ -31,9 +31,15 @@ FitPlan is an open-source fitness-diet app for Chinese international students in
 - 昵称（可修改）与邮箱、身体资料与每日目标、记录天数与连续记录、我的自定义食物
 - 语言与单位保存在服务器，换设备或重新登录后仍然生效
 
+第三阶段「搭盘子与缺口反馈」（[设计文档](docs/superpowers/specs/2026-11-03-plate-feedback-design.md)）：
+
+- 每一餐是一个四格盘子：蛋白质、主食、蔬菜、其他
+- 全天目标按比例分到各餐（默认早 25%、午 30%、晚 30%、加餐 15%，可在「我的 → 设置」修改）
+- 选完一餐后提示还缺什么（±10% 内算达标，语气中立），并给出最多 3 条一键应用的调整建议
+- 记录效率（最近吃过、复制昨天、我的餐、快速添加）在下一个 PR
+
 后续阶段（各自单独设计、计划、实施）：
 
-3. 搭盘子与缺口反馈
 4. 灵感库与内容生产流程
 5. 打卡、体重与趋势
 6. 自适应目标与每周 check-in
@@ -132,7 +138,7 @@ pnpm --filter @fitplan/api invite:create -- --uses 5
 pnpm --filter @fitplan/api food:import -- --dir <解压出来的文件夹>
 ```
 
-输出应为 `Foods: 7793 (223 with a Chinese name), portions: 14449`。USDA 数据属于公有领域（CC0），不随仓库分发；常见食物的中文名在 `apps/api/data/usda-zh.csv`，欢迎补充（按 NDB 编号对应）。
+输出应为 `Foods: 7793 (223 with a Chinese name), portions: 14449` 和 `Suggestion candidates: 31`。**第三阶段之前导入过的，需要再运行一次**（导入会补上食物分类和建议候选，`pnpm dev` 发现缺分类时也会提示）。USDA 数据属于公有领域（CC0），不随仓库分发；常见食物的中文名在 `apps/api/data/usda-zh.csv`，欢迎补充（按 NDB 编号对应）。
 
 **6. 启动后端**
 
