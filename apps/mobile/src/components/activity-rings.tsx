@@ -1,6 +1,5 @@
 import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
-import { tokens } from '../theme/tokens';
 
 export interface Ring {
   /** 0..1 (see `progress` in diary/display). */
@@ -19,30 +18,32 @@ type Props = {
 };
 
 const DEFAULT_SIZE = 200;
-const STROKE = 14;
-/** Space between two rings. */
-const RING_GAP = 5;
+/** Ring width and the space between rings, as shares of the size (14 and 5 at 200). */
+const STROKE_SHARE = 0.07;
+const GAP_SHARE = 0.025;
 
 /** BoardUI / Apple Watch–style concentric progress rings, starting at 12 o'clock. */
 export function ActivityRings({ rings, accessibilityLabel, size = DEFAULT_SIZE }: Props) {
   const center = size / 2;
+  const stroke = size * STROKE_SHARE;
+  const gap = size * GAP_SHARE;
   return (
     <View accessible accessibilityRole="image" accessibilityLabel={accessibilityLabel} style={styles.container}>
       <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         {rings.map((ring, index) => {
-          const radius = center - STROKE / 2 - index * (STROKE + RING_GAP);
+          const radius = center - stroke / 2 - index * (stroke + gap);
           const circumference = 2 * Math.PI * radius;
           const progress = Math.min(1, Math.max(0, ring.progress));
           return (
             <G key={ring.color}>
-              <Circle cx={center} cy={center} r={radius} stroke={ring.track} strokeWidth={STROKE} fill="none" />
+              <Circle cx={center} cy={center} r={radius} stroke={ring.track} strokeWidth={stroke} fill="none" />
               {progress > 0 ? (
                 <Circle
                   cx={center}
                   cy={center}
                   r={radius}
                   stroke={ring.color}
-                  strokeWidth={STROKE}
+                  strokeWidth={stroke}
                   fill="none"
                   strokeLinecap="round"
                   strokeDasharray={`${circumference * progress} ${circumference}`}
@@ -62,6 +63,5 @@ export function ActivityRings({ rings, accessibilityLabel, size = DEFAULT_SIZE }
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    paddingVertical: tokens.space.sm,
   },
 });

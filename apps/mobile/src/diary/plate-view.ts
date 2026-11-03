@@ -22,26 +22,48 @@ export function groupBySlot<E extends { slot: PlateSlot }>(entries: readonly E[]
   return PLATE_SLOTS.map((slot) => ({ slot, entries: entries.filter((e) => e.slot === slot) }));
 }
 
+/** The plate split into the cells that have entries and the cells still empty (both in plate order). */
+export function splitPlate<E extends { slot: PlateSlot }>(
+  entries: readonly E[],
+): { filled: { slot: PlateSlot; entries: E[] }[]; missing: PlateSlot[] } {
+  const cells = groupBySlot(entries);
+  return {
+    filled: cells.filter((c) => c.entries.length > 0),
+    missing: cells.filter((c) => c.entries.length === 0).map((c) => c.slot),
+  };
+}
+
 const GAP_ORDER = ['kcal', 'proteinG', 'carbsG', 'fatG'] as const satisfies readonly (keyof MacroTargets)[];
 
+export type FeedbackTone = 'short' | 'over' | 'met' | 'hint';
+export interface FeedbackItem {
+  text: string;
+  tone: FeedbackTone;
+}
+
 /**
- * The meal's feedback in neutral words (requirements §3.3): one line per nutrient that is short
- * or over, one line listing those on target, and the vegetables hint at lunch and dinner.
+ * The meal's feedback in neutral words (requirements §3.3): one item per nutrient that is short
+ * or over, one item listing those on target, and the vegetables hint at lunch and dinner.
  * Nothing for a meal without feedback (no target, or nothing logged yet).
  */
-export function feedbackLines(view: { meal: Meal; gap: MealGap | null; hasVegetables: boolean }, t: T): string[] {
+export function feedbackItems(view: { meal: Meal; gap: MealGap | null; hasVegetables: boolean }, t: T): FeedbackItem[] {
   const { gap } = view;
   if (gap === null) return [];
-  const lines: string[] = [];
+  const items: FeedbackItem[] = [];
   const met: string[] = [];
   for (const key of GAP_ORDER) {
     const { status, diff } = gap[key];
     if (status === 'met') met.push(t(`gap.name.${key}`));
-    else lines.push(t(`gap.${key}.${status}`, { n: Math.abs(diff) }));
+    else items.push({ text: t(`gap.${key}.${status}`, { n: Math.abs(diff) }), tone: status });
   }
-  if (met.length > 0) lines.push(t('gap.met', { list: met.join(t('list.separator')) }));
-  if (VEGETABLE_HINT_MEALS.includes(view.meal) && !view.hasVegetables) lines.push(t('gap.noVegetables'));
-  return lines;
+  if (met.length > 0) items.push({ text: t('gap.met', { list: met.join(t('list.separator')) }), tone: 'met' });
+  if (VEGETABLE_HINT_MEALS.includes(view.meal) && !view.hasVegetables) items.push({ text: t('gap.noVegetables'), tone: 'hint' });
+  return items;
+}
+
+/** The feedback as plain lines. */
+export function feedbackLines(view: { meal: Meal; gap: MealGap | null; hasVegetables: boolean }, t: T): string[] {
+  return feedbackItems(view, t).map((item) => item.text);
 }
 
 /** "1.5 × 1 cup" or "150 克": an amount as portions of a label, or grams when there is no portion. */

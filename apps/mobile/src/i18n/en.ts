@@ -227,7 +227,8 @@ export const en: Record<MessageKey, string> = {
   'plate.slot.staple': 'Staples',
   'plate.slot.vegetable': 'Veggies',
   'plate.slot.other': 'Other',
-  'plate.slotEmpty': 'Nothing yet',
+  'plate.nothingYet': 'Nothing logged yet',
+  'plate.missing': 'Not yet: ',
   'plate.mealKcal': '{eaten} / {target} kcal',
   'plate.slotOf': 'Plate: {slot}',
 
@@ -326,6 +327,7 @@ export const en: Record<MessageKey, string> = {
   'diary.date': '{month}/{day}',
   'diary.prevDay': 'Previous day',
   'diary.nextDay': 'Next day',
+  'diary.backToToday': 'Back to today',
   'diary.eaten': 'Eaten',
   'diary.ofTarget': '/ {n} kcal',
   'diary.kcalUnit': 'kcal',

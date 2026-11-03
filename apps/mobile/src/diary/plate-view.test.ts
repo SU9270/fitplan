@@ -1,5 +1,5 @@
 import { setLocale, t } from '../i18n';
-import { feedbackLines, groupBySlot, shareTotal, stepShare, suggestionText, type SuggestionView } from './plate-view';
+import { feedbackItems, feedbackLines, groupBySlot, splitPlate, shareTotal, stepShare, suggestionText, type SuggestionView } from './plate-view';
 
 afterEach(() => setLocale('en'));
 
@@ -44,6 +44,33 @@ describe('feedbackLines', () => {
     expect(feedbackLines({ meal: 'lunch', hasVegetables: false, gap: null }, t)).toEqual([]);
     const lines = feedbackLines({ meal: 'breakfast', hasVegetables: false, gap: { kcal: met, proteinG: met, carbsG: met, fatG: met } }, t);
     expect(lines).toEqual(['Calories, Protein, Carbs, Fat: on target']);
+  });
+});
+
+describe('feedbackItems', () => {
+  it('tags each line with its tone', () => {
+    setLocale('zh');
+    const items = feedbackItems(
+      { meal: 'dinner', hasVegetables: false, gap: { kcal: { status: 'over', diff: 120 }, proteinG: { status: 'short', diff: -25 }, carbsG: met, fatG: met } },
+      t,
+    );
+    expect(items.map((i) => i.tone)).toEqual(['over', 'short', 'met', 'hint']);
+  });
+});
+
+describe('splitPlate', () => {
+  it('separates the cells with entries from the empty ones, in plate order', () => {
+    const entries = [
+      { id: 'a', slot: 'vegetable' as const },
+      { id: 'b', slot: 'protein' as const },
+      { id: 'c', slot: 'protein' as const },
+    ];
+    const { filled, missing } = splitPlate(entries);
+    expect(filled.map((c) => [c.slot, c.entries.map((e) => e.id)])).toEqual([
+      ['protein', ['b', 'c']],
+      ['vegetable', ['a']],
+    ]);
+    expect(missing).toEqual(['staple', 'other']);
   });
 });
 

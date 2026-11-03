@@ -228,7 +228,8 @@ export const zh = {
   'plate.slot.staple': '主食',
   'plate.slot.vegetable': '蔬菜',
   'plate.slot.other': '其他',
-  'plate.slotEmpty': '还没有',
+  'plate.nothingYet': '还没有记录',
+  'plate.missing': '还没有：',
   'plate.mealKcal': '{eaten} / {target} 千卡',
   'plate.slotOf': '归入：{slot}',
 
@@ -327,6 +328,7 @@ export const zh = {
   'diary.date': '{month}月{day}日',
   'diary.prevDay': '前一天',
   'diary.nextDay': '后一天',
+  'diary.backToToday': '回到今天',
   'diary.eaten': '已吃',
   'diary.ofTarget': '/ {n} 千卡',
   'diary.kcalUnit': '千卡',
