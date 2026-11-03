@@ -322,6 +322,8 @@ export const diaryEntries = sqliteTable(
     foodNameZh: text('food_name_zh'),
     /** Snapshot of the food's category, for the plate cell (like the nutrient snapshot). */
     foodCategory: text('food_category'),
+    /** A nutrient-only "快速添加" entry: no food, grams fixed at 100, the amount cannot change. */
+    isQuick: integer('is_quick', { mode: 'boolean' }).notNull().default(false),
     portionId: text('portion_id').references(() => foodPortions.id, { onDelete: 'set null' }),
     /** Snapshot of the portion's label; NULL when the amount was entered in grams. */
     portionLabel: text('portion_label'),
@@ -340,5 +342,49 @@ export const diaryEntries = sqliteTable(
     check('diary_entries_meal_check', sql`${table.meal} IN ('breakfast', 'lunch', 'dinner', 'snack')`),
     check('diary_entries_grams_check', sql`${table.grams} > 0`),
     check('diary_entries_quantity_check', sql`${table.quantity} > 0`),
+  ],
+);
+
+/** "我的餐": a saved set of entries (snapshots, like diary entries) that can be added in one tap. */
+export const mealTemplates = sqliteTable(
+  'meal_templates',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    createdAt: text('created_at').notNull().default(nowIso),
+  },
+  (table) => [index('meal_templates_user_idx').on(table.userId, table.createdAt)],
+);
+
+export const mealTemplateItems = sqliteTable(
+  'meal_template_items',
+  {
+    id: text('id').primaryKey(),
+    templateId: text('template_id')
+      .notNull()
+      .references(() => mealTemplates.id, { onDelete: 'cascade' }),
+    /** Order within the template (the source meal's logging order). */
+    position: integer('position').notNull(),
+    foodId: text('food_id').references(() => foods.id, { onDelete: 'set null' }),
+    foodName: text('food_name').notNull(),
+    foodNameZh: text('food_name_zh'),
+    foodCategory: text('food_category'),
+    isQuick: integer('is_quick', { mode: 'boolean' }).notNull().default(false),
+    portionId: text('portion_id').references(() => foodPortions.id, { onDelete: 'set null' }),
+    portionLabel: text('portion_label'),
+    quantity: real('quantity').notNull(),
+    grams: real('grams').notNull(),
+    kcal: real('kcal'),
+    proteinG: real('protein_g'),
+    carbsG: real('carbs_g'),
+    fatG: real('fat_g'),
+  },
+  (table) => [
+    index('meal_template_items_template_idx').on(table.templateId, table.position),
+    check('meal_template_items_grams_check', sql`${table.grams} > 0`),
+    check('meal_template_items_quantity_check', sql`${table.quantity} > 0`),
   ],
 );

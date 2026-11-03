@@ -8,12 +8,14 @@ type Props = {
   value?: string;
   /** Small pill after the title, e.g. "自定义". */
   badge?: string;
+  /** Spoken label when it should say what tapping does (default: the row's texts). */
+  accessibilityLabel?: string;
   onPress: () => void;
 };
 
 /** Tappable white tile inside a card: food search results, diary entries, custom foods. */
-export function ListRow({ title, subtitle, value, badge, onPress }: Props) {
-  const label = [title, badge, subtitle, value].filter(Boolean).join(', ');
+export function ListRow({ title, subtitle, value, badge, accessibilityLabel, onPress }: Props) {
+  const label = accessibilityLabel ?? [title, badge, subtitle, value].filter(Boolean).join(', ');
   return (
     <Pressable
       accessibilityRole="button"

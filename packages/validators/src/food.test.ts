@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   customFoodInputSchema,
+  diaryCopyInputSchema,
   diaryEntryInputSchema,
   diaryEntryPatchSchema,
   foodSearchQuerySchema,
   isCalendarDate,
   isDateWithinLogWindow,
+  mealTemplateInputSchema,
+  quickAddInputSchema,
 } from './food';
 
 type Schema = { safeParse(v: unknown): { success: boolean; error?: { issues: { path: PropertyKey[] }[] } } };
@@ -104,5 +107,31 @@ describe('diaryEntryPatchSchema', () => {
   it('needs portionId and quantity together, and something to change', () => {
     expect(failingPaths(diaryEntryPatchSchema, { quantity: 80 })).toEqual(['quantity']);
     expect(failingPaths(diaryEntryPatchSchema, {})).toEqual(['_root']);
+  });
+});
+
+describe('quickAddInputSchema', () => {
+  const quick = { date: '2026-11-03', meal: 'snack', kcal: 250 };
+
+  it('needs only kcal; name defaults to empty and macros to unknown', () => {
+    expect(quickAddInputSchema.parse(quick)).toEqual({ ...quick, name: '', proteinG: null, carbsG: null, fatG: null });
+    expect(quickAddInputSchema.parse({ ...quick, name: ' 奶茶 ', proteinG: 3 })).toMatchObject({ name: '奶茶', proteinG: 3 });
+  });
+
+  it('rejects missing or out-of-range kcal and negative macros', () => {
+    expect(failingPaths(quickAddInputSchema, { date: '2026-11-03', meal: 'snack' })).toEqual(['kcal']);
+    expect(failingPaths(quickAddInputSchema, { ...quick, kcal: 5001, fatG: -1 }).sort()).toEqual(['fatG', 'kcal']);
+  });
+});
+
+describe('diaryCopyInputSchema / mealTemplateInputSchema', () => {
+  it('accept a day or a single meal, and need a template name', () => {
+    expect(diaryCopyInputSchema.safeParse({ fromDate: '2026-11-02', toDate: '2026-11-03' }).success).toBe(true);
+    expect(diaryCopyInputSchema.safeParse({ fromDate: '2026-11-02', toDate: '2026-11-03', meal: 'lunch' }).success).toBe(true);
+    expect(failingPaths(diaryCopyInputSchema, { fromDate: '2026-02-30', toDate: '2026-11-03', meal: 'brunch' }).sort()).toEqual([
+      'fromDate',
+      'meal',
+    ]);
+    expect(failingPaths(mealTemplateInputSchema, { name: '  ', date: '2026-11-03', meal: 'lunch' })).toEqual(['name']);
   });
 });

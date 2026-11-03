@@ -1,5 +1,6 @@
 import {
   MEALS,
+  NUTRIENT_BASIS_G,
   currentStreak,
   mealGap,
   mealTargets,
@@ -20,14 +21,16 @@ import {
 import {
   MAX_ENTRY_GRAMS,
   isDateWithinLogWindow,
+  type DiaryCopyInput,
   type DiaryEntryInput,
   type DiaryEntryPatch,
   type Meal,
+  type QuickAddInput,
 } from '@fitplan/validators';
-import { and, asc, count, eq, isNotNull, lte, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, isNotNull, lte, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { diaryEntries, foodPortions, foods } from '../db/schema';
-import { findVisibleFood } from '../foods/food-service';
+import { findVisibleFood, visibleTo } from '../foods/food-service';
 import { getLatestTargets, getMealShares } from '../profile-service';
 
 export interface DiaryEntryView {
@@ -46,6 +49,8 @@ export interface DiaryEntryView {
   nutrients: Nutrients;
   /** The plate cell (from the category and per-100 g snapshot). */
   slot: PlateSlot;
+  /** A nutrient-only "快速添加" entry: no amount to show or change. */
+  quick: boolean;
 }
 
 /** A suggestion with what the app needs to show it. `change` is unrounded. */
@@ -118,6 +123,7 @@ function toView(row: EntryRow): DiaryEntryView {
     grams: row.grams,
     nutrients: scaleNutrients(per100gOf(row), row.grams),
     slot: plateSlot({ category: row.foodCategory, per100g: per100gOf(row) }),
+    quick: row.isQuick,
   };
 }
 
@@ -288,6 +294,9 @@ export async function updateDiaryEntry(
   if (!entry) return { kind: 'not_found' };
 
   let amount: ResolvedAmount | null = null;
+  if (patch.quantity !== undefined && entry.isQuick) {
+    return { kind: 'invalid', fields: { quantity: 'quick_entry' } };
+  }
   if (patch.quantity !== undefined && patch.portionId !== undefined) {
     const resolved = await resolveAmount(db, entry.foodId, { portionId: patch.portionId, quantity: patch.quantity });
     if (resolved.kind !== 'ok') return resolved;
@@ -306,4 +315,206 @@ export async function updateDiaryEntry(
 export async function deleteDiaryEntry(db: Db, userId: string, id: string): Promise<boolean> {
   const deleted = await db.delete(diaryEntries).where(ownEntry(userId, id)).returning({ id: diaryEntries.id });
   return deleted.length > 0;
+}
+
+// ---------------------------------------------------------------------------
+// Logging efficiency (docs/superpowers/specs/2026-11-03-logging-efficiency-design.md)
+// ---------------------------------------------------------------------------
+
+/** The columns that make an entry's snapshot (shared by copies and "我的餐"). */
+export type EntrySnapshot = Pick<
+  EntryRow,
+  | 'foodId'
+  | 'foodName'
+  | 'foodNameZh'
+  | 'foodCategory'
+  | 'isQuick'
+  | 'portionId'
+  | 'portionLabel'
+  | 'quantity'
+  | 'grams'
+  | 'kcal'
+  | 'proteinG'
+  | 'carbsG'
+  | 'fatG'
+>;
+
+export function snapshotOf(row: EntrySnapshot): EntrySnapshot {
+  return {
+    foodId: row.foodId,
+    foodName: row.foodName,
+    foodNameZh: row.foodNameZh,
+    foodCategory: row.foodCategory,
+    isQuick: row.isQuick,
+    portionId: row.portionId,
+    portionLabel: row.portionLabel,
+    quantity: row.quantity,
+    grams: row.grams,
+    kcal: row.kcal,
+    proteinG: row.proteinG,
+    carbsG: row.carbsG,
+    fatG: row.fatG,
+  };
+}
+
+/** Insert snapshots as new entries of `date` / `meal`, in the given order. Returns the count. */
+export async function insertSnapshots(
+  db: Db,
+  userId: string,
+  date: string,
+  items: readonly { meal: Meal; snapshot: EntrySnapshot }[],
+  now: Date,
+): Promise<number> {
+  if (items.length === 0) return 0;
+  const nowIso = now.toISOString();
+  await db.insert(diaryEntries).values(
+    items.map(({ meal, snapshot }) => ({
+      id: crypto.randomUUID(),
+      userId,
+      date,
+      meal,
+      ...snapshot,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    })),
+  );
+  return items.length;
+}
+
+/** "快速添加": nutrients only, stored per 100 g with grams 100 so totals need no special case. */
+export async function addQuickEntry(db: Db, userId: string, input: QuickAddInput, now = new Date()): Promise<EntryResult> {
+  if (!isDateWithinLogWindow(input.date, now)) return { kind: 'invalid', fields: { date: 'date_in_future' } };
+  const nowIso = now.toISOString();
+  const [row] = await db
+    .insert(diaryEntries)
+    .values({
+      id: crypto.randomUUID(),
+      userId,
+      date: input.date,
+      meal: input.meal,
+      foodId: null,
+      foodName: input.name,
+      foodNameZh: null,
+      foodCategory: null,
+      isQuick: true,
+      portionId: null,
+      portionLabel: null,
+      quantity: 1,
+      grams: NUTRIENT_BASIS_G,
+      kcal: input.kcal,
+      proteinG: input.proteinG,
+      carbsG: input.carbsG,
+      fatG: input.fatG,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    })
+    .returning();
+  if (!row) throw new Error('quick entry insert returned no row');
+  return { kind: 'ok', entry: toView(row) };
+}
+
+export type CopyResult = { kind: 'ok'; copied: number } | { kind: 'invalid'; fields: Record<string, string> };
+
+/** Copy a day (or one meal of it) to another day, same meals, as snapshots. */
+export async function copyDiary(db: Db, userId: string, input: DiaryCopyInput, now = new Date()): Promise<CopyResult> {
+  if (!isDateWithinLogWindow(input.toDate, now)) return { kind: 'invalid', fields: { toDate: 'date_in_future' } };
+  const rows = await db
+    .select()
+    .from(diaryEntries)
+    .where(
+      and(
+        eq(diaryEntries.userId, userId),
+        eq(diaryEntries.date, input.fromDate),
+        input.meal ? eq(diaryEntries.meal, input.meal) : undefined,
+      ),
+    )
+    .orderBy(asc(diaryEntries.createdAt), asc(sql`rowid`));
+  const copied = await insertSnapshots(
+    db,
+    userId,
+    input.toDate,
+    rows.map((r) => ({ meal: r.meal, snapshot: snapshotOf(r) })),
+    now,
+  );
+  return { kind: 'ok', copied };
+}
+
+export interface RecentFood {
+  foodId: string;
+  /** The food's current names and plate cell. */
+  name: string;
+  nameZh: string | null;
+  slot: PlateSlot;
+  /** The last amount logged: a portion (when it still exists) or grams. */
+  portionId: string | null;
+  portionLabel: string | null;
+  quantity: number;
+  grams: number;
+  /** kcal of that amount with the food's current values; null = unknown. */
+  kcal: number | null;
+  /** Entries in the last 30 days. */
+  count: number;
+}
+
+/** Look back over this many of the user's latest entries. */
+const RECENT_SCAN_LIMIT = 500;
+const FREQUENT_WINDOW_DAYS = 30;
+const FREQUENT_MIN_COUNT = 2;
+const FREQUENT_MAX = 5;
+const RECENT_MAX = 10;
+
+/**
+ * Foods the user logs often (>= 2 times in 30 days, by count) and lately (by last time, not
+ * repeating the frequent ones), with the last amount for a one-tap re-log. Only foods the user
+ * can still see; quick-add entries have no food and are skipped.
+ */
+export async function getRecentFoods(
+  db: Db,
+  userId: string,
+  now = new Date(),
+): Promise<{ frequent: RecentFood[]; recent: RecentFood[] }> {
+  const rows = await db
+    .select({ entry: diaryEntries, food: foods })
+    .from(diaryEntries)
+    .innerJoin(foods, eq(foods.id, diaryEntries.foodId))
+    .where(and(eq(diaryEntries.userId, userId), visibleTo(userId)))
+    .orderBy(desc(diaryEntries.createdAt), desc(sql`${diaryEntries}.rowid`))
+    .limit(RECENT_SCAN_LIMIT);
+
+  const cutoff = new Date(now.getTime() - FREQUENT_WINDOW_DAYS * 86_400_000).toISOString();
+  const byFood = new Map<string, RecentFood & { lastAt: string }>();
+  for (const { entry, food } of rows) {
+    const existing = byFood.get(food.id);
+    const inWindow = entry.createdAt >= cutoff ? 1 : 0;
+    if (existing) {
+      existing.count += inWindow;
+      continue;
+    }
+    // The newest entry decides the amount. A deleted portion leaves its label behind: use grams.
+    const byPortion = entry.portionId !== null;
+    const per100g = { kcal: food.kcal, proteinG: food.proteinG, carbsG: food.carbsG, fatG: food.fatG };
+    byFood.set(food.id, {
+      foodId: food.id,
+      name: food.name,
+      nameZh: food.nameZh,
+      slot: plateSlot({ category: food.category, per100g }),
+      portionId: entry.portionId,
+      portionLabel: byPortion ? entry.portionLabel : null,
+      quantity: byPortion ? entry.quantity : entry.grams,
+      grams: entry.grams,
+      kcal: scaleNutrients(per100g, entry.grams).kcal,
+      count: inWindow,
+      lastAt: entry.createdAt,
+    });
+  }
+
+  const all = [...byFood.values()];
+  const frequent = all
+    .filter((f) => f.count >= FREQUENT_MIN_COUNT)
+    .sort((a, b) => b.count - a.count || (a.lastAt < b.lastAt ? 1 : -1))
+    .slice(0, FREQUENT_MAX);
+  const shown = new Set(frequent.map((f) => f.foodId));
+  const recent = all.filter((f) => !shown.has(f.foodId)).slice(0, RECENT_MAX);
+  const strip = ({ lastAt: _lastAt, ...food }: RecentFood & { lastAt: string }): RecentFood => food;
+  return { frequent: frequent.map(strip), recent: recent.map(strip) };
 }

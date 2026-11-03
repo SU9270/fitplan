@@ -105,3 +105,36 @@ export const diaryEntryPatchSchema = z
     path: ['_root'],
   });
 export type DiaryEntryPatch = z.infer<typeof diaryEntryPatchSchema>;
+
+/** POST /api/diary/quick: a nutrient-only entry (no food). Unknown macros stay null, never 0. */
+export const quickAddInputSchema = z.object({
+  date: isoDateSchema,
+  meal: mealSchema,
+  /** Empty → the app shows "快速添加". */
+  name: z.string().trim().max(80).default(''),
+  kcal: z.number().min(0).max(5000),
+  proteinG: macroGrams.nullable().default(null),
+  carbsG: macroGrams.nullable().default(null),
+  fatG: macroGrams.nullable().default(null),
+});
+export type QuickAddInput = z.infer<typeof quickAddInputSchema>;
+
+/** POST /api/diary/copy: copy a day (or one meal of it) to another day, same meal. */
+export const diaryCopyInputSchema = z.object({
+  fromDate: isoDateSchema,
+  toDate: isoDateSchema,
+  meal: mealSchema.optional(),
+});
+export type DiaryCopyInput = z.infer<typeof diaryCopyInputSchema>;
+
+/** POST /api/meal-templates: save one meal of a day as a "我的餐". */
+export const mealTemplateInputSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  date: isoDateSchema,
+  meal: mealSchema,
+});
+export type MealTemplateInput = z.infer<typeof mealTemplateInputSchema>;
+
+/** POST /api/meal-templates/:id/apply: add a "我的餐" to a day and meal. */
+export const mealTemplateApplySchema = z.object({ date: isoDateSchema, meal: mealSchema });
+export type MealTemplateApply = z.infer<typeof mealTemplateApplySchema>;

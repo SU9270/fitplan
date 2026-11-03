@@ -5,6 +5,7 @@ import { ActivityIndicator, StyleSheet, Text, TextInput, View } from 'react-nati
 import { Card } from '../../components/card';
 import { ErrorText, TextButton } from '../../components/form';
 import { ListRow } from '../../components/list-row';
+import { QuickPicks } from '../../components/quick-picks';
 import { Screen } from '../../components/screen';
 import { ScreenHeader } from '../../components/screen-header';
 import type { FoodSummary } from '../../diary/api-types';
@@ -76,7 +77,7 @@ export default function FoodSearch() {
         />
       </View>
 
-      {results.state === 'idle' ? <Text style={styles.muted}>{t('food.search.hint')}</Text> : null}
+      {results.state === 'idle' ? <QuickPicks date={date} meal={meal} /> : null}
       {results.state === 'loading' ? (
         <ActivityIndicator color={tokens.color.primary} accessibilityLabel={t('gate.loading')} />
       ) : null}

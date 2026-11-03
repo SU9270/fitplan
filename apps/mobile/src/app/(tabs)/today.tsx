@@ -1,3 +1,4 @@
+import { shiftDate } from '@fitplan/core';
 import type { Meal } from '@fitplan/validators';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
@@ -5,7 +6,7 @@ import { ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { ActivityRings } from '../../components/activity-rings';
 import { Card, CardHeader, Tile } from '../../components/card';
 import { DateSwitcher } from '../../components/date-switcher';
-import { ErrorText, PrimaryButton, SoftButton } from '../../components/form';
+import { ErrorText, PrimaryButton, SoftButton, TextButton } from '../../components/form';
 import { MealPlate } from '../../components/meal-plate';
 import { MACROS, MacroTiles } from '../../components/macro-tiles';
 import { Screen } from '../../components/screen';
@@ -37,6 +38,8 @@ export default function Today() {
   /** The meal whose suggestion could not be applied. */
   const [applyError, setApplyError] = useState<Meal | null>(null);
   const [runExclusive] = useState(createInFlightGuard);
+  /** After a copy: nothing to copy, or it failed — for a meal or the whole day. */
+  const [copyNote, setCopyNote] = useState<{ target: Meal | 'day'; kind: 'empty' | 'error' } | null>(null);
   /** Only the latest request may update the screen (switching days quickly). */
   const latestRequest = useRef(0);
 
@@ -60,6 +63,7 @@ export default function Today() {
   useFocusEffect(
     useCallback(() => {
       setToday(localDate(new Date()));
+      setCopyNote(null);
       void load(date);
     }, [load, date]),
   );
@@ -89,6 +93,29 @@ export default function Today() {
     });
   }
 
+  /** Copy yesterday's meal (or whole day when `meal` is null) into the shown day. */
+  function copyYesterday(meal: Meal | null) {
+    void runExclusive(async () => {
+      setApplying(true);
+      setApplyError(null);
+      setCopyNote(null);
+      try {
+        const res = await api.api.diary.copy.$post({
+          json: { fromDate: shiftDate(date, -1), toDate: date, ...(meal ? { meal } : {}) },
+        });
+        if (await signOutIfUnauthorized(res)) return;
+        if (!res.ok) throw new Error(`POST /api/diary/copy → ${res.status}`);
+        const { copied } = await res.json();
+        if (copied === 0) setCopyNote({ target: meal ?? 'day', kind: 'empty' });
+        else await load(date);
+      } catch {
+        setCopyNote({ target: meal ?? 'day', kind: 'error' });
+      } finally {
+        setApplying(false);
+      }
+    });
+  }
+
   function addTo(meal: Meal) {
     router.push({ pathname: '/food/search', params: { date, meal } });
   }
@@ -109,7 +136,17 @@ export default function Today() {
       ) : (
         <>
           <Summary day={day.day} />
-          {day.day.meals.map((view) => (
+          {day.day.entries.length === 0 ? (
+            <>
+              <SoftButton title={t('copy.day')} onPress={() => copyYesterday(null)} disabled={applying} />
+              {copyNote?.target === 'day' ? (
+                <Text style={styles.copyNote}>{t(copyNote.kind === 'empty' ? 'copy.emptyDay' : 'copy.error')}</Text>
+              ) : null}
+            </>
+          ) : null}
+          {day.day.meals.map((view) => {
+            const inMeal = day.day.entries.filter((e) => e.meal === view.meal);
+            return (
             <Card key={view.meal}>
               <CardHeader
                 strong
@@ -124,19 +161,37 @@ export default function Today() {
               />
               <MealPlate
                 view={view}
-                entries={day.day.entries.filter((e) => e.meal === view.meal)}
+                entries={inMeal}
                 onOpenEntry={(entry) => router.push({ pathname: '/entry/[id]', params: { id: entry.id } })}
                 onApply={(suggestion) => apply(view.meal, suggestion)}
                 applying={applying}
               />
               {applyError === view.meal ? <ErrorText message={t('suggest.error')} /> : null}
+              {copyNote?.target === view.meal ? (
+                <Text style={styles.copyNote}>
+                  {copyNote.kind === 'empty' ? t('copy.emptyMeal', { meal: t(`meal.${view.meal}`) }) : t('copy.error')}
+                </Text>
+              ) : null}
               <SoftButton
                 title={`+ ${t('diary.add')}`}
                 accessibilityLabel={t('diary.addTo', { meal: t(`meal.${view.meal}`) })}
                 onPress={() => addTo(view.meal)}
               />
+              {inMeal.length === 0 ? (
+                <TextButton
+                  title={t('copy.meal', { meal: t(`meal.${view.meal}`) })}
+                  onPress={() => copyYesterday(view.meal)}
+                  disabled={applying}
+                />
+              ) : (
+                <TextButton
+                  title={t('templates.save')}
+                  onPress={() => router.push({ pathname: '/food/save-meal', params: { date, meal: view.meal } })}
+                />
+              )}
             </Card>
-          ))}
+            );
+          })}
         </>
       )}
     </Screen>
@@ -209,6 +264,11 @@ const styles = StyleSheet.create({
     fontWeight: tokens.fontWeight.medium,
   },
   // Neutral, not a red warning (requirements §3.3).
+  copyNote: {
+    paddingHorizontal: tokens.card.headerInset,
+    color: tokens.color.textSecondary,
+    fontSize: tokens.fontSize.label,
+  },
   over: {
     backgroundColor: tokens.color.border,
     color: tokens.color.textSecondary,

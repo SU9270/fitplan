@@ -6,3 +6,6 @@ export type FoodSummary = InferResponseType<typeof api.api.foods.$get, 200>['foo
 export type FoodDetail = InferResponseType<(typeof api.api.foods)[':id']['$get'], 200>['food'];
 export type DiaryDay = InferResponseType<typeof api.api.diary.$get, 200>;
 export type DiaryEntry = DiaryDay['entries'][number];
+export type RecentFoods = InferResponseType<typeof api.api.diary.recent.$get, 200>;
+export type RecentFood = RecentFoods['recent'][number];
+export type MealTemplate = InferResponseType<(typeof api.api)['meal-templates']['$get'], 200>['templates'][number];
