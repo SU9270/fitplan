@@ -63,3 +63,11 @@ export interface NutrientTotals {
   /** Nutrients that were unknown for at least one item, in `NUTRIENT_KEYS` order. */
   unknown: NutrientKey[];
 }
+
+export type Meal = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+
+/** The four cells of a meal's plate (requirements v2.1 §3.3). */
+export type PlateSlot = 'protein' | 'staple' | 'vegetable' | 'other';
+
+/** Share of the daily targets each meal gets, in whole percent; the four add up to 100. */
+export type MealShares = Record<Meal, number>;
