@@ -5,7 +5,9 @@
 //      pnpm --filter @fitplan/api food:import -- --dir <unzipped folder> --remote   # deployed database
 //
 // Safe to run again: rows are upserted by their FDC ids and custom foods are never touched.
-// The local database must have migrations applied first (`pnpm db:migrate:local`).
+// The local database gets its pending migrations applied first (the import writes columns that
+// newer migrations add). The deployed database is never migrated from here: run
+// `pnpm db:migrate:remote` yourself before `--remote`.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -76,6 +78,21 @@ if (data.unmatchedNdbNumbers.length > 0) {
   console.warn(`Chinese names without a matching food (check data/usda-zh.csv): ${data.unmatchedNdbNumbers.join(', ')}`);
 }
 
+if (!values.remote) {
+  // CI=1 answers wrangler's "apply these migrations?" prompt.
+  const migrated = spawnSync('pnpm', ['exec', 'wrangler', 'd1', 'migrations', 'apply', DATABASE_NAME, '--local'], {
+    cwd: API_DIR,
+    env: { ...process.env, CI: '1' },
+    encoding: 'utf8',
+  });
+  if (migrated.status !== 0) {
+    process.stdout.write(migrated.stdout ?? '');
+    process.stderr.write(migrated.stderr ?? '');
+    fail('Applying the local database migrations failed (output above).');
+  }
+  console.log('Local database migrations are up to date.');
+}
+
 const workDir = mkdtempSync(path.join(tmpdir(), 'fitplan-usda-'));
 const sqlFile = path.join(workDir, 'import.sql');
 writeFileSync(sqlFile, toImportSql(data, new Date().toISOString()).join('\n'));
@@ -86,5 +103,11 @@ const result = spawnSync(
   { cwd: API_DIR, stdio: 'inherit' },
 );
 rmSync(workDir, { recursive: true, force: true });
-if (result.status !== 0) fail('wrangler d1 execute failed; see the output above.');
+if (result.status !== 0) {
+  fail(
+    values.remote
+      ? 'wrangler d1 execute failed; see the output above. If a column or table is missing, run `pnpm db:migrate:remote` first.'
+      : 'wrangler d1 execute failed; see the output above.',
+  );
+}
 console.log(`Imported into the ${values.remote ? 'remote' : 'local'} database.`);
