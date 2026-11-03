@@ -21,16 +21,21 @@ type HeaderProps = {
   right?: ReactNode;
   /** Dark, larger label when it is the card's title (a meal, a section) rather than a caption. */
   strong?: boolean;
+  /** Color square before the label, tying the card to a chart color (e.g. the kcal ring). */
+  swatch?: string;
 };
 
 /** Card heading: gray label, optional large value with a unit, optional right-side content. */
-export function CardHeader({ label, title, unit, right, strong = false }: HeaderProps) {
+export function CardHeader({ label, title, unit, right, strong = false, swatch }: HeaderProps) {
   return (
     <View style={styles.header}>
       <View style={styles.headerTexts}>
-        <Text accessibilityRole="header" style={[styles.label, strong && styles.strong]}>
-          {label}
-        </Text>
+        <View style={styles.labelRow}>
+          {swatch ? <View style={[styles.swatch, { backgroundColor: swatch }]} /> : null}
+          <Text accessibilityRole="header" style={[styles.label, strong && styles.strong]}>
+            {label}
+          </Text>
+        </View>
         {title !== undefined ? (
           <Text style={styles.title}>
             {title}
@@ -47,6 +52,9 @@ export function CardHeader({ label, title, unit, right, strong = false }: Header
 export function Tile({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   return <View style={[styles.tile, style]}>{children}</View>;
 }
+
+/** Same size as the squares in `MacroTiles`. */
+const SWATCH = 10;
 
 const styles = StyleSheet.create({
   card: {
@@ -76,6 +84,16 @@ const styles = StyleSheet.create({
     color: tokens.color.textSecondary,
     fontSize: tokens.fontSize.label,
     fontWeight: tokens.fontWeight.medium,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.space.xs,
+  },
+  swatch: {
+    width: SWATCH,
+    height: SWATCH,
+    borderRadius: tokens.hairline,
   },
   strong: {
     color: tokens.color.text,

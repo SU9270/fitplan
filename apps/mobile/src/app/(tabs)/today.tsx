@@ -134,7 +134,13 @@ function Summary({ day }: { day: DiaryDay }) {
 
   return (
     <Card>
-      <CardHeader label={t('diary.eaten')} title={String(totals.kcal)} unit={unit} />
+      {/* The teal square matches the outer (kcal) ring, as the macro tiles' squares match theirs. */}
+      <CardHeader
+        label={t('diary.eaten')}
+        title={String(totals.kcal)}
+        unit={unit}
+        swatch={target ? tokens.color.kcal : undefined}
+      />
       {target && left !== null ? (
         <>
           <Text style={[styles.left, left < 0 && styles.over]}>
