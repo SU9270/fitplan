@@ -44,7 +44,7 @@ export function escapeLike(text: string): string {
 }
 
 /** The user's own custom foods plus all USDA foods. */
-const visibleTo = (userId: string) => or(isNull(foods.ownerUserId), eq(foods.ownerUserId, userId));
+export const visibleTo = (userId: string) => or(isNull(foods.ownerUserId), eq(foods.ownerUserId, userId));
 
 function toSummary(row: FoodRow): FoodSummary {
   const per100g = { kcal: row.kcal, proteinG: row.proteinG, carbsG: row.carbsG, fatG: row.fatG };

@@ -1,11 +1,21 @@
-import { diaryDayQuerySchema, diaryEntryInputSchema, diaryEntryPatchSchema, diaryStatsQuerySchema } from '@fitplan/validators';
+import {
+  diaryCopyInputSchema,
+  diaryDayQuerySchema,
+  diaryEntryInputSchema,
+  diaryEntryPatchSchema,
+  diaryStatsQuerySchema,
+  quickAddInputSchema,
+} from '@fitplan/validators';
 import { Hono } from 'hono';
 import { createDb } from '../db/client';
 import {
   addDiaryEntry,
+  addQuickEntry,
+  copyDiary,
   deleteDiaryEntry,
   getDiaryDay,
   getDiaryStats,
+  getRecentFoods,
   updateDiaryEntry,
   type EntryResult,
 } from '../diary/diary-service';
@@ -28,6 +38,27 @@ export const diaryRoutes = new Hono<AppEnv>()
     const query = parseValue(c.req.query(), diaryStatsQuerySchema);
     if (!query.ok) return c.json({ error: 'invalid_input' as const, fields: query.fields }, 400);
     return c.json(await getDiaryStats(createDb(c.env.DB), c.var.user.id, query.data.today));
+  })
+  .get('/recent', async (c) => c.json(await getRecentFoods(createDb(c.env.DB), c.var.user.id)))
+  .post('/quick', async (c) => {
+    const body = await parseBody(c.req.raw, quickAddInputSchema);
+    if (!body.ok) return c.json({ error: 'invalid_input' as const, fields: body.fields }, 400);
+    const db = createDb(c.env.DB);
+    if (!(await hasHealthDataConsent(db, c.var.user.id))) return c.json(consentRequired, 403);
+    const result = await addQuickEntry(db, c.var.user.id, body.data);
+    if (result.kind !== 'ok') {
+      return c.json({ error: 'invalid_input' as const, fields: result.kind === 'invalid' ? result.fields : {} }, 400);
+    }
+    return c.json({ entry: result.entry }, 201);
+  })
+  .post('/copy', async (c) => {
+    const body = await parseBody(c.req.raw, diaryCopyInputSchema);
+    if (!body.ok) return c.json({ error: 'invalid_input' as const, fields: body.fields }, 400);
+    const db = createDb(c.env.DB);
+    if (!(await hasHealthDataConsent(db, c.var.user.id))) return c.json(consentRequired, 403);
+    const result = await copyDiary(db, c.var.user.id, body.data);
+    if (result.kind === 'invalid') return c.json({ error: 'invalid_input' as const, fields: result.fields }, 400);
+    return c.json({ copied: result.copied }, 201);
   })
   .post('/entries', async (c) => {
     const body = await parseBody(c.req.raw, diaryEntryInputSchema);
