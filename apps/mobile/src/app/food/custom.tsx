@@ -9,7 +9,7 @@ import { EMPTY_CUSTOM_FORM, formFromFood, toCustomFoodInput, type CustomFormFiel
 import { stringParam } from '../../diary/route-params';
 import { useLocale, type MessageKey } from '../../i18n';
 import { api } from '../../lib/api';
-import { signOutIfUnauthorized } from '../../lib/unauthorized';
+import { call, failureText, type Failure } from '../../lib/request';
 import { withJson } from '../../lib/with-json';
 import { createInFlightGuard } from '../../onboarding/in-flight';
 import { tokens } from '../../theme/tokens';
@@ -36,7 +36,7 @@ export default function CustomFood() {
   const id = stringParam(params.id);
   const [values, setValues] = useState<CustomFormValues | null>(id === null ? EMPTY_CUSTOM_FORM : null);
   const [errors, setErrors] = useState<Partial<Record<CustomFormField, MessageKey>>>({});
-  const [error, setError] = useState<MessageKey | null>(null);
+  const [error, setError] = useState<Failure | null>(null);
   const [busy, setBusy] = useState(false);
   const [runExclusive] = useState(createInFlightGuard);
 
@@ -44,15 +44,14 @@ export default function CustomFood() {
     if (id === null) return;
     let cancelled = false;
     void (async () => {
-      try {
-        const res = await api.api.foods[':id'].$get({ param: { id } });
-        if (await signOutIfUnauthorized(res)) return;
-        if (!res.ok) throw new Error(`GET /api/foods/${id} → ${res.status}`);
-        const body = await res.json();
-        if (!cancelled) setValues(formFromFood(body.food));
-      } catch {
-        if (!cancelled) setError('food.loadError');
+      const out = await call('food.loadError', () => api.api.foods[':id'].$get({ param: { id } }));
+      if (cancelled || out.kind === 'signedOut') return;
+      if (out.kind === 'failed') {
+        setError(out.failure);
+        return;
       }
+      const body = await out.res.json();
+      if (!cancelled) setValues(formFromFood(body.food));
     })();
     return () => {
       cancelled = true;
@@ -70,27 +69,21 @@ export default function CustomFood() {
     void runExclusive(async () => {
       setBusy(true);
       setError(null);
-      try {
-        const res =
-          id === null
-            ? await api.api.foods.$post({ json: result.input })
-            : await api.api.foods[':id'].$put(withJson({ id }, result.input));
-        if (await signOutIfUnauthorized(res)) return;
-        if (!res.ok) {
-          setError(res.status === 404 ? 'food.notFound' : 'food.saveError');
-          return;
-        }
-        if (id !== null) {
-          router.back();
-          return;
-        }
-        const body = (await res.json()) as { food: { id: string } };
-        router.replace({ pathname: '/food/[id]', params: { id: body.food.id, date: params.date, meal: params.meal } });
-      } catch {
-        setError('food.saveError');
-      } finally {
-        setBusy(false);
+      const out = await call('food.saveError', () =>
+        id === null ? api.api.foods.$post({ json: result.input }) : api.api.foods[':id'].$put(withJson({ id }, result.input)),
+      );
+      setBusy(false);
+      if (out.kind === 'signedOut') return;
+      if (out.kind === 'failed') {
+        setError(out.failure);
+        return;
       }
+      if (id !== null) {
+        router.back();
+        return;
+      }
+      const body = (await out.res.json()) as { food: { id: string } };
+      router.replace({ pathname: '/food/[id]', params: { id: body.food.id, date: params.date, meal: params.meal } });
     });
   }
 
@@ -99,7 +92,7 @@ export default function CustomFood() {
       <ScreenHeader title={t(id === null ? 'custom.title.new' : 'custom.title.edit')} subtitle={t('custom.subtitle')} />
       {values === null ? (
         error ? (
-          <ErrorText message={t(error)} />
+          <ErrorText message={failureText(error, t)} />
         ) : (
           <ActivityIndicator color={tokens.color.primary} accessibilityLabel={t('gate.loading')} />
         )
@@ -120,7 +113,7 @@ export default function CustomFood() {
               </Tile>
             ))}
           </Card>
-          <ErrorText message={error && t(error)} />
+          <ErrorText message={error && failureText(error, t)} />
           <PrimaryButton title={t('common.save')} onPress={save} busy={busy} />
         </>
       )}

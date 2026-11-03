@@ -10,7 +10,7 @@ import { rememberedEntries } from '../../diary/entry-store';
 import { dateParam, mealParam } from '../../diary/route-params';
 import { useLocale } from '../../i18n';
 import { api } from '../../lib/api';
-import { signOutIfUnauthorized } from '../../lib/unauthorized';
+import { call, failureText, type Failure } from '../../lib/request';
 import { createInFlightGuard } from '../../onboarding/in-flight';
 
 /** Save one meal of a day as "我的餐", named after its first foods by default. */
@@ -27,24 +27,18 @@ export default function SaveMeal() {
       t,
     ),
   );
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<Failure | null>(null);
   const [busy, setBusy] = useState(false);
   const [runExclusive] = useState(createInFlightGuard);
 
   function save() {
     void runExclusive(async () => {
       setBusy(true);
-      setError(false);
-      try {
-        const res = await api.api['meal-templates'].$post({ json: { name, date, meal } });
-        if (await signOutIfUnauthorized(res)) return;
-        if (!res.ok) throw new Error(`POST /api/meal-templates → ${res.status}`);
-        router.back();
-      } catch {
-        setError(true);
-      } finally {
-        setBusy(false);
-      }
+      setError(null);
+      const out = await call('templates.save.error', () => api.api['meal-templates'].$post({ json: { name, date, meal } }));
+      setBusy(false);
+      if (out.kind === 'failed') setError(out.failure);
+      if (out.kind === 'ok') router.back();
     });
   }
 
@@ -56,7 +50,7 @@ export default function SaveMeal() {
           <TextField label={t('templates.save.name')} value={name} onChangeText={setName} maxLength={80} autoFocus />
         </Tile>
       </Card>
-      <ErrorText message={error ? t('templates.save.error') : null} />
+      <ErrorText message={error && failureText(error, t)} />
       <PrimaryButton title={t('common.save')} onPress={save} busy={busy} disabled={name.trim() === ''} />
     </Screen>
   );

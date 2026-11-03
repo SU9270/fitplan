@@ -17,12 +17,12 @@ import { rememberEntries } from '../../diary/entry-store';
 import type { SuggestionView } from '../../diary/plate-view';
 import { useLocale } from '../../i18n';
 import { api } from '../../lib/api';
-import { signOutIfUnauthorized } from '../../lib/unauthorized';
+import { call, failureText, type Failure } from '../../lib/request';
 import { withJson } from '../../lib/with-json';
 import { createInFlightGuard } from '../../onboarding/in-flight';
 import { tokens } from '../../theme/tokens';
 
-type DayState = { state: 'loading' } | { state: 'error' } | { state: 'ready'; day: DiaryDay };
+type DayState = { state: 'loading' } | { state: 'error'; failure: Failure } | { state: 'ready'; day: DiaryDay };
 
 /**
  * Today tab: the food diary for one day (today by default; ‹ › moves between days, never past
@@ -36,27 +36,26 @@ export default function Today() {
   const [day, setDay] = useState<DayState>({ state: 'loading' });
   const [applying, setApplying] = useState(false);
   /** The meal whose suggestion could not be applied. */
-  const [applyError, setApplyError] = useState<Meal | null>(null);
+  const [applyError, setApplyError] = useState<{ meal: Meal; failure: Failure } | null>(null);
   const [runExclusive] = useState(createInFlightGuard);
   /** After a copy: nothing to copy, or it failed — for a meal or the whole day. */
-  const [copyNote, setCopyNote] = useState<{ target: Meal | 'day'; kind: 'empty' | 'error' } | null>(null);
+  const [copyNote, setCopyNote] = useState<{ target: Meal | 'day'; failure: Failure | null } | null>(null);
   /** Only the latest request may update the screen (switching days quickly). */
   const latestRequest = useRef(0);
 
   const load = useCallback(async (forDate: string) => {
     const request = ++latestRequest.current;
     setDay((current) => (current.state === 'ready' && current.day.date === forDate ? current : { state: 'loading' }));
-    try {
-      const res = await api.api.diary.$get({ query: { date: forDate } });
-      if (await signOutIfUnauthorized(res)) return;
-      if (!res.ok) throw new Error(`GET /api/diary → ${res.status}`);
-      const body = await res.json();
-      if (request !== latestRequest.current) return;
-      rememberEntries(body.entries);
-      setDay({ state: 'ready', day: body });
-    } catch {
-      if (request === latestRequest.current) setDay({ state: 'error' });
+    const out = await call('today.loadError', () => api.api.diary.$get({ query: { date: forDate } }));
+    if (out.kind === 'signedOut' || request !== latestRequest.current) return;
+    if (out.kind === 'failed') {
+      setDay({ state: 'error', failure: out.failure });
+      return;
     }
+    const body = await out.res.json();
+    if (request !== latestRequest.current) return;
+    rememberEntries(body.entries);
+    setDay({ state: 'ready', day: body });
   }, []);
 
   // Reload on focus (an entry may have been added or changed) and pick up a new calendar day.
@@ -73,23 +72,18 @@ export default function Today() {
     void runExclusive(async () => {
       setApplying(true);
       setApplyError(null);
-      try {
-        const res =
-          suggestion.kind === 'add'
-            ? await api.api.diary.entries.$post({
-                json: { date, meal, foodId: suggestion.foodId, portionId: suggestion.portionId, quantity: suggestion.quantity },
-              })
-            : await api.api.diary.entries[':id'].$patch(
-                withJson({ id: suggestion.entryId }, { portionId: suggestion.portionId, quantity: suggestion.quantity }),
-              );
-        if (await signOutIfUnauthorized(res)) return;
-        if (!res.ok) throw new Error(`apply suggestion → ${res.status}`);
-        await load(date);
-      } catch {
-        setApplyError(meal);
-      } finally {
-        setApplying(false);
-      }
+      const out = await call('suggest.error', () =>
+        suggestion.kind === 'add'
+          ? api.api.diary.entries.$post({
+              json: { date, meal, foodId: suggestion.foodId, portionId: suggestion.portionId, quantity: suggestion.quantity },
+            })
+          : api.api.diary.entries[':id'].$patch(
+              withJson({ id: suggestion.entryId }, { portionId: suggestion.portionId, quantity: suggestion.quantity }),
+            ),
+      );
+      if (out.kind === 'failed') setApplyError({ meal, failure: out.failure });
+      if (out.kind === 'ok') await load(date);
+      setApplying(false);
     });
   }
 
@@ -99,20 +93,16 @@ export default function Today() {
       setApplying(true);
       setApplyError(null);
       setCopyNote(null);
-      try {
-        const res = await api.api.diary.copy.$post({
-          json: { fromDate: shiftDate(date, -1), toDate: date, ...(meal ? { meal } : {}) },
-        });
-        if (await signOutIfUnauthorized(res)) return;
-        if (!res.ok) throw new Error(`POST /api/diary/copy → ${res.status}`);
-        const { copied } = await res.json();
-        if (copied === 0) setCopyNote({ target: meal ?? 'day', kind: 'empty' });
+      const out = await call('copy.error', () =>
+        api.api.diary.copy.$post({ json: { fromDate: shiftDate(date, -1), toDate: date, ...(meal ? { meal } : {}) } }),
+      );
+      if (out.kind === 'failed') setCopyNote({ target: meal ?? 'day', failure: out.failure });
+      if (out.kind === 'ok') {
+        const { copied } = await out.res.json();
+        if (copied === 0) setCopyNote({ target: meal ?? 'day', failure: null });
         else await load(date);
-      } catch {
-        setCopyNote({ target: meal ?? 'day', kind: 'error' });
-      } finally {
-        setApplying(false);
       }
+      setApplying(false);
     });
   }
 
@@ -129,7 +119,7 @@ export default function Today() {
       ) : day.state === 'error' ? (
         <Card>
           <Tile>
-            <ErrorText message={t('today.loadError')} />
+            <ErrorText message={failureText(day.failure, t)} />
           </Tile>
           <PrimaryButton title={t('gate.error.retry')} onPress={() => void load(date)} />
         </Card>
@@ -140,7 +130,7 @@ export default function Today() {
             <>
               <SoftButton title={t('copy.day')} onPress={() => copyYesterday(null)} disabled={applying} />
               {copyNote?.target === 'day' ? (
-                <Text style={styles.copyNote}>{t(copyNote.kind === 'empty' ? 'copy.emptyDay' : 'copy.error')}</Text>
+                <Text style={styles.copyNote}>{copyNote.failure ? failureText(copyNote.failure, t) : t('copy.emptyDay')}</Text>
               ) : null}
             </>
           ) : null}
@@ -166,10 +156,10 @@ export default function Today() {
                 onApply={(suggestion) => apply(view.meal, suggestion)}
                 applying={applying}
               />
-              {applyError === view.meal ? <ErrorText message={t('suggest.error')} /> : null}
+              {applyError?.meal === view.meal ? <ErrorText message={failureText(applyError.failure, t)} /> : null}
               {copyNote?.target === view.meal ? (
                 <Text style={styles.copyNote}>
-                  {copyNote.kind === 'empty' ? t('copy.emptyMeal', { meal: t(`meal.${view.meal}`) }) : t('copy.error')}
+                  {copyNote.failure ? failureText(copyNote.failure, t) : t('copy.emptyMeal', { meal: t(`meal.${view.meal}`) })}
                 </Text>
               ) : null}
               <SoftButton

@@ -17,7 +17,7 @@ import { useLocale, type Locale, type MessageKey } from '../../i18n';
 import { api } from '../../lib/api';
 import { authClient } from '../../lib/auth-client';
 import { useGate } from '../../lib/gate';
-import { signOutIfUnauthorized } from '../../lib/unauthorized';
+import { call, failureText, problemOfStatus, problemOfThrown, type Failure, type Outcome } from '../../lib/request';
 import { useSignOut } from '../../lib/use-sign-out';
 import { useOnboarding } from '../../onboarding/draft';
 import { checkNickname, formatHeight, formatWeight, initial, type UnitSystem } from '../../profile/format';
@@ -27,38 +27,31 @@ type ProfileBody = InferResponseType<typeof api.api.me.profile.$get, 200>;
 type Stats = InferResponseType<typeof api.api.diary.stats.$get, 200>;
 type OwnFoods = InferResponseType<typeof api.api.foods.mine.$get, 200>['foods'];
 
-type Loaded<T> = { state: 'loading' } | { state: 'error' } | { state: 'ready'; data: T };
+type Loaded<T> = { state: 'loading' } | { state: 'error'; failure: Failure } | { state: 'ready'; data: T };
+/** A loader's result: the data, or why there is none. */
+type Fetched<T> = { kind: 'ok'; data: T } | Exclude<Outcome<never>, { kind: 'ok' }>;
 
 const LOCALES = ['zh', 'en'] as const satisfies readonly Locale[];
 const UNITS = ['metric', 'imperial'] as const satisfies readonly UnitSystem[];
 
-// Loaders: null after a 401 (already signed out), throw on other failures.
-async function fetchProfile(): Promise<ProfileBody | null> {
-  const res = await api.api.me.profile.$get();
-  if (await signOutIfUnauthorized(res)) return null;
-  if (!res.ok) throw new Error(`GET /api/me/profile → ${res.status}`);
-  return res.json();
+async function fetchProfile(): Promise<Fetched<ProfileBody>> {
+  const out = await call('profile.loadError', () => api.api.me.profile.$get());
+  return out.kind === 'ok' ? { kind: 'ok', data: await out.res.json() } : out;
 }
 
-async function fetchStats(): Promise<Stats | null> {
-  const res = await api.api.diary.stats.$get({ query: { today: localDate(new Date()) } });
-  if (await signOutIfUnauthorized(res)) return null;
-  if (!res.ok) throw new Error(`GET /api/diary/stats → ${res.status}`);
-  return res.json();
+async function fetchStats(): Promise<Fetched<Stats>> {
+  const out = await call('profile.loadError', () => api.api.diary.stats.$get({ query: { today: localDate(new Date()) } }));
+  return out.kind === 'ok' ? { kind: 'ok', data: await out.res.json() } : out;
 }
 
-async function fetchTemplates(): Promise<MealTemplate[] | null> {
-  const res = await api.api['meal-templates'].$get();
-  if (await signOutIfUnauthorized(res)) return null;
-  if (!res.ok) throw new Error(`GET /api/meal-templates → ${res.status}`);
-  return (await res.json()).templates;
+async function fetchTemplates(): Promise<Fetched<MealTemplate[]>> {
+  const out = await call('profile.loadError', () => api.api['meal-templates'].$get());
+  return out.kind === 'ok' ? { kind: 'ok', data: (await out.res.json()).templates } : out;
 }
 
-async function fetchOwnFoods(): Promise<OwnFoods | null> {
-  const res = await api.api.foods.mine.$get();
-  if (await signOutIfUnauthorized(res)) return null;
-  if (!res.ok) throw new Error(`GET /api/foods/mine → ${res.status}`);
-  return (await res.json()).foods;
+async function fetchOwnFoods(): Promise<Fetched<OwnFoods>> {
+  const out = await call('profile.loadError', () => api.api.foods.mine.$get());
+  return out.kind === 'ok' ? { kind: 'ok', data: (await out.res.json()).foods } : out;
 }
 
 /**
@@ -74,16 +67,18 @@ export default function Me() {
   const [stats, setStats] = useState<Loaded<Stats>>({ state: 'loading' });
   const [foods, setFoods] = useState<Loaded<OwnFoods>>({ state: 'loading' });
   const [templates, setTemplates] = useState<Loaded<MealTemplate[]>>({ state: 'loading' });
-  const [settingsError, setSettingsError] = useState(false);
+  const [settingsError, setSettingsError] = useState<Failure | null>(null);
   const [openWizard, setOpenWizard] = useState(false);
 
   const load = useCallback(() => {
-    const settle = <T,>(set: (v: Loaded<T>) => void, request: Promise<T | null>) =>
+    const settle = <T,>(set: (v: Loaded<T>) => void, request: Promise<Fetched<T>>) =>
       request.then(
-        (data) => {
-          if (data !== null) set({ state: 'ready', data });
+        (out) => {
+          if (out.kind === 'ok') set({ state: 'ready', data: out.data });
+          if (out.kind === 'failed') set({ state: 'error', failure: out.failure });
         },
-        () => set({ state: 'error' }),
+        // An unreadable response body.
+        () => set({ state: 'error', failure: { action: 'profile.loadError', problem: 'unknown' } }),
       );
     void settle(setProfile, fetchProfile());
     void settle(setStats, fetchStats());
@@ -125,59 +120,55 @@ export default function Me() {
         style: 'destructive',
         onPress: () =>
           void (async () => {
-            try {
-              const res = await api.api['meal-templates'][':id'].$delete({ param: { id: template.id } });
-              if (await signOutIfUnauthorized(res)) return;
-              setTemplates((current) =>
-                current.state === 'ready' ? { state: 'ready', data: current.data.filter((x) => x.id !== template.id) } : current,
-              );
-            } catch {
-              setSettingsError(true);
+            setSettingsError(null);
+            const out = await call('common.deleteError', () =>
+              api.api['meal-templates'][':id'].$delete({ param: { id: template.id } }),
+            );
+            if (out.kind === 'signedOut') return;
+            // Already gone counts as deleted.
+            if (out.kind === 'failed' && out.failure.problem !== 'notFound') {
+              setSettingsError(out.failure);
+              return;
             }
+            setTemplates((current) =>
+              current.state === 'ready' ? { state: 'ready', data: current.data.filter((x) => x.id !== template.id) } : current,
+            );
           })(),
       },
     ]);
   }
 
   async function saveMealShares(mealShares: MealShares): Promise<boolean> {
-    try {
-      const res = await api.api.me.settings.$patch({ json: { mealShares } });
-      if (await signOutIfUnauthorized(res)) return false;
-      if (!res.ok) throw new Error(`PATCH /api/me/settings → ${res.status}`);
-      const { settings } = await res.json();
-      setProfile((current) =>
-        current.state === 'ready' ? { state: 'ready', data: { ...current.data, mealShares: settings.mealShares } } : current,
-      );
-      return true;
-    } catch {
-      setSettingsError(true);
-      return false;
-    }
+    setSettingsError(null);
+    const out = await call('profile.settings.error', () => api.api.me.settings.$patch({ json: { mealShares } }));
+    if (out.kind === 'failed') setSettingsError(out.failure);
+    if (out.kind !== 'ok') return false;
+    const { settings } = await out.res.json();
+    setProfile((current) =>
+      current.state === 'ready' ? { state: 'ready', data: { ...current.data, mealShares: settings.mealShares } } : current,
+    );
+    return true;
   }
 
   async function saveSettings(patch: { locale?: Locale; unitSystem?: UnitSystem }) {
-    setSettingsError(false);
+    setSettingsError(null);
     if (patch.locale) setLocale(patch.locale);
     if (saved === null) return;
-    try {
-      const res = await api.api.me.settings.$patch({ json: patch });
-      if (await signOutIfUnauthorized(res)) return;
-      if (!res.ok) throw new Error(`PATCH /api/me/settings → ${res.status}`);
-      const { settings } = await res.json();
-      setProfile((current) =>
-        current.state === 'ready' && current.data.profile
-          ? {
-              state: 'ready',
-              data: {
-                ...current.data,
-                profile: { ...current.data.profile, unitSystem: settings.unitSystem, locale: settings.locale },
-              },
-            }
-          : current,
-      );
-    } catch {
-      setSettingsError(true);
-    }
+    const out = await call('profile.settings.error', () => api.api.me.settings.$patch({ json: patch }));
+    if (out.kind === 'failed') setSettingsError(out.failure);
+    if (out.kind !== 'ok') return;
+    const { settings } = await out.res.json();
+    setProfile((current) =>
+      current.state === 'ready' && current.data.profile
+        ? {
+            state: 'ready',
+            data: {
+              ...current.data,
+              profile: { ...current.data.profile, unitSystem: settings.unitSystem, locale: settings.locale },
+            },
+          }
+        : current,
+    );
   }
 
   return (
@@ -195,7 +186,7 @@ export default function Me() {
         ) : profile.state === 'error' ? (
           <>
             <Tile>
-              <ErrorText message={t('profile.loadError')} />
+              <ErrorText message={failureText(profile.failure, t)} />
             </Tile>
             <PrimaryButton title={t('gate.error.retry')} onPress={load} />
           </>
@@ -218,7 +209,7 @@ export default function Me() {
           </View>
         ) : stats.state === 'error' ? (
           <Tile>
-            <ErrorText message={t('profile.loadError')} />
+            <ErrorText message={failureText(stats.failure, t)} />
           </Tile>
         ) : (
           <ActivityIndicator color={tokens.color.primary} accessibilityLabel={t('gate.loading')} />
@@ -248,7 +239,7 @@ export default function Me() {
           )
         ) : foods.state === 'error' ? (
           <Tile>
-            <ErrorText message={t('profile.loadError')} />
+            <ErrorText message={failureText(foods.failure, t)} />
           </Tile>
         ) : (
           <ActivityIndicator color={tokens.color.primary} accessibilityLabel={t('gate.loading')} />
@@ -277,7 +268,7 @@ export default function Me() {
           )
         ) : templates.state === 'error' ? (
           <Tile>
-            <ErrorText message={t('profile.loadError')} />
+            <ErrorText message={failureText(templates.failure, t)} />
           </Tile>
         ) : (
           <ActivityIndicator color={tokens.color.primary} accessibilityLabel={t('gate.loading')} />
@@ -311,7 +302,7 @@ export default function Me() {
             />
           </Tile>
         ) : null}
-        <ErrorText message={settingsError ? t('profile.settings.error') : null} />
+        <ErrorText message={settingsError && failureText(settingsError, t)} />
         <TextButton title={t('auth.signOut')} onPress={() => void signOut()} />
       </Card>
     </Screen>
@@ -323,7 +314,7 @@ function AccountCard() {
   const { t } = useLocale();
   const { data: session } = authClient.useSession();
   const [draft, setDraft] = useState<string | null>(null);
-  const [error, setError] = useState<MessageKey | null>(null);
+  const [error, setError] = useState<MessageKey | Failure | null>(null);
   const [busy, setBusy] = useState(false);
   const name = session?.user.name ?? '';
 
@@ -338,10 +329,17 @@ function AccountCard() {
     setError(null);
     try {
       const { error: failed } = await authClient.updateUser({ name: nickname });
-      if (failed) throw new Error(failed.message);
-      setDraft(null);
-    } catch {
-      setError('profile.nickname.error');
+      if (failed) {
+        console.warn(`[fitplan] profile.nickname.error: HTTP ${failed.status}`, failed.message);
+        // Better Auth reports a request that never reached the server as status 0.
+        const problem = failed.status ? problemOfStatus(failed.status, 'application/json') : 'network';
+        setError({ action: 'profile.nickname.error', problem });
+      } else {
+        setDraft(null);
+      }
+    } catch (thrown) {
+      console.warn('[fitplan] profile.nickname.error: request failed', thrown);
+      setError({ action: 'profile.nickname.error', problem: problemOfThrown(thrown) });
     } finally {
       setBusy(false);
     }
@@ -363,7 +361,7 @@ function AccountCard() {
       ) : (
         <Tile>
           <TextField label={t('profile.nickname')} value={draft} onChangeText={setDraft} autoFocus maxLength={60} />
-          <ErrorText message={error && t(error)} />
+          <ErrorText message={error && (typeof error === 'string' ? t(error) : failureText(error, t))} />
           <PrimaryButton title={t('common.save')} onPress={() => void save()} busy={busy} />
           <TextButton
             title={t('common.cancel')}

@@ -15,11 +15,11 @@ import { displayName } from '../../diary/display';
 import { dateParam, mealParam, stringParam } from '../../diary/route-params';
 import { useLocale, type MessageKey } from '../../i18n';
 import { api } from '../../lib/api';
-import { signOutIfUnauthorized } from '../../lib/unauthorized';
+import { call, failureText, type Failure } from '../../lib/request';
 import { createInFlightGuard } from '../../onboarding/in-flight';
 import { tokens } from '../../theme/tokens';
 
-type FoodState = { state: 'loading' } | { state: 'error'; message: MessageKey } | { state: 'ready'; food: FoodDetail };
+type FoodState = { state: 'loading' } | { state: 'error'; failure: Failure | null } | { state: 'ready'; food: FoodDetail };
 
 /** One food: pick an amount and a meal and add it to the diary. Custom foods can be edited or deleted here. */
 export default function FoodScreen() {
@@ -30,30 +30,25 @@ export default function FoodScreen() {
   const [food, setFood] = useState<FoodState>({ state: 'loading' });
   const [amount, setAmount] = useState<AmountState | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<MessageKey | null>(null);
+  const [error, setError] = useState<Failure | null>(null);
   const [runExclusive] = useState(createInFlightGuard);
 
   const load = useCallback(async () => {
     if (id === null) {
-      setFood({ state: 'error', message: 'food.notFound' });
+      setFood({ state: 'error', failure: null });
       return;
     }
     setFood((current) => (current.state === 'ready' ? current : { state: 'loading' }));
-    try {
-      const res = await api.api.foods[':id'].$get({ param: { id } });
-      if (await signOutIfUnauthorized(res)) return;
-      if (res.status === 404) {
-        setFood({ state: 'error', message: 'food.notFound' });
-        return;
-      }
-      if (!res.ok) throw new Error(`GET /api/foods/${id} → ${res.status}`);
-      const body = await res.json();
-      setFood({ state: 'ready', food: body.food });
-      // Keep what the user already picked when coming back from editing the food.
-      setAmount((current) => current ?? initialAmount(body.food.portions, mealParam(params.meal)));
-    } catch {
-      setFood({ state: 'error', message: 'food.loadError' });
+    const out = await call('food.loadError', () => api.api.foods[':id'].$get({ param: { id } }));
+    if (out.kind === 'signedOut') return;
+    if (out.kind === 'failed') {
+      setFood({ state: 'error', failure: out.failure });
+      return;
     }
+    const body = await out.res.json();
+    setFood({ state: 'ready', food: body.food });
+    // Keep what the user already picked when coming back from editing the food.
+    setAmount((current) => current ?? initialAmount(body.food.portions, mealParam(params.meal)));
   }, [id, params.meal]);
 
   // Also on returning from the custom food form, so an edit shows up here.
@@ -72,11 +67,13 @@ export default function FoodScreen() {
     );
   }
   if (food.state === 'error' || amount === null) {
+    const failure = food.state === 'error' ? food.failure : null;
+    const gone = failure === null || failure.problem === 'notFound';
     return (
       <Screen>
         <ScreenHeader title="" />
-        <ErrorText message={t(food.state === 'error' ? food.message : 'food.loadError')} />
-        {food.state === 'error' && food.message === 'food.loadError' ? (
+        <ErrorText message={gone ? t('food.notFound') : failureText(failure, t)} />
+        {!gone ? (
           <PrimaryButton title={t('gate.error.retry')} onPress={() => void load()} />
         ) : null}
       </Screen>
@@ -92,22 +89,15 @@ export default function FoodScreen() {
     void runExclusive(async () => {
       setBusy(true);
       setError(null);
-      try {
-        const res = await api.api.diary.entries.$post({
+      const out = await call('food.saveError', () =>
+        api.api.diary.entries.$post({
           json: { date, meal, foodId: detail.id, portionId: checked.portionId, quantity: checked.quantity },
-        });
-        if (await signOutIfUnauthorized(res)) return;
-        if (!res.ok) {
-          setError(res.status === 404 ? 'food.notFound' : 'food.saveError');
-          return;
-        }
-        // Back to Today (search → food → Today), which reloads the diary on focus.
-        router.dismissTo('/today');
-      } catch {
-        setError('food.saveError');
-      } finally {
-        setBusy(false);
-      }
+        }),
+      );
+      setBusy(false);
+      if (out.kind === 'failed') setError(out.failure);
+      // Back to Today (search → food → Today), which reloads the diary on focus.
+      if (out.kind === 'ok') router.dismissTo('/today');
     });
   }
 
@@ -119,17 +109,14 @@ export default function FoodScreen() {
   }
 
   async function deleteFood() {
-    try {
-      const res = await api.api.foods[':id'].$delete({ param: { id: detail.id } });
-      if (await signOutIfUnauthorized(res)) return;
-      if (!res.ok && res.status !== 404) {
-        setError('food.saveError');
-        return;
-      }
-      router.back();
-    } catch {
-      setError('food.saveError');
+    const out = await call('common.deleteError', () => api.api.foods[':id'].$delete({ param: { id: detail.id } }));
+    if (out.kind === 'signedOut') return;
+    // Already gone counts as deleted.
+    if (out.kind === 'failed' && out.failure.problem !== 'notFound') {
+      setError(out.failure);
+      return;
     }
+    router.back();
   }
 
   const isCustom = detail.source === 'custom';
@@ -149,7 +136,7 @@ export default function FoodScreen() {
 
       {!isCustom ? <Per100gExtras food={detail} /> : null}
 
-      <ErrorText message={error && t(error)} />
+      <ErrorText message={error && failureText(error, t)} />
       <PrimaryButton
         title={t('food.addTo', { meal: t(`meal.${meal}`) })}
         onPress={add}
