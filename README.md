@@ -8,7 +8,7 @@ FitPlan is an open-source fitness-diet app for Chinese international students in
 
 ## 当前状态 Status
 
-第一阶段「地基」已完成，第二阶段「食物库」实施中。
+第一至第三阶段已完成，下一步是第四阶段「灵感库」。
 
 第一阶段「地基」：
 
@@ -27,7 +27,7 @@ FitPlan is an open-source fitness-diet app for Chinese international students in
 
 个人主页「我的」（[设计文档](docs/superpowers/specs/2026-11-02-profile-page-design.md)）：
 
-- 底部标签栏「今日 / 我的」
+- 底部标签栏「今日 / 食物库 / 我的」
 - 昵称（可修改）与邮箱、身体资料与每日目标、记录天数与连续记录、我的自定义食物
 - 语言与单位保存在服务器，换设备或重新登录后仍然生效
 
@@ -36,6 +36,7 @@ FitPlan is an open-source fitness-diet app for Chinese international students in
 - 每一餐是一个四格盘子：蛋白质、主食、蔬菜、其他
 - 全天目标按比例分到各餐（默认早 25%、午 30%、晚 30%、加餐 15%，可在「我的 → 设置」修改）
 - 选完一餐后提示还缺什么（±10% 内算达标，语气中立），并给出最多 3 条一键应用的调整建议
+- 午餐和晚餐比较热量与三大营养素；早餐和加餐只比较热量和蛋白质，只推荐适合早餐的食物
 
 记录效率（[设计文档](docs/superpowers/specs/2026-11-03-logging-efficiency-design.md)）：
 
@@ -43,6 +44,15 @@ FitPlan is an open-source fitness-diet app for Chinese international students in
 - 复制昨天的某一餐或全部记录
 - 把一餐存成「我的餐」，以后一键加入
 - 快速添加：不选食物，只填热量（三大营养素可选）
+
+食物库标签页（[设计文档](docs/superpowers/specs/2026-11-03-food-library-tab-design.md)）：
+
+- 带图片的食物网格，按营养事实分 7 组：碳水、蛋白质、脂肪、蔬菜、水果、高纤维（GB 28050）、富含 Omega-3（欧盟标准）
+- 点一种食物直接进入记录页
+
+报错文案（[设计文档](docs/superpowers/specs/2026-11-03-error-messages-design.md)）：
+
+- 请求失败时说清原因：网络不通、服务器出错、App 版本过旧、输入不对等
 
 后续阶段（各自单独设计、计划、实施）：
 
