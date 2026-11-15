@@ -110,14 +110,38 @@ export const PROTEIN_SLOT_MIN_ENERGY_SHARE = 0.3;
 
 /** Within ±10 % of a meal target counts as met (requirements §3.3). */
 export const GAP_TOLERANCE = 0.1;
+/**
+ * Nutrients each meal's feedback compares. Breakfast and snacks check only energy and protein:
+ * many breakfasts have no staple (eggs, yogurt), and the carbs / fat they leave are made up later
+ * in the day, which the daily summary shows. Differs from requirements §3.3 (all four per meal).
+ */
+export const MEAL_GAP_NUTRIENTS: Readonly<Record<Meal, readonly ('kcal' | 'proteinG' | 'carbsG' | 'fatG')[]>> = {
+  breakfast: ['kcal', 'proteinG'],
+  lunch: ['kcal', 'proteinG', 'carbsG', 'fatG'],
+  dinner: ['kcal', 'proteinG', 'carbsG', 'fatG'],
+  snack: ['kcal', 'proteinG'],
+};
+/**
+ * At breakfast and snacks, foods are suggested only from these USDA categories (eggs, dairy,
+ * bread, cereals, soy, fruit, nuts), never rice, meat or fish.
+ */
+export const LIGHT_MEAL_CATEGORIES: readonly string[] = [
+  'Dairy and Egg Products',
+  'Breakfast Cereals',
+  'Baked Products',
+  'Legumes and Legume Products',
+  'Fruits and Fruit Juices',
+  'Nut and Seed Products',
+];
+export const LIGHT_MEALS: readonly Meal[] = ['breakfast', 'snack'];
 /** Meals that get the "no vegetables yet" hint. */
 export const VEGETABLE_HINT_MEALS: readonly Meal[] = ['lunch', 'dinner'];
 
 export const MAX_SUGGESTIONS = 3;
 /** Suggested amounts are multiples of half a portion … */
 export const SUGGESTION_PORTION_STEP = 0.5;
-/** … and at most this many portions. */
-export const SUGGESTION_MAX_PORTIONS = 3;
+/** … and at most this many portions (three cups of rice was too much to suggest). */
+export const SUGGESTION_MAX_PORTIONS = 2;
 /**
  * A short protein / staple cell is topped up from a food already in it ("one more egg") when at
  * most this many extra portions close the gap; otherwise a new food is suggested.
@@ -129,3 +153,19 @@ export const REDUCE_GRAMS_STEP = 5;
 export const VEGETABLE_SUGGESTION_GRAMS = 100;
 /** Score penalty for a suggestion that is not a whole number of portions. */
 export const FRACTIONAL_PORTION_PENALTY = 0.05;
+
+/** The food library's groups, in display order (docs/superpowers/specs/2026-11-03-food-library-tab-design.md). */
+export const LIBRARY_GROUPS = ['carbs', 'protein', 'fat', 'vegetable', 'fruit', 'fiber', 'omega3'] as const;
+/** USDA category of the library's fruit group. */
+export const FRUIT_CATEGORY = 'Fruits and Fruit Juices';
+/** "Fat" group: fat supplies at least this share of the energy (and protein too little for the protein group). */
+export const FAT_GROUP_MIN_ENERGY_SHARE = 0.5;
+/** "High fiber": GB 28050-2011 「高或富含膳食纤维」, at least 6 g per 100 g. */
+export const HIGH_FIBER_MIN_G = 6;
+/**
+ * "Rich in omega-3": the EU "high omega-3" claim (Regulation (EC) 1924/2006): at least 0.6 g
+ * ALA, or 80 mg EPA + DHA combined, both per 100 g and per 100 kcal. China's GB 28050 has no
+ * omega-3 claim.
+ */
+export const HIGH_OMEGA3_MIN_ALA_G = 0.6;
+export const HIGH_OMEGA3_MIN_EPA_DHA_G = 0.08;

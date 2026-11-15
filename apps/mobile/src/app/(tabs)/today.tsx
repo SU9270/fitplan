@@ -40,6 +40,11 @@ export default function Today() {
   const [runExclusive] = useState(createInFlightGuard);
   /** After a copy: nothing to copy, or it failed — for a meal or the whole day. */
   const [copyNote, setCopyNote] = useState<{ target: Meal | 'day'; failure: Failure | null } | null>(null);
+  /** Copy buttons copy from the day before the shown one: "yesterday" only when the shown day is today. */
+  const copyKeys =
+    date === today
+      ? ({ day: 'copy.day', meal: 'copy.meal', emptyDay: 'copy.emptyDay', emptyMeal: 'copy.emptyMeal' } as const)
+      : ({ day: 'copy.dayPrev', meal: 'copy.mealPrev', emptyDay: 'copy.emptyDayPrev', emptyMeal: 'copy.emptyMealPrev' } as const);
   /** Only the latest request may update the screen (switching days quickly). */
   const latestRequest = useRef(0);
 
@@ -128,9 +133,9 @@ export default function Today() {
           <Summary day={day.day} />
           {day.day.entries.length === 0 ? (
             <>
-              <SoftButton title={t('copy.day')} onPress={() => copyYesterday(null)} disabled={applying} />
+              <SoftButton title={t(copyKeys.day)} onPress={() => copyYesterday(null)} disabled={applying} />
               {copyNote?.target === 'day' ? (
-                <Text style={styles.copyNote}>{copyNote.failure ? failureText(copyNote.failure, t) : t('copy.emptyDay')}</Text>
+                <Text style={styles.copyNote}>{copyNote.failure ? failureText(copyNote.failure, t) : t(copyKeys.emptyDay)}</Text>
               ) : null}
             </>
           ) : null}
@@ -159,7 +164,7 @@ export default function Today() {
               {applyError?.meal === view.meal ? <ErrorText message={failureText(applyError.failure, t)} /> : null}
               {copyNote?.target === view.meal ? (
                 <Text style={styles.copyNote}>
-                  {copyNote.failure ? failureText(copyNote.failure, t) : t('copy.emptyMeal', { meal: t(`meal.${view.meal}`) })}
+                  {copyNote.failure ? failureText(copyNote.failure, t) : t(copyKeys.emptyMeal, { meal: t(`meal.${view.meal}`) })}
                 </Text>
               ) : null}
               <SoftButton
@@ -169,7 +174,7 @@ export default function Today() {
               />
               {inMeal.length === 0 ? (
                 <TextButton
-                  title={t('copy.meal', { meal: t(`meal.${view.meal}`) })}
+                  title={t(copyKeys.meal, { meal: t(`meal.${view.meal}`) })}
                   onPress={() => copyYesterday(view.meal)}
                   disabled={applying}
                 />
@@ -228,6 +233,9 @@ function Summary({ day }: { day: DiaryDay }) {
   );
 }
 
+/** Digits of equal width, so numbers do not shift as they change. */
+const TABULAR = ['tabular-nums'] as const;
+
 const styles = StyleSheet.create({
   muted: {
     color: tokens.color.textSecondary,
@@ -240,10 +248,10 @@ const styles = StyleSheet.create({
     color: tokens.color.textSecondary,
     fontSize: tokens.fontSize.label,
     fontWeight: tokens.fontWeight.medium,
+    fontVariant: TABULAR,
   },
   left: {
     alignSelf: 'flex-start',
-    marginHorizontal: tokens.card.headerInset,
     paddingHorizontal: tokens.space.sm,
     paddingVertical: tokens.hairline,
     overflow: 'hidden',

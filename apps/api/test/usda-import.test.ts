@@ -26,6 +26,11 @@ const files: UsdaCsvFiles = {
     '"7","900002","1008","51","","","","","","",""',
     '"8","900002","1005","","","","","","","",""',
     '"9","900003","1008","999","","","","","","",""',
+    '"10","900001","1270","0.5","","","","","","",""',
+    '"11","900001","1404","0.3","","","","","","",""',
+    '"12","900001","1278","0.02","","","","","","",""',
+    '"13","900001","1272","0.05","","","","","","",""',
+    '"14","900002","1270","0.9","","","","","","",""',
   ].join('\n'),
   foodPortion: [
     '"id","fdc_id","seq_num","amount","measure_unit_id","portion_description","modifier","gram_weight","data_points","footnote","min_year_acquired"',
@@ -38,7 +43,7 @@ const files: UsdaCsvFiles = {
 };
 
 const zh = parseZhNames(
-  'ndb_number,name_zh,aliases,suggest_portion\n05064,测试鸡胸,鸡胸| chicken breast ,"0.5 breast, bone and skin removed"\n99999,不存在,,\n',
+  'ndb_number,name_zh,aliases,suggest_portion,library\n05064,测试鸡胸,鸡胸| chicken breast ,"0.5 breast, bone and skin removed",test_chicken\n99999,不存在,,,\n',
 );
 
 describe('parseZhNames', () => {
@@ -48,8 +53,9 @@ describe('parseZhNames', () => {
       nameZh: '测试鸡胸',
       aliases: ['鸡胸', 'chicken breast'],
       suggestPortion: '0.5 breast, bone and skin removed',
+      library: 'test_chicken',
     });
-    expect(zh[1]).toMatchObject({ aliases: [], suggestPortion: null });
+    expect(zh[1]).toMatchObject({ aliases: [], suggestPortion: null, library: null });
   });
 
   it('rejects duplicates (with or without leading zeros) and blank names', () => {
@@ -58,10 +64,16 @@ describe('parseZhNames', () => {
     expect(() => parseZhNames('ndb_number,name_zh,aliases\nabc,a,\n')).toThrow(/bad ndb_number/);
   });
 
+  it('rejects malformed and duplicate library keys', () => {
+    expect(() => parseZhNames('ndb_number,name_zh,library\n05064,a,Salmon\n')).toThrow(/bad library key/);
+    expect(() => parseZhNames('ndb_number,name_zh,library\n05064,a,fish\n05065,b,fish\n')).toThrow(/duplicate library key/);
+  });
+
   it('the shipped table is well-formed', () => {
     const names = parseZhNames(zhCsv);
     expect(names.length).toBeGreaterThan(200);
     expect(names.filter((n) => n.suggestPortion !== null).length).toBeGreaterThan(20);
+    expect(names.filter((n) => n.library !== null).length).toBeGreaterThanOrEqual(50);
     for (const name of names) expect(name.aliases.every((a) => a === a.trim() && a !== '')).toBe(true);
   });
 });
@@ -92,6 +104,17 @@ describe('buildUsdaImport', () => {
       sugarsG: null,
     });
     expect(data.foods[1]).toMatchObject({ name: 'Test sauce, "special"', kcal: 51, carbsG: null, proteinG: null });
+  });
+
+  it('reads omega-3: ALA (else total 18:3) and EPA + DHA added up', () => {
+    expect(data.foods[0]?.omega3AlaG).toBe(0.3);
+    expect(data.foods[0]?.omega3EpaDhaG).toBeCloseTo(0.07);
+    expect(data.foods[1]).toMatchObject({ omega3AlaG: 0.9, omega3EpaDhaG: null });
+  });
+
+  it('marks library foods with their key and the order of the csv rows', () => {
+    expect(data.foods[0]).toMatchObject({ libraryKey: 'test_chicken', libraryRank: 0 });
+    expect(data.foods[1]).toMatchObject({ libraryKey: null, libraryRank: null });
   });
 
   it('keeps the USDA category and resolves the suggestion portion by its label', () => {
@@ -142,7 +165,16 @@ describe('toImportSql', () => {
       .run();
 
     await run(toImportSql(data, '2026-11-02T00:00:00.000Z'));
-    const renamed = { ...data, foods: data.foods.map((f) => ({ ...f, nameZh: f.nameZh && `${f.nameZh}2` })) };
+    // The second run also moves the library key to the other food (keys are unique).
+    const renamed = {
+      ...data,
+      foods: data.foods.map((f) => ({
+        ...f,
+        nameZh: f.nameZh && `${f.nameZh}2`,
+        libraryKey: f.libraryKey === null ? 'test_chicken' : null,
+        libraryRank: f.libraryKey === null ? 0 : null,
+      })),
+    };
     await run(toImportSql(renamed, '2026-11-03T00:00:00.000Z'));
 
     const foods = await env.DB.prepare(
@@ -151,6 +183,13 @@ describe('toImportSql', () => {
     expect(foods.results).toEqual([
       { id: 'usda-900001', name: 'Test chicken, roasted', name_zh: '测试鸡胸2', category: 'Poultry Products', suggest_portion_id: 'usda-portion-80002', kcal: 160, carbs_g: 0, created_at: '2026-11-02T00:00:00.000Z', updated_at: '2026-11-03T00:00:00.000Z' },
       { id: 'usda-900002', name: 'Test sauce, "special"', name_zh: null, category: 'Soups, Sauces, and Gravies', suggest_portion_id: null, kcal: 51, carbs_g: null, created_at: '2026-11-02T00:00:00.000Z', updated_at: '2026-11-03T00:00:00.000Z' },
+    ]);
+    const library = await env.DB.prepare(
+      "SELECT id, library_key, library_rank, omega3_ala_g FROM foods WHERE id LIKE 'usda-9000%' ORDER BY id",
+    ).all();
+    expect(library.results).toEqual([
+      { id: 'usda-900001', library_key: null, library_rank: null, omega3_ala_g: 0.3 },
+      { id: 'usda-900002', library_key: 'test_chicken', library_rank: 0, omega3_ala_g: 0.9 },
     ]);
     const portions = await env.DB.prepare("SELECT count(*) AS n FROM food_portions WHERE food_id LIKE 'usda-9000%'").first<{ n: number }>();
     expect(portions?.n).toBe(3);

@@ -15,6 +15,12 @@ export const FDC_NUTRIENT_IDS = {
   sodiumMg: '1093',
 } as const;
 
+/**
+ * Omega-3 nutrients for the library's omega-3 group. ALA is "18:3 n-3 c,c,c" where reported,
+ * else total 18:3 (in plant foods almost all ALA); EPA and DHA are added up.
+ */
+export const FDC_OMEGA3_IDS = { ala: '1404', ala18_3Total: '1270', epa: '1278', dha: '1272' } as const;
+
 type NutrientField = keyof typeof FDC_NUTRIENT_IDS;
 const NUTRIENT_FIELD_BY_ID = new Map<string, NutrientField>(
   Object.entries(FDC_NUTRIENT_IDS).map(([field, id]) => [id, field as NutrientField]),
@@ -36,7 +42,12 @@ export interface ZhName {
   aliases: string[];
   /** Label of the portion suggestions use (e.g. "1 large"); null = not a suggestion candidate. */
   suggestPortion: string | null;
+  /** Image key of the food in the library tab (e.g. "salmon"); null = not in the library. */
+  library: string | null;
 }
+
+/** Library keys name image files: lowercase letters, digits and underscores. */
+const LIBRARY_KEY = /^[a-z][a-z0-9_]*$/;
 
 export type UsdaFoodRow = {
   id: string;
@@ -48,6 +59,11 @@ export type UsdaFoodRow = {
   /** USDA food category description, e.g. "Vegetables and Vegetable Products". */
   category: string | null;
   suggestPortionId: string | null;
+  omega3AlaG: number | null;
+  omega3EpaDhaG: number | null;
+  libraryKey: string | null;
+  /** Position among the library rows of data/usda-zh.csv (0 = first). */
+  libraryRank: number | null;
 } & Record<NutrientField, number | null>;
 
 export interface UsdaPortionRow {
@@ -73,10 +89,14 @@ const usdaPortionId = (portionId: string) => `usda-portion-${portionId}`;
 /** "01001" and "1001" are the same NDB number. */
 const normalizeNdb = (ndb: string) => ndb.trim().replace(/^0+(?=\d)/, '');
 
-/** Reads apps/api/data/usda-zh.csv (`ndb_number,name_zh,aliases`). Throws on duplicates or blanks. */
+/**
+ * Reads apps/api/data/usda-zh.csv (`ndb_number,name_zh,aliases,suggest_portion,library`). Throws
+ * on duplicates, blanks or a malformed library key.
+ */
 export function parseZhNames(text: string): ZhName[] {
   const names: ZhName[] = [];
   const seen = new Set<string>();
+  const seenLibrary = new Set<string>();
   for (const r of csvRecords(text)) {
     const ndbNumber = (r.ndb_number ?? '').trim();
     const nameZh = (r.name_zh ?? '').trim();
@@ -90,7 +110,19 @@ export function parseZhNames(text: string): ZhName[] {
       .map((a) => a.trim())
       .filter((a) => a !== '');
     const suggestPortion = (r.suggest_portion ?? '').trim();
-    names.push({ ndbNumber, nameZh, aliases, suggestPortion: suggestPortion === '' ? null : suggestPortion });
+    const library = (r.library ?? '').trim();
+    if (library !== '') {
+      if (!LIBRARY_KEY.test(library)) throw new Error(`usda-zh: bad library key "${library}" for ${ndbNumber}`);
+      if (seenLibrary.has(library)) throw new Error(`usda-zh: duplicate library key ${library}`);
+      seenLibrary.add(library);
+    }
+    names.push({
+      ndbNumber,
+      nameZh,
+      aliases,
+      suggestPortion: suggestPortion === '' ? null : suggestPortion,
+      library: library === '' ? null : library,
+    });
   }
   return names;
 }
@@ -117,6 +149,9 @@ export function portionLabel(amount: number | null, unitName: string | undefined
 
 export function buildUsdaImport(files: UsdaCsvFiles, zhNames: readonly ZhName[]): UsdaImport {
   const zhByNdb = new Map(zhNames.map((z) => [normalizeNdb(z.ndbNumber), z]));
+  const libraryRank = new Map(
+    zhNames.filter((z) => z.library !== null).map((z, rank) => [normalizeNdb(z.ndbNumber), rank] as const),
+  );
   const ndbByFdc = new Map<string, string>();
   for (const r of csvRecords(files.srLegacyFood)) ndbByFdc.set(r.fdc_id ?? '', normalizeNdb(r.NDB_number ?? ''));
 
@@ -146,6 +181,10 @@ export function buildUsdaImport(files: UsdaCsvFiles, zhNames: readonly ZhName[])
       searchText: buildSearchText(name, zh?.nameZh ?? null, zh?.aliases ?? []),
       category: categories.get(r.food_category_id ?? '') || null,
       suggestPortionId: null,
+      omega3AlaG: null,
+      omega3EpaDhaG: null,
+      libraryKey: zh?.library ?? null,
+      libraryRank: libraryRank.get(ndbByFdc.get(fdc) ?? '') ?? null,
       kcal: null,
       proteinG: null,
       carbsG: null,
@@ -156,11 +195,23 @@ export function buildUsdaImport(files: UsdaCsvFiles, zhNames: readonly ZhName[])
     });
   }
 
+  const omega3 = new Map<string, Partial<Record<keyof typeof FDC_OMEGA3_IDS, number>>>();
+  const omega3KeyById = new Map<string, keyof typeof FDC_OMEGA3_IDS>(Object.entries(FDC_OMEGA3_IDS).map(([key, id]) => [id, key as keyof typeof FDC_OMEGA3_IDS]));
   for (const r of csvRecords(files.foodNutrient)) {
-    const field = NUTRIENT_FIELD_BY_ID.get(r.nutrient_id ?? '');
-    const food = field ? foodsByFdc.get(r.fdc_id ?? '') : undefined;
+    const id = r.nutrient_id ?? '';
+    const field = NUTRIENT_FIELD_BY_ID.get(id);
+    const omega3Key = omega3KeyById.get(id);
+    const food = field || omega3Key ? foodsByFdc.get(r.fdc_id ?? '') : undefined;
     const amount = parseAmount(r.amount);
-    if (field && food && amount !== null && amount >= 0) food[field] = amount;
+    if (!food || amount === null || amount < 0) continue;
+    if (field) food[field] = amount;
+    if (omega3Key) omega3.set(food.id, { ...omega3.get(food.id), [omega3Key]: amount });
+  }
+  for (const food of foodsByFdc.values()) {
+    const o = omega3.get(food.id);
+    if (!o) continue;
+    food.omega3AlaG = o.ala ?? o.ala18_3Total ?? null;
+    food.omega3EpaDhaG = o.epa === undefined && o.dha === undefined ? null : (o.epa ?? 0) + (o.dha ?? 0);
   }
 
   const unitNames = new Map<string, string>();
@@ -222,7 +273,10 @@ const ROWS_PER_STATEMENT = 100;
  * and never touches custom foods.
  */
 export function toImportSql(data: Pick<UsdaImport, 'foods' | 'portions'>, now: string): string[] {
-  const statements: string[] = [];
+  // Library keys are unique: clear them first so moving a key to another food cannot collide.
+  const statements: string[] = [
+    "UPDATE foods SET library_key = NULL, library_rank = NULL WHERE source = 'usda_sr_legacy' AND library_key IS NOT NULL;",
+  ];
   for (const batch of chunks(data.foods, ROWS_PER_STATEMENT)) {
     const values = batch.map((f) =>
       [
@@ -243,16 +297,21 @@ export function toImportSql(data: Pick<UsdaImport, 'foods' | 'portions'>, now: s
         f.fiberG,
         f.sugarsG,
         f.sodiumMg,
+        f.omega3AlaG,
+        f.omega3EpaDhaG,
+        f.libraryKey,
+        f.libraryRank,
         now,
         now,
       ].map(sqlValue),
     );
     statements.push(
-      'INSERT INTO foods (id, source, fdc_id, owner_user_id, name, name_zh, aliases, search_text, category, suggest_portion_id, kcal, protein_g, carbs_g, fat_g, fiber_g, sugars_g, sodium_mg, created_at, updated_at) VALUES\n' +
+      'INSERT INTO foods (id, source, fdc_id, owner_user_id, name, name_zh, aliases, search_text, category, suggest_portion_id, kcal, protein_g, carbs_g, fat_g, fiber_g, sugars_g, sodium_mg, omega3_ala_g, omega3_epa_dha_g, library_key, library_rank, created_at, updated_at) VALUES\n' +
         values.map((v) => `(${v.join(', ')})`).join(',\n') +
         '\nON CONFLICT(id) DO UPDATE SET name = excluded.name, name_zh = excluded.name_zh, aliases = excluded.aliases, ' +
         'search_text = excluded.search_text, category = excluded.category, suggest_portion_id = excluded.suggest_portion_id, kcal = excluded.kcal, protein_g = excluded.protein_g, carbs_g = excluded.carbs_g, ' +
         'fat_g = excluded.fat_g, fiber_g = excluded.fiber_g, sugars_g = excluded.sugars_g, sodium_mg = excluded.sodium_mg, ' +
+        'omega3_ala_g = excluded.omega3_ala_g, omega3_epa_dha_g = excluded.omega3_epa_dha_g, library_key = excluded.library_key, library_rank = excluded.library_rank, ' +
         'updated_at = excluded.updated_at;',
     );
   }

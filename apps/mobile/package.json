@@ -39,6 +39,7 @@
   "devDependencies": {
     "@fitplan/api": "workspace:*",
     "@types/jest": "30.0.0",
+    "@types/node": "24.19.2",
     "@types/react": "19.3.0",
     "jest": "30.5.2",
     "jest-expo": "58.0.13",

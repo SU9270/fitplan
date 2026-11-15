@@ -96,7 +96,7 @@ describe('mealGap', () => {
   const target = { kcal: 600, proteinG: 40, carbsG: 70, fatG: 20 };
 
   it('marks short, met and over with the signed difference', () => {
-    expect(mealGap(target, { kcal: 600, proteinG: 15, carbsG: 90, fatG: 20 })).toEqual({
+    expect(mealGap('lunch', target, { kcal: 600, proteinG: 15, carbsG: 90, fatG: 20 })).toEqual({
       kcal: { status: 'met', diff: 0 },
       proteinG: { status: 'short', diff: -25 },
       carbsG: { status: 'over', diff: 20 },
@@ -105,22 +105,37 @@ describe('mealGap', () => {
   });
 
   it('includes both ±10 % bounds in "met"', () => {
-    expect(mealGap(target, { kcal: 540, proteinG: 44, carbsG: 70, fatG: 20 }).kcal.status).toBe('met');
-    expect(mealGap(target, { kcal: 539, proteinG: 44, carbsG: 70, fatG: 20 }).kcal.status).toBe('short');
-    expect(mealGap(target, { kcal: 660, proteinG: 44, carbsG: 70, fatG: 20 }).kcal.status).toBe('met');
-    expect(mealGap(target, { kcal: 661, proteinG: 44, carbsG: 70, fatG: 20 }).kcal.status).toBe('over');
+    expect(mealGap('lunch', target, { kcal: 540, proteinG: 44, carbsG: 70, fatG: 20 }).kcal?.status).toBe('met');
+    expect(mealGap('lunch', target, { kcal: 539, proteinG: 44, carbsG: 70, fatG: 20 }).kcal?.status).toBe('short');
+    expect(mealGap('lunch', target, { kcal: 660, proteinG: 44, carbsG: 70, fatG: 20 }).kcal?.status).toBe('met');
+    expect(mealGap('lunch', target, { kcal: 661, proteinG: 44, carbsG: 70, fatG: 20 }).kcal?.status).toBe('over');
+  });
+
+  it('checks only kcal and protein at breakfast and snacks', () => {
+    const eaten = { kcal: 300, proteinG: 15, carbsG: 2, fatG: 20 };
+    expect(Object.keys(mealGap('breakfast', target, eaten))).toEqual(['kcal', 'proteinG']);
+    expect(Object.keys(mealGap('snack', target, eaten))).toEqual(['kcal', 'proteinG']);
+    expect(Object.keys(mealGap('dinner', target, eaten))).toEqual(['kcal', 'proteinG', 'carbsG', 'fatG']);
   });
 
   it('handles a zero target', () => {
     const zero = { kcal: 0, proteinG: 0, carbsG: 0, fatG: 0 };
-    expect(mealGap(zero, zero).kcal).toEqual({ status: 'met', diff: 0 });
-    expect(mealGap(zero, { ...zero, kcal: 50 }).kcal).toEqual({ status: 'over', diff: 50 });
+    expect(mealGap('lunch', zero, zero).kcal).toEqual({ status: 'met', diff: 0 });
+    expect(mealGap('lunch', zero, { ...zero, kcal: 50 }).kcal).toEqual({ status: 'over', diff: 50 });
   });
 });
 
 describe('suggestAdjustments', () => {
+  const CATEGORIES: Record<string, string> = {
+    'usda-boiled-egg': 'Dairy and Egg Products',
+    'usda-chicken': 'Poultry Products',
+    'usda-greek-yogurt': 'Dairy and Egg Products',
+    'usda-rice': 'Cereal Grains and Pasta',
+    'usda-bread': 'Baked Products',
+  };
   const candidate = (foodId: string, slot: SuggestionCandidate['slot'], per100g: Nutrients, grams: number): SuggestionCandidate => ({
     foodId,
+    category: CATEGORIES[foodId] ?? 'Vegetables and Vegetable Products',
     slot,
     per100g,
     portion: { id: `${foodId}-p`, grams },
@@ -230,8 +245,22 @@ describe('suggestAdjustments', () => {
   it('adds a new food when topping up would need more than one more portion', () => {
     const eggs = { ...entry('e', 'usda-egg', 'protein', food.boiledEgg, 100), quantity: 2 };
     const s = suggestAdjustments({ meal: 'breakfast', target: { kcal: 500, proteinG: 35, carbsG: 0, fatG: 30 }, entries: [eggs], candidates });
-    // 22 g short = 3.5 more eggs: suggest another food instead.
+    // 22 g short = 3.5 more eggs: suggest another food instead, a breakfast one (not chicken).
     expect(s[0]).toMatchObject({ kind: 'add', reason: 'protein' });
+    expect(s[0]?.kind === 'add' && s[0].foodId).not.toBe('usda-chicken');
+  });
+
+  it('never asks for more carbs at breakfast, and suggests no rice or meat there', () => {
+    const eggs = { ...entry('e', 'usda-egg', 'protein', food.boiledEgg, 100), quantity: 2 };
+    const s = suggestAdjustments({
+      meal: 'breakfast',
+      target: { kcal: 800, proteinG: 40, carbsG: 130, fatG: 25 },
+      entries: [eggs],
+      candidates,
+    });
+    expect(s.map((x) => x.reason)).not.toContain('staple');
+    const added = s.flatMap((x) => (x.kind === 'add' ? [x.foodId] : []));
+    expect(added.every((id) => id !== 'usda-rice' && id !== 'usda-chicken')).toBe(true);
   });
 
   it('does not suggest a staple when kcal is over, nor foods already in the meal', () => {
@@ -253,7 +282,7 @@ describe('suggestAdjustments', () => {
     expect(at('breakfast')).toEqual([]);
   });
 
-  it('caps the portions at 3 and is stable for the same input', () => {
+  it('caps the portions at 2 and is stable for the same input', () => {
     const input = {
       meal: 'lunch' as const,
       target: { kcal: 2000, proteinG: 200, carbsG: 50, fatG: 50 },
@@ -261,7 +290,7 @@ describe('suggestAdjustments', () => {
       candidates,
     };
     const first = suggestAdjustments(input);
-    expect(first[0]).toMatchObject({ reason: 'protein', quantity: 3 });
+    expect(first[0]).toMatchObject({ reason: 'protein', quantity: 2 });
     expect(suggestAdjustments({ ...input, candidates: [...candidates].reverse() })).toEqual(first);
   });
 });

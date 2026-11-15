@@ -1,3 +1,4 @@
+import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
 import { authed, seedUsdaFood, signedInUser, unique } from './helpers';
 
@@ -117,6 +118,57 @@ describe('GET /api/foods/:id', () => {
   it('404s for an unknown id', async () => {
     const { cookie } = await signedInUser();
     expect((await authed(cookie, 'GET', '/api/foods/usda-0')).status).toBe(404);
+  });
+});
+
+describe('GET /api/foods/library', () => {
+  async function addToLibrary(id: string, key: string, rank: number, extra: { fiberG?: number; alaG?: number; epaDhaG?: number }) {
+    await env.DB.prepare(
+      'UPDATE foods SET library_key = ?, library_rank = ?, fiber_g = ?, omega3_ala_g = ?, omega3_epa_dha_g = ? WHERE id = ?',
+    )
+      .bind(key, rank, extra.fiberG ?? null, extra.alaG ?? null, extra.epaDhaG ?? null, id)
+      .run();
+  }
+
+  it('requires a session', async () => {
+    expect((await authed('', 'GET', '/api/foods/library')).status).toBe(401);
+  });
+
+  it('lists library foods in csv order with their groups; other foods are left out', async () => {
+    const { cookie } = await signedInUser();
+    const t = token();
+    const salmon = await seedUsdaFood({
+      name: `Salmon ${t}`,
+      category: 'Finfish and Shellfish Products',
+      kcal: 206,
+      proteinG: 22.1,
+      carbsG: 0,
+      fatG: 12.4,
+    });
+    const avocado = await seedUsdaFood({
+      name: `Avocado ${t}`,
+      category: 'Fruits and Fruit Juices',
+      kcal: 160,
+      proteinG: 2,
+      carbsG: 8.5,
+      fatG: 14.7,
+    });
+    const other = await seedUsdaFood({ name: `Not in library ${t}` });
+    await addToLibrary(avocado.id, `avocado_${t}`, 2, { fiberG: 6.7 });
+    await addToLibrary(salmon.id, `salmon_${t}`, 1, { epaDhaG: 2.15 });
+
+    const res = await authed(cookie, 'GET', '/api/foods/library');
+    expect(res.status).toBe(200);
+    const foods = ((await res.json()) as { foods: (Summary & { key: string; groups: string[] })[] }).foods.filter((f) =>
+      f.name.endsWith(t),
+    );
+    expect(foods.map((f) => f.id)).toEqual([salmon.id, avocado.id]);
+    expect(foods.map((f) => f.id)).not.toContain(other.id);
+    expect(foods[0]).toMatchObject({ key: `salmon_${t}`, groups: ['protein', 'omega3'], omega3EpaDhaG: 2.15 });
+    expect(foods[1]).toMatchObject({ key: `avocado_${t}`, groups: ['fat', 'fruit', 'fiber'], fiberG: 6.7 });
+
+    const detail = await authed(cookie, 'GET', `/api/foods/${salmon.id}`);
+    expect(((await detail.json()) as { food: { libraryKey: string | null } }).food.libraryKey).toBe(`salmon_${t}`);
   });
 });
 

@@ -11,7 +11,8 @@ import { computePreview } from '../../onboarding/preview';
 import { useSubmitProfile } from '../../onboarding/use-submit';
 import { tokens } from '../../theme/tokens';
 
-const HEALTH_FLAGS = ['pregnantOrNursing', 'eatingDisorderHistory', 'medicalDiet'] as const satisfies readonly (keyof HealthFlags)[];
+// Pregnancy / nursing is no longer asked (product decision 2026-11-03; see the foundation spec, section 4.3).
+const HEALTH_FLAGS = ['eatingDisorderHistory', 'medicalDiet'] as const satisfies readonly (keyof HealthFlags)[];
 
 export default function Health() {
   const { t } = useLocale();

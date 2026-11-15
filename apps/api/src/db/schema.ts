@@ -271,6 +271,16 @@ export const foods = sqliteTable(
     fiberG: real('fiber_g'),
     sugarsG: real('sugars_g'),
     sodiumMg: real('sodium_mg'),
+    /** Alpha-linolenic acid, g per 100 g (for the library's omega-3 group). */
+    omega3AlaG: real('omega3_ala_g'),
+    /** EPA + DHA combined, g per 100 g. */
+    omega3EpaDhaG: real('omega3_epa_dha_g'),
+    /**
+     * Shown in the food library tab under this image key (data/usda-zh.csv `library`); NULL =
+     * not in the library. `library_rank` is the order of the csv rows.
+     */
+    libraryKey: text('library_key').unique(),
+    libraryRank: integer('library_rank'),
     createdAt: text('created_at').notNull().default(nowIso),
     updatedAt: text('updated_at').notNull().default(nowIso),
   },

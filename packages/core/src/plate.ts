@@ -4,6 +4,9 @@ import {
   KCAL_PER_G_CARBS,
   KCAL_PER_G_FAT,
   KCAL_PER_G_PROTEIN,
+  LIGHT_MEAL_CATEGORIES,
+  LIGHT_MEALS,
+  MEAL_GAP_NUTRIENTS,
   MAX_SUGGESTIONS,
   MAX_TOP_UP_PORTIONS,
   MEALS,
@@ -60,7 +63,8 @@ export interface NutrientGap {
   diff: number;
 }
 
-export type MealGap = Record<keyof MacroTargets, NutrientGap>;
+/** Only the nutrients the meal is checked on (see MEAL_GAP_NUTRIENTS). */
+export type MealGap = Partial<Record<keyof MacroTargets, NutrientGap>>;
 
 function nutrientGap(target: number, eaten: number): NutrientGap {
   const diff = eaten - target;
@@ -70,14 +74,14 @@ function nutrientGap(target: number, eaten: number): NutrientGap {
   return { status: 'met', diff };
 }
 
-/** Each nutrient against the meal target: within ±10 % is met (both bounds inclusive). */
-export function mealGap(target: MacroTargets, eaten: MacroTargets): MealGap {
-  return {
-    kcal: nutrientGap(target.kcal, eaten.kcal),
-    proteinG: nutrientGap(target.proteinG, eaten.proteinG),
-    carbsG: nutrientGap(target.carbsG, eaten.carbsG),
-    fatG: nutrientGap(target.fatG, eaten.fatG),
-  };
+/**
+ * The meal's nutrients (MEAL_GAP_NUTRIENTS: all four at lunch and dinner, kcal and protein at
+ * breakfast and snacks) against its target: within ±10 % is met (both bounds inclusive).
+ */
+export function mealGap(meal: Meal, target: MacroTargets, eaten: MacroTargets): MealGap {
+  const gap: MealGap = {};
+  for (const key of MEAL_GAP_NUTRIENTS[meal]) gap[key] = nutrientGap(target[key], eaten[key]);
+  return gap;
 }
 
 /** A diary entry as the suggestion engine sees it. */
@@ -96,6 +100,8 @@ export interface PlateEntry {
 /** A food that may be suggested, with the portion suggestions are counted in. */
 export interface SuggestionCandidate {
   foodId: string;
+  /** USDA category; light meals only get LIGHT_MEAL_CATEGORIES. */
+  category: string | null;
   slot: PlateSlot;
   per100g: Nutrients;
   portion: { id: string; grams: number };
@@ -135,7 +141,7 @@ const byFoodId = (a: { foodId: string }, b: { foodId: string }) => (a.foodId < b
 
 /**
  * The candidate (and amount) that best fills `need` grams of `nutrient`: portions rounded to
- * 0.5 and kept within 0.5–3; closer to the need is better, fractional portions and going past
+ * 0.5 and kept within 0.5–2; closer to the need is better, fractional portions and going past
  * the meal's kcal band cost extra. Ties go to the lower food id, so results are stable.
  */
 function bestAddition(
@@ -228,22 +234,25 @@ function topUp(
 /**
  * Up to three adjustments for one meal, in this order: protein short → more of a protein entry
  * (at most one more portion) or else add a protein food; kcal over → halve the biggest staple /
- * "other" entry; carbs short (and kcal not over) → more of a staple entry or else add a staple;
- * lunch / dinner without vegetables → add a ~100 g vegetable portion. Foods already in the meal
- * are not added again. An empty meal gets no suggestions (feedback only after choosing).
+ * "other" entry; carbs short (and kcal not over; lunch and dinner only) → more of a staple entry
+ * or else add a staple; lunch / dinner without vegetables → add a ~100 g vegetable portion.
+ * Foods already in the meal are not added again; breakfast and snacks only get foods from
+ * LIGHT_MEAL_CATEGORIES. An empty meal gets no suggestions (feedback only after choosing).
  */
 export function suggestAdjustments({ meal, target, entries, candidates }: SuggestionInput): Suggestion[] {
   if (entries.length === 0) return [];
   const eaten = sumNutrients(entries.map((e) => scaleNutrients(e.per100g, e.grams))).totals;
-  const gap = mealGap(target, eaten);
+  const gap = mealGap(meal, target, eaten);
   const inMeal = new Set(entries.map((e) => e.foodId).filter((id): id is string => id !== null));
-  const available = (slot: PlateSlot) => candidates.filter((c) => c.slot === slot && !inMeal.has(c.foodId));
+  const light = LIGHT_MEALS.includes(meal);
+  const suits = (c: SuggestionCandidate) => !light || (c.category !== null && LIGHT_MEAL_CATEGORIES.includes(c.category));
+  const available = (slot: PlateSlot) => candidates.filter((c) => c.slot === slot && !inMeal.has(c.foodId) && suits(c));
   const kcalRoom = { eaten: eaten.kcal, target: target.kcal };
   const suggestions: Suggestion[] = [];
 
   const inSlot = (slot: PlateSlot) => entries.filter((e) => e.slot === slot);
 
-  if (gap.proteinG.status === 'short') {
+  if (gap.proteinG?.status === 'short') {
     const need = -gap.proteinG.diff;
     const more = topUp(inSlot('protein'), 'protein', 'proteinG', need);
     const pick = more ? null : bestAddition(available('protein'), 'proteinG', need, kcalRoom);
@@ -251,7 +260,7 @@ export function suggestAdjustments({ meal, target, entries, candidates }: Sugges
     else if (pick) suggestions.push(addition('protein', pick));
   }
 
-  if (gap.kcal.status === 'over') {
+  if (gap.kcal?.status === 'over') {
     const biggest = entries
       .filter((e) => e.slot === 'staple' || e.slot === 'other')
       .map((e) => ({ entry: e, kcal: scaleNutrients(e.per100g, e.grams).kcal ?? 0 }))
@@ -263,7 +272,7 @@ export function suggestAdjustments({ meal, target, entries, candidates }: Sugges
         break;
       }
     }
-  } else if (gap.carbsG.status === 'short') {
+  } else if (gap.carbsG?.status === 'short') {
     const need = -gap.carbsG.diff;
     const more = topUp(inSlot('staple'), 'staple', 'carbsG', need);
     const pick = more ? null : bestAddition(available('staple'), 'carbsG', need, kcalRoom);
