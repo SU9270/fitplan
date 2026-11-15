@@ -131,7 +131,8 @@ function FoodTile({ food, group, width }: { food: LibraryFood; group: LibraryGro
       <Text style={styles.name} numberOfLines={1}>
         {name}
       </Text>
-      <Text style={styles.value} numberOfLines={1}>
+      {/* Long values such as "EPA+DHA 2140 毫克" shrink to fit instead of being cut off. */}
+      <Text style={styles.value} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
         {valueText}
       </Text>
     </Pressable>

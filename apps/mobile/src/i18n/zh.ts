@@ -292,6 +292,10 @@ export const zh = {
   'copy.day': '复制昨天的全部记录',
   'copy.emptyMeal': '昨天的{meal}没有记录',
   'copy.emptyDay': '昨天没有记录',
+  'copy.mealPrev': '复制前一天的{meal}',
+  'copy.dayPrev': '复制前一天的全部记录',
+  'copy.emptyMealPrev': '前一天的{meal}没有记录',
+  'copy.emptyDayPrev': '前一天没有记录',
   'copy.error': '没能复制',
 
   'quick.title': '快速添加',

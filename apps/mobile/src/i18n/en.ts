@@ -291,6 +291,10 @@ export const en: Record<MessageKey, string> = {
   'copy.day': 'Copy all of yesterday',
   'copy.emptyMeal': 'Nothing logged for {meal} yesterday',
   'copy.emptyDay': 'Nothing logged yesterday',
+  'copy.mealPrev': "Copy the previous day's {meal}",
+  'copy.dayPrev': 'Copy all of the previous day',
+  'copy.emptyMealPrev': 'Nothing logged for {meal} the previous day',
+  'copy.emptyDayPrev': 'Nothing logged the previous day',
   'copy.error': "Couldn't copy",
 
   'quick.title': 'Quick add',
