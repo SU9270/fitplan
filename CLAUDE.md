@@ -1,0 +1,77 @@
+# CLAUDE.md
+
+给接手 FitPlan 的 agent。命令、分支约定、迁移和密钥规则见 [README](README.md) 与 [CONTRIBUTING](CONTRIBUTING.md)，这里只写那两份文档里没有的：项目现状、负责人的工作方式、已经定下的产品决策，以及开发环境里的坑。
+
+## 项目是什么
+
+- 面向**在美中国留学生**（18+，增肌或减脂）的饮食 App。核心闭环：给灵感 → 用户选想吃的、加进某一餐 → 告诉他这一餐缺什么 → 一键调整。系统不规定用户吃什么。
+- 依据是团队的《FitPlan AI 项目需求文档 v2.1》（docx，**不在仓库里**，由负责人上传）。凡是和它不一致的地方，都写在 `docs/superpowers/specs/` 对应设计文档的「与需求文档的差异」或「变更」里。
+- 实际技术栈和需求文档写的（React + FastAPI + Postgres）**不同**，以仓库为准：pnpm + Turborepo 的 TypeScript monorepo。
+  - `apps/mobile`：Expo / React Native，expo-router
+  - `apps/api`：Hono，跑在 Cloudflare Workers；D1（SQLite）+ Drizzle；Better Auth
+  - `packages/core`：纯计算，包括目标计算、四格盘子、缺口反馈、调整建议、食物库分组
+  - `packages/validators`：Zod 校验规则
+- 「AI」在需求文档里只用于后台为灵感库起草内容（不碰营养数字，也不直接面向用户），这部分还没做。目前的代码由负责人指挥 Claude Code 写成。
+
+## 现状（2026-11-15）
+
+- `main` 已合并 PR #1–#7：食物库、「我的」页、`pnpm dev` 一键启动、BoardUI 风格、搭盘子与缺口反馈、记录效率（常吃 / 复制 / 我的餐 / 快速添加）、具体的报错文案。
+- 分支 `claude/gifted-ritchie-3q6hf7` 上还有**未开 PR** 的改动，负责人打算确认后一起合并：
+  - 底部「食物库」标签：图片网格，按营养分 7 组；新增迁移 `0006`。拉取后要重新运行一次 `food:import`
+  - 问卷去掉「怀孕或哺乳」一项
+  - 今日页：只显示有记录的格子；缺口提示做成带色点的标签，和建议放在同一块里；日期栏改成标题加圆形 ‹ ›，另加「回到今天」
+  - 早餐和加餐只比较热量和蛋白质，只推荐适合早餐的食物；新加的食物最多建议 2 份
+  - `pnpm dev` 按 Ctrl+C 后不能退出的问题（API 改为放在独立的进程组里）
+- 还没部署，没有真实用户。`apps/api/wrangler.jsonc` 里的 D1 `database_id` 仍是占位值。
+- README「当前状态」一节停在「记录效率」，没写食物库标签页和报错文案，合并时顺手补上。
+
+## 负责人的工作方式
+
+- 用**中文**、大白话交流。负责人不是工程师，在 Mac 上用 VS Code 和 iOS 模拟器（iPhone 17）。给操作步骤时，每条命令单独一个代码块，并说明在哪个终端执行。
+- 固定用**两个终端**：A 跑 git 和一次性命令，B 一直开着 `pnpm dev`。告诉负责人拉取改动的标准步骤：
+  1. 在 A 运行 `git pull`
+  2. 在 B 按 Ctrl+C，再运行 `pnpm dev`
+  3. 数据列有变化时，在 A 运行 `pnpm --filter @fitplan/api food:import -- --dir ..`（USDA 文件夹在仓库的上一级「健身APP开发」里）
+- 负责人常停在 `main` 或别的分支，看不到新改动时先让他看 VS Code 左下角的分支名。端口 8787 被占用时让他运行 `lsof -ti :8787 | xargs kill`。
+- **只有负责人说「开 PR 合并」时**才开 PR 并合并（squash）。合并后在同名分支上继续时：先 `git checkout -B <分支> origin/main`，再 `git merge -s ours origin/<分支>`，然后普通推送。这个环境不允许 force push。
+- 负责人问「你觉得怎么调整」时，先给分析和一个推荐方案，等他说「按建议做」再动手。
+- **你看不到模拟器**：App 没有网页版，这个环境也跑不起 iOS。界面改动只能靠类型检查、测试和 `npx expo export --platform ios` 打包检查，然后请负责人截图确认。不要声称「看过效果」。
+- 界面偏好：
+  - BoardUI 风格：白色页面，浅灰卡片里放白色小块，主色蓝 `#2B7FFF`
+  - 今日页要**大的圆环仪表盘**。改成紧凑的一行后被他退回了，不要再改小
+  - 食物库的配图由负责人用 AI 生成（陶土 3D 风格），提示词和清单见 `docs/food-library-images.md`。目前是微软 Fluent Emoji 占位图（MIT 协议）
+- 负责人会把这个项目写进简历。介绍成果时只说核实过的事实：他没做过问卷或访谈，团队人数也不清楚，不要替他编。
+
+## 已定的产品规则（改之前先问负责人）
+
+- **语气中立**：不用红色警告，不说「超标」，不贴「抗炎」「超级食物」「推荐吃 / 不推荐吃」这类标签（需求文档 §3.4）。食物库按可核对的营养事实分组：高纤维按 GB 28050，Omega-3 按欧盟「高 Omega-3」标准。
+- **计算参数只写在** `packages/core/src/constants.ts`，改了要补测试，并写明依据。
+- **每餐反馈**（`MEAL_GAP_NUTRIENTS`）：
+  - 午餐和晚餐比较热量、蛋白质、碳水、脂肪
+  - 早餐和加餐只比较热量和蛋白质（负责人早餐常只吃鸡蛋）
+  - 早餐和加餐只从 `LIGHT_MEAL_CATEGORIES` 里挑建议食物
+  - 「这餐还没有蔬菜」只在午餐和晚餐提示
+- 问卷**不问**怀孕或哺乳。`pregnantOrNursing` 字段保留，App 总是提交 `false`，这是负责人明确的决定。
+- 营养素未知时存 `NULL`，不存 0；日记记录和「我的餐」保存营养**快照**。
+- 迁移只用 `ALTER TABLE … ADD COLUMN`。SQLite 给已有表加 `CHECK` 约束要重建整张表，所以合法性交给 Zod 校验。
+- 所有用户可见的文字都放进 `apps/mobile/src/i18n/zh.ts` 和 `en.ts`，两份的键必须一致。
+- 请求一律走 `apps/mobile/src/lib/request.ts` 的 `call()` 和 `failureText()`：它把失败分成网络、服务器、版本不一致、输入不对、未同意、不存在几类，并用 `console.warn` 打到 Metro 终端。
+- 食物库的食物在 `apps/api/data/usda-zh.csv` 的 `library` 列里标出。图片放在 `apps/mobile/assets/library/<key>.png`，并在 `apps/mobile/src/library/images.ts` 里登记；测试会检查这三处一致。
+
+## 开发环境里的坑（云端容器）
+
+- `pnpm` 直接运行会报 corepack 找不到 `pnpm.cjs`，先 `export PATH=~/bin:$PATH`。
+- Prettier 没有强制执行，仓库里很多文件本来就没格式化，不要整批重排。
+- USDA SR Legacy 原始数据不进仓库，只在本会话的临时目录里，换会话就没了。真实数据验证需要重新从 fdc.nal.usda.gov 下载 CSV（7,793 种食物）。
+- 网络：`raw.githubusercontent.com` 和 npm 能访问；`cdn.jsdelivr.net`、`bytescale.mobbin.com`（Mobbin 的图片）被拦。Mobbin 的大部分内容还要登录才能看。
+- `pkill -f` 的匹配模式会误杀自己的 shell，改用 `ps` 加 `grep '[x]yz'` 找进程号再 kill。
+- `git push` 偶尔会卡住，用 `timeout 90 git push …`，失败了再重试。
+- 本地跑 API 后用 `GET /health` 检查。认证用 cookie，带 cookie 的 POST 必须带 `Origin` 头（CSRF 检查）。
+
+## 下一步候选（按负责人说过的顺序）
+
+1. 负责人确认后，为 `claude/gifted-ritchie-3q6hf7` 开 PR 并合并，同时补 README「当前状态」。
+2. 用负责人生成的图替换食物库的占位图（文件名不变）。
+3. 第 4 阶段「灵感库」。开工前要负责人决定四件事：内容从哪里来、配图、首批做多少套、问卷要不要加忌口和可用厨具。
+4. 「午餐和晚餐接住早餐没吃够的部分」：每餐目标按全天剩余量重新分配。负责人说用一段时间后再定。
+5. 部署（Cloudflare）和邀请制试点（目标 50–200 人）。
