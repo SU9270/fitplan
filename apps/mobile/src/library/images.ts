@@ -3,8 +3,7 @@ import type { ImageSourcePropType } from 'react-native';
 /**
  * Food library images by key (data/usda-zh.csv `library` in apps/api). To change a picture,
  * replace assets/library/<key>.png with a square PNG of the same name; see
- * docs/food-library-images.md. The current files are placeholders from Microsoft Fluent Emoji
- * (MIT, see assets/library/LICENSE-fluentui-emoji.txt).
+ * docs/food-library-images.md for the style, prompt and size.
  */
 export const LIBRARY_IMAGES: Readonly<Record<string, ImageSourcePropType>> = {
   almonds: require('../../assets/library/almonds.png'),
