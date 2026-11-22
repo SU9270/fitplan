@@ -20,11 +20,11 @@ ndb_number,name_zh,aliases,suggest_portion,library
 18069,白面包,吐司|面包|白吐司|white bread|toast,,
 18075,全麦面包,全麦吐司|面包|whole wheat bread,1 slice,whole_wheat_bread
 18029,法棍,法式面包|酸种面包|baguette|sourdough,,
-18001,贝果,百吉饼|bagel,1 bagel,
+18001,贝果,百吉饼|bagel,1 bagel,bagel
 18258,英式松饼,英式玛芬|english muffin,,
 18239,牛角面包,可颂|croissant,,
 18364,面粉薄饼,卷饼|墨西哥饼|flour tortilla,1 tortilla,
-18363,玉米薄饼,玉米饼|corn tortilla,,
+18363,玉米薄饼,玉米饼|corn tortilla,,corn_tortilla
 18041,皮塔饼,口袋饼|pita,,
 18293,美式煎饼,松饼|薄煎饼|pancake,,
 18255,甜甜圈,多拿滋|donut|doughnut,,
@@ -75,10 +75,10 @@ ndb_number,name_zh,aliases,suggest_portion,library
 15067,狭鳕鱼（熟）,鳕鱼|pollock,,
 15235,鲶鱼（养殖，熟）,鲶鱼|catfish,,
 15047,鲭鱼（熟）,青花鱼|鲭鱼|mackerel,,mackerel
-15088,沙丁鱼罐头（油浸）,沙丁鱼|sardine|sardines,,sardines
-15121,水浸金枪鱼罐头,金枪鱼|吞拿鱼|tuna canned,1 can,tuna
+15088,沙丁鱼罐头（油浸）,沙丁鱼|sardine|sardines,,
+15121,水浸金枪鱼罐头,金枪鱼|吞拿鱼|tuna canned,1 can,
 15175,鱿鱼（生）,鱿鱼|squid,,
-90240,扇贝（蒸）,扇贝|带子|scallops,,
+90240,扇贝（蒸）,扇贝|带子|scallops,,scallops
 15159,蛤蜊（煮熟）,蛤蜊|花甲|clams,,
 01123,鸡蛋（生）,鸡蛋|蛋|egg,,
 01129,水煮蛋,鸡蛋|白煮蛋|hard boiled egg,1 large,egg
@@ -86,8 +86,9 @@ ndb_number,name_zh,aliases,suggest_portion,library
 01132,炒蛋,鸡蛋|scrambled eggs,,
 01124,蛋清（生）,蛋白|egg white,,
 16126,北豆腐（老豆腐）,豆腐|老豆腐|firm tofu,0.25 block,tofu
-16127,嫩豆腐,豆腐|南豆腐|soft tofu,,
+16127,嫩豆腐,豆腐|南豆腐|soft tofu,,soft_tofu
 16159,特硬豆腐,豆腐|extra firm tofu,,
+16160,豆干,豆干|豆腐干|香干|hard tofu,,dried_tofu
 16129,油豆腐,豆腐泡|fried tofu,,
 16120,豆浆（原味）,豆奶|soy milk,,
 16222,无糖豆浆,豆奶|unsweetened soy milk,,soy_milk
@@ -116,13 +117,13 @@ ndb_number,name_zh,aliases,suggest_portion,library
 14058,分离乳清蛋白粉,蛋白粉|whey isolate,,
 11090,西兰花（生）,西兰花|花椰菜|broccoli,,broccoli
 11091,西兰花（煮熟）,西兰花|broccoli,"0.5 cup, chopped",
-11994,芥蓝（生）,芥兰|chinese broccoli|gai lan,,
+11994,芥蓝（生）,芥兰|chinese broccoli|gai lan,,chinese_broccoli
 11969,芥蓝（熟）,芥兰|chinese broccoli|gai lan,1 cup,
 11457,菠菜（生）,菠菜|spinach,,spinach
 11458,菠菜（煮熟）,菠菜|spinach,1 cup,
 11116,小白菜（生）,青菜|上海青|白菜|bok choy,,bok_choy
 11117,小白菜（煮熟）,青菜|上海青|白菜|bok choy,"1 cup, shredded",
-11119,大白菜（生）,白菜|黄芽白|napa cabbage,,
+11119,大白菜（生）,白菜|黄芽白|napa cabbage,,napa_cabbage
 11109,卷心菜（生）,包菜|洋白菜|圆白菜|cabbage,,cabbage
 11124,胡萝卜（生）,红萝卜|carrot,1 medium,carrot
 11529,番茄（生）,西红柿|tomato,"1 medium whole (2-3/5"" dia)",tomato
@@ -133,29 +134,32 @@ ndb_number,name_zh,aliases,suggest_portion,library
 11508,红薯（烤）,地瓜|番薯|烤红薯|sweet potato,"1 medium (2"" dia, 5"" long, raw)",sweet_potato
 11167,甜玉米（生）,玉米|corn,,
 11168,甜玉米（煮熟）,玉米|corn,,corn
-11260,白蘑菇（生）,口蘑|蘑菇|mushroom,,
+11260,白蘑菇（生）,口蘑|蘑菇|mushroom,,white_mushroom
 11238,香菇（生）,香菇|shiitake,,shiitake
 11269,香菇（熟）,香菇|shiitake,,
 11282,洋葱（生）,洋葱|onion,,onion
 11333,青椒（生）,甜椒|青椒|bell pepper,,bell_pepper
 11821,红椒（生）,甜椒|红椒|bell pepper,,
-11052,四季豆（生）,豆角|green beans,,
+11052,四季豆（生）,豆角|green beans,,green_beans
 11251,罗马生菜（生）,生菜|romaine,1 cup shredded,lettuce
 11252,球生菜（生）,生菜|iceberg lettuce,,
-11135,菜花（生）,花菜|花椰菜|cauliflower,,
+11135,菜花（生）,花菜|花椰菜|cauliflower,,cauliflower
 11143,西芹（生）,芹菜|celery,,
 11209,茄子（生）,茄子|eggplant,,eggplant
-11477,西葫芦（生）,西葫芦|zucchini,,
-11011,芦笋（生）,芦笋|asparagus,,
-11233,羽衣甘蓝（生）,羽衣甘蓝|kale,,
+11477,西葫芦（生）,西葫芦|zucchini,,zucchini
+11011,芦笋（生）,芦笋|asparagus,,asparagus
+11233,羽衣甘蓝（生）,羽衣甘蓝|kale,,kale
 11215,大蒜（生）,蒜|garlic,,
 11216,生姜,姜|ginger,,
 11304,青豆（生）,豌豆|peas,,
 11422,南瓜（生）,南瓜|pumpkin,,
+11423,南瓜（煮熟）,南瓜|pumpkin,,pumpkin
 11278,秋葵（生）,秋葵|okra,,
 11043,绿豆芽,豆芽|bean sprouts,,
 11254,莲藕（生）,藕|lotus root,,
+11255,莲藕（煮熟）,莲藕|藕|lotus root,,lotus_root
 11518,芋头（生）,芋头|taro,,
+11519,芋头（煮熟）,芋头|芋艿|taro,,taro
 11026,竹笋（生）,竹笋|bamboo shoots,,
 11446,紫菜（生）,海苔|紫菜|laver|nori,,
 11445,海带（生）,海带|kelp,,
@@ -171,11 +175,11 @@ ndb_number,name_zh,aliases,suggest_portion,library
 09326,西瓜,西瓜|watermelon,,watermelon
 09148,猕猴桃,奇异果|kiwi,,kiwi
 09176,芒果,芒果|mango,,mango
-09252,梨,梨|pear,,
-09236,桃子,黄桃|peach,,
-09266,菠萝,凤梨|pineapple,,
-09070,樱桃,车厘子|cherries,,
-09181,哈密瓜,甜瓜|cantaloupe,,
+09252,梨,梨|pear,,pear
+09236,桃子,黄桃|peach,,peach
+09266,菠萝,凤梨|pineapple,,pineapple
+09070,樱桃,车厘子|cherries,,cherries
+09181,哈密瓜,甜瓜|cantaloupe,,cantaloupe
 09206,鲜榨橙汁,橙汁|orange juice,,
 16098,花生酱（含盐）,花生酱|peanut butter,,peanut_butter
 12061,杏仁,巴旦木|almonds,,almonds

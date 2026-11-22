@@ -26,6 +26,7 @@
   - 搜「egg」时水煮蛋排在前面（搜索排序加了「有中文名优先」「食物库优先」「英文整词匹配」）
   - 今日页每餐卡片精简：食物排成一个列表，缺口反馈默认只有一行「还差：蛋白质 · 蔬菜」，点「看建议」才展开带数字的标签、建议和「存为我的餐」。细节见 `docs/superpowers/specs/2026-11-03-plate-feedback-design.md` 第 7 节
   - 「我的食物库」：食物页加「☆ 收藏」；食物库分组最前面加「我的」，显示收藏的食物（图片网格）和「我的餐」，点「＋」按上次的份量加到今天、当前时间的那一餐。新表 `favorite_foods`（迁移 `0007`，`pnpm dev` 启动时会自动应用）。设计和验证记录见 `docs/superpowers/specs/2026-11-22-my-food-library-design.md`
+  - 以上三项已提交在分支 `claude/gifted-ritchie-3q6hf7`（未推送）。分支 `claude/more-library-foods` 从它开出：食物库从 57 种增加到 76 种（负责人挑的 21 种，配图同样用 GPT 生图），并删掉了沙丁鱼罐头和水浸金枪鱼罐头。南瓜、芋头、莲藕用新加的「煮熟」条目；「豆干」用 USDA 的 `Tofu, hard, prepared with nigari`（16160），USDA 里没有真正的豆干。拉取后要重新运行一次 `food:import`
 - 还没部署，没有真实用户。`apps/api/wrangler.jsonc` 里的 D1 `database_id` 仍是占位值。
 
 ## 负责人的工作方式
