@@ -1,10 +1,13 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import type { PlateSlot } from '@fitplan/core';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { DiaryEntry } from '../diary/api-types';
 import { entryName } from '../diary/efficiency';
-import { feedbackItems, splitPlate, suggestionText, type FeedbackTone, type MealView, type SuggestionView } from '../diary/plate-view';
+import { feedbackItems, feedbackSummary, splitPlate, suggestionText, type FeedbackTone, type MealView, type SuggestionView } from '../diary/plate-view';
 import { useLocale } from '../i18n';
 import { tokens } from '../theme/tokens';
+import { TextButton } from './form';
 
 export const SLOT_COLORS: Record<PlateSlot, string> = {
   protein: tokens.color.protein,
@@ -19,6 +22,8 @@ type Props = {
   entries: readonly DiaryEntry[];
   onOpenEntry: (entry: DiaryEntry) => void;
   onApply: (suggestion: SuggestionView) => void;
+  /** Save this meal as a template ("我的餐"). */
+  onSave: () => void;
   /** Suggestions are disabled while one is being applied. */
   applying: boolean;
 };
@@ -32,95 +37,110 @@ const TONE_COLORS: Record<FeedbackTone, string> = {
 };
 
 /**
- * One meal as a plate (protein, staple, vegetable, other): only the cells with food (an empty
- * meal says so in one line); then the gap feedback as tags and up to three one-tap adjustments
- * in one block (requirements §3.3). Feedback shows once something is logged.
+ * One meal, short by default: its foods in plate order (protein, staple, vegetable, other), each
+ * with its cell's color dot, then one line naming what is still short. Tapping that line opens
+ * the details: the gap feedback as tags with numbers, up to three one-tap adjustments
+ * (requirements §3.3) and "save as my meal". Feedback shows once something is logged.
  */
-export function MealPlate({ view, entries, onOpenEntry, onApply, applying }: Props) {
+export function MealPlate({ view, entries, onOpenEntry, onApply, onSave, applying }: Props) {
   const { t, locale } = useLocale();
+  const [open, setOpen] = useState(false);
   const name = (item: { name: string; nameZh: string | null; quick?: boolean }) => entryName(item, locale, t);
   const items = feedbackItems(view, t);
+  const summary = feedbackSummary(view, t);
   const { filled } = splitPlate(entries);
+  if (filled.length === 0) return null;
+
+  const toggleLabel = open ? t('plate.collapse') : t(view.suggestions.length > 0 ? 'plate.showSuggestions' : 'plate.showDetails');
 
   return (
     <>
-      {filled.length > 0 ? (
-        <View style={styles.grid}>
-          {filled.map(({ slot, entries: inSlot }) => (
-            <View key={slot} style={styles.cell}>
-              <View style={styles.cellHeader}>
+      <View style={styles.foods}>
+        {filled.flatMap(({ slot, entries: inSlot }) =>
+          inSlot.map((entry) => {
+            const kcal =
+              entry.nutrients.kcal === null ? t('food.unknown') : t('report.kcal', { n: Math.round(entry.nutrients.kcal) });
+            return (
+              <Pressable
+                key={entry.id}
+                accessibilityRole="button"
+                accessibilityLabel={`${t(`plate.slot.${slot}`)}, ${name(entry)}, ${kcal}`}
+                onPress={() => onOpenEntry(entry)}
+                style={({ pressed }) => [styles.item, pressed && styles.pressed]}
+              >
                 <View style={[styles.swatch, { backgroundColor: SLOT_COLORS[slot] }]} />
-                <Text style={styles.cellTitle}>{t(`plate.slot.${slot}`)}</Text>
-              </View>
-              {inSlot.map((entry) => {
-                const kcal =
-                  entry.nutrients.kcal === null ? t('food.unknown') : t('report.kcal', { n: Math.round(entry.nutrients.kcal) });
-                return (
-                  <Pressable
-                    key={entry.id}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${name(entry)}, ${kcal}`}
-                    onPress={() => onOpenEntry(entry)}
-                    style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
-                  >
-                    <Text style={styles.itemName} numberOfLines={1}>
-                      {name(entry)}
-                    </Text>
-                    <Text style={styles.itemKcal}>{kcal}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ))}
-        </View>
-      ) : null}
+                <Text style={styles.itemName} numberOfLines={1}>
+                  {name(entry)}
+                </Text>
+                <Text style={styles.itemKcal}>{kcal}</Text>
+              </Pressable>
+            );
+          }),
+        )}
+      </View>
 
-      {filled.length === 0 ? (
-        <View style={styles.missing}>
-          <Text style={styles.missingLabel}>{t('plate.nothingYet')}</Text>
-        </View>
-      ) : null}
+      {/* No target, so no feedback to fold away: keep "save as my meal" in reach. */}
+      {summary === null ? <TextButton title={t('templates.save')} onPress={onSave} /> : null}
 
-      {items.length > 0 || view.suggestions.length > 0 ? (
+      {summary !== null ? (
         <View style={styles.feedback}>
-          {items.length > 0 ? (
-            <View style={styles.tags} accessible accessibilityLiveRegion="polite">
-              {items.map((item) => (
-                <View key={item.text} style={styles.tag}>
-                  <View style={[styles.dot, { backgroundColor: TONE_COLORS[item.tone] }]} />
-                  <Text style={[styles.tagText, (item.tone === 'met' || item.tone === 'over') && styles.tagTextQuiet]}>
-                    {item.text}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${summary.text}, ${toggleLabel}`}
+            accessibilityState={{ expanded: open }}
+            onPress={() => setOpen((was) => !was)}
+            style={({ pressed }) => [styles.summary, pressed && styles.pressed]}
+          >
+            <View style={[styles.dot, { backgroundColor: TONE_COLORS[summary.tone] }]} />
+            <Text style={[styles.summaryText, summary.tone !== 'short' && styles.quiet]} numberOfLines={1}>
+              {summary.text}
+            </Text>
+            <Text style={styles.toggle}>{toggleLabel}</Text>
+            <Ionicons name={open ? 'chevron-up' : 'chevron-forward'} size={tokens.fontSize.label} color={tokens.color.primary} />
+          </Pressable>
 
-          {view.suggestions.length > 0 ? (
-            <View style={[styles.suggestions, items.length > 0 && styles.divided]}>
-              <Text style={styles.suggestTitle}>{t('suggest.title')}</Text>
-              {view.suggestions.map((s) => {
-                const { action, effect } = suggestionText(s, name, t);
-                return (
-                  <View key={s.kind === 'add' ? `add-${s.foodId}` : `adjust-${s.entryId}`} style={styles.suggestion}>
-                    <View style={styles.suggestionTexts}>
-                      <Text style={styles.suggestionAction}>{action}</Text>
-                      <Text style={styles.suggestionEffect}>{effect}</Text>
-                    </View>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={t('suggest.applyLabel', { text: action })}
-                      accessibilityState={{ disabled: applying }}
-                      disabled={applying}
-                      onPress={() => onApply(s)}
-                      style={({ pressed }) => [styles.apply, (pressed || applying) && styles.applyPressed]}
-                    >
-                      <Text style={styles.applyText}>{t('suggest.apply')}</Text>
-                    </Pressable>
+          {open ? (
+            <>
+              <View style={[styles.tags, styles.divided]} accessible accessibilityLiveRegion="polite">
+                {items.map((item) => (
+                  <View key={item.text} style={styles.tag}>
+                    <View style={[styles.dot, { backgroundColor: TONE_COLORS[item.tone] }]} />
+                    <Text style={[styles.tagText, (item.tone === 'met' || item.tone === 'over') && styles.quiet]}>{item.text}</Text>
                   </View>
-                );
-              })}
-            </View>
+                ))}
+              </View>
+
+              {view.suggestions.length > 0 ? (
+                <View style={[styles.suggestions, styles.divided]}>
+                  <Text style={styles.suggestTitle}>{t('suggest.title')}</Text>
+                  {view.suggestions.map((s) => {
+                    const { action, effect } = suggestionText(s, name, t);
+                    return (
+                      <View key={s.kind === 'add' ? `add-${s.foodId}` : `adjust-${s.entryId}`} style={styles.suggestion}>
+                        <View style={styles.suggestionTexts}>
+                          <Text style={styles.suggestionAction}>{action}</Text>
+                          <Text style={styles.suggestionEffect}>{effect}</Text>
+                        </View>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={t('suggest.applyLabel', { text: action })}
+                          accessibilityState={{ disabled: applying }}
+                          disabled={applying}
+                          onPress={() => onApply(s)}
+                          style={({ pressed }) => [styles.apply, (pressed || applying) && styles.pressed]}
+                        >
+                          <Text style={styles.applyText}>{t('suggest.apply')}</Text>
+                        </Pressable>
+                      </View>
+                    );
+                  })}
+                </View>
+              ) : null}
+
+              <View style={styles.divided}>
+                <TextButton title={t('templates.save')} onPress={onSave} />
+              </View>
+            </>
           ) : null}
         </View>
       ) : null}
@@ -132,52 +152,25 @@ const SWATCH = 10;
 const DOT = 6;
 
 const styles = StyleSheet.create({
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: tokens.card.gap,
-  },
-  cell: {
-    // Two cells per row: half the width minus half the gap.
-    flexBasis: '48%',
-    flexGrow: 1,
-    gap: tokens.space.xs,
+  foods: {
     paddingHorizontal: tokens.card.tilePaddingX,
-    paddingVertical: tokens.card.tilePaddingY,
+    paddingVertical: tokens.space.xs,
     borderRadius: tokens.radius.md,
     backgroundColor: tokens.color.surface,
   },
-  cellHeader: {
+  item: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: tokens.space.xs,
+    gap: tokens.space.sm,
+    paddingVertical: tokens.space.sm,
+  },
+  pressed: {
+    opacity: 0.6,
   },
   swatch: {
     width: SWATCH,
     height: SWATCH,
     borderRadius: tokens.hairline,
-  },
-  cellTitle: {
-    color: tokens.color.textSecondary,
-    fontSize: tokens.fontSize.caption,
-    fontWeight: tokens.fontWeight.medium,
-  },
-  missing: {
-    paddingHorizontal: tokens.card.headerInset,
-  },
-  missingLabel: {
-    color: tokens.color.textTertiary,
-    fontSize: tokens.fontSize.caption,
-  },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: tokens.space.xs,
-    paddingVertical: tokens.hairline,
-  },
-  itemPressed: {
-    opacity: 0.6,
   },
   itemName: {
     flex: 1,
@@ -191,9 +184,29 @@ const styles = StyleSheet.create({
   feedback: {
     gap: tokens.space.md,
     paddingHorizontal: tokens.card.tilePaddingX,
-    paddingVertical: tokens.space.md,
+    paddingVertical: tokens.space.xs,
     borderRadius: tokens.radius.md,
     backgroundColor: tokens.color.surface,
+  },
+  summary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.space.xs,
+    minHeight: tokens.touchTarget,
+  },
+  summaryText: {
+    flex: 1,
+    color: tokens.color.text,
+    fontSize: tokens.fontSize.label,
+    fontWeight: tokens.fontWeight.medium,
+  },
+  quiet: {
+    color: tokens.color.textSecondary,
+  },
+  toggle: {
+    color: tokens.color.primary,
+    fontSize: tokens.fontSize.label,
+    fontWeight: tokens.fontWeight.medium,
   },
   tags: {
     flexDirection: 'row',
@@ -218,9 +231,6 @@ const styles = StyleSheet.create({
     color: tokens.color.text,
     fontSize: tokens.fontSize.caption,
     fontWeight: tokens.fontWeight.medium,
-  },
-  tagTextQuiet: {
-    color: tokens.color.textSecondary,
   },
   suggestions: {
     gap: tokens.space.sm,
@@ -259,9 +269,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.space.md,
     borderRadius: tokens.radius.md,
     backgroundColor: tokens.color.primarySoft,
-  },
-  applyPressed: {
-    opacity: 0.6,
   },
   applyText: {
     color: tokens.color.primary,

@@ -64,6 +64,32 @@ export function feedbackItems(view: { meal: Meal; gap: MealGap | null; hasVegeta
   return items;
 }
 
+/**
+ * The meal's feedback as one line for the collapsed card: what is still short, by name only
+ * (the numbers are one tap away). Calories are left to the card header ("205 / 882 kcal")
+ * unless nothing else is short. What is above the target shows only when nothing is short.
+ * Null for a meal without feedback.
+ */
+export function feedbackSummary(
+  view: { meal: Meal; gap: MealGap | null; hasVegetables: boolean },
+  t: T,
+): FeedbackItem | null {
+  const { gap } = view;
+  if (gap === null) return null;
+  const names = (status: 'short' | 'over', skip?: (typeof GAP_ORDER)[number]) =>
+    GAP_ORDER.filter((key) => key !== skip && gap[key]?.status === status).map((key) => t(`gap.name.${key}`));
+  const join = (list: string[]) => list.join(t('gap.summary.separator'));
+
+  const short = names('short', 'kcal');
+  if (VEGETABLE_HINT_MEALS.includes(view.meal) && !view.hasVegetables) short.push(t('plate.slot.vegetable'));
+  if (short.length === 0 && gap.kcal?.status === 'short') short.push(t('gap.name.kcal'));
+  if (short.length > 0) return { text: t('gap.summary.short', { list: join(short) }), tone: 'short' };
+
+  const over = names('over');
+  if (over.length > 0) return { text: t('gap.summary.over', { list: join(over) }), tone: 'over' };
+  return { text: t('gap.summary.met'), tone: 'met' };
+}
+
 /** The feedback as plain lines. */
 export function feedbackLines(view: { meal: Meal; gap: MealGap | null; hasVegetables: boolean }, t: T): string[] {
   return feedbackItems(view, t).map((item) => item.text);

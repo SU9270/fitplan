@@ -1,6 +1,7 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Image, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { AmountForm, initialAmount, type AmountState } from '../../components/amount-form';
 import { Card, CardHeader } from '../../components/card';
 import { ErrorText, PrimaryButton, TextButton } from '../../components/form';
@@ -22,7 +23,10 @@ import { tokens } from '../../theme/tokens';
 
 type FoodState = { state: 'loading' } | { state: 'error'; failure: Failure | null } | { state: 'ready'; food: FoodDetail };
 
-/** One food: pick an amount and a meal and add it to the diary. Custom foods can be edited or deleted here. */
+/**
+ * One food: pick an amount and a meal and add it to the diary, or star it for the food library's
+ * "我的" group. Custom foods can be edited or deleted here.
+ */
 export default function FoodScreen() {
   const { t, locale } = useLocale();
   const params = useLocalSearchParams<{ id?: string; date?: string; meal?: string }>();
@@ -30,6 +34,7 @@ export default function FoodScreen() {
   const date = dateParam(params.date, localDate(new Date()));
   const [food, setFood] = useState<FoodState>({ state: 'loading' });
   const [amount, setAmount] = useState<AmountState | null>(null);
+  const [favorite, setFavorite] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<Failure | null>(null);
   const [runExclusive] = useState(createInFlightGuard);
@@ -50,6 +55,7 @@ export default function FoodScreen() {
     setFood({ state: 'ready', food: body.food });
     // Keep what the user already picked when coming back from editing the food.
     setAmount((current) => current ?? initialAmount(body.food.portions, mealParam(params.meal)));
+    setFavorite((current) => current ?? body.food.favorite);
   }, [id, params.meal]);
 
   // Also on returning from the custom food form, so an edit shows up here.
@@ -82,6 +88,7 @@ export default function FoodScreen() {
   }
 
   const detail = food.food;
+  const starred = favorite ?? detail.favorite;
   const meal = amount.meal;
   const checked = checkAmount(amount.unit, amount.quantity);
 
@@ -99,6 +106,24 @@ export default function FoodScreen() {
       if (out.kind === 'failed') setError(out.failure);
       // Back to Today (search → food → Today), which reloads the diary on focus.
       if (out.kind === 'ok') router.dismissTo('/today');
+    });
+  }
+
+  function toggleFavorite() {
+    const next = !starred;
+    void runExclusive(async () => {
+      // Flip at once; the server call only confirms it.
+      setFavorite(next);
+      setError(null);
+      const out = await call('favorite.error', () =>
+        next
+          ? api.api.foods[':id'].favorite.$put({ param: { id: detail.id } })
+          : api.api.foods[':id'].favorite.$delete({ param: { id: detail.id } }),
+      );
+      if (out.kind === 'failed') {
+        setFavorite(!next);
+        setError(out.failure);
+      }
     });
   }
 
@@ -134,6 +159,20 @@ export default function FoodScreen() {
         <View style={[styles.swatch, { backgroundColor: SLOT_COLORS[detail.slot] }]} />
         <Text style={styles.muted}>{t('plate.slotOf', { slot: t(`plate.slot.${detail.slot}`) })}</Text>
       </View>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ selected: starred }}
+        onPress={toggleFavorite}
+        style={({ pressed }) => [styles.favorite, pressed && styles.pressed]}
+      >
+        <Ionicons
+          name={starred ? 'star' : 'star-outline'}
+          size={tokens.fontSize.subtitle}
+          color={starred ? tokens.color.primary : tokens.color.textSecondary}
+        />
+        <Text style={[styles.favoriteText, starred && styles.favoriteOn]}>{t(starred ? 'favorite.remove' : 'favorite.add')}</Text>
+      </Pressable>
 
       <AmountForm per100g={detail.per100g} portions={detail.portions} value={amount} onChange={setAmount} />
 
@@ -196,6 +235,29 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: tokens.space.xs,
+  },
+  favorite: {
+    minHeight: tokens.touchTarget,
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: tokens.space.xs,
+    paddingHorizontal: tokens.space.md,
+    borderRadius: tokens.radius.pill,
+    borderWidth: 1,
+    borderColor: tokens.color.border,
+    backgroundColor: tokens.color.surface,
+  },
+  favoriteText: {
+    color: tokens.color.textSecondary,
+    fontSize: tokens.fontSize.label,
+    fontWeight: tokens.fontWeight.medium,
+  },
+  favoriteOn: {
+    color: tokens.color.primary,
+  },
+  pressed: {
+    opacity: 0.6,
   },
   slot: {
     flexDirection: 'row',

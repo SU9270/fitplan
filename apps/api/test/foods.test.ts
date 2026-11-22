@@ -80,6 +80,29 @@ describe('GET /api/foods', () => {
     expect((await search(cookie, t)).map((f) => f.id)).toEqual([raw.id, fried.id, boiled.id]);
   });
 
+  it('within a tier, Chinese-named foods beat English-only ones, and library foods come first', async () => {
+    const { cookie } = await signedInUser();
+    const t = token();
+    // Like searching "egg": every name starts with the query (tier 1), but only the
+    // English-only USDA names are shown starting with it.
+    const dried = await seedUsdaFood({ name: `${t}, yolk, dried` });
+    const fried = await seedUsdaFood({ name: `${t}, whole, cooked, fried`, nameZh: '煎蛋' });
+    const boiled = await seedUsdaFood({ name: `${t}, whole, cooked, hard-boiled`, nameZh: '水煮蛋' });
+    await env.DB.prepare('UPDATE foods SET library_key = ?, library_rank = 1 WHERE id = ?').bind(`k${t}`, boiled.id).run();
+    expect((await search(cookie, t)).map((f) => f.id)).toEqual([boiled.id, fried.id, dried.id]);
+  });
+
+  it('an English query matching a whole word beats one that is only the start of a word', async () => {
+    const { cookie } = await signedInUser();
+    const t = token();
+    // Like "egg" and "eggplant": the eggplant is curated and in the library, but still ranks last.
+    const eggplant = await seedUsdaFood({ name: `${t}plant, raw`, nameZh: '茄子' });
+    await env.DB.prepare('UPDATE foods SET library_key = ?, library_rank = 1 WHERE id = ?').bind(`k${t}`, eggplant.id).run();
+    const noodles = await seedUsdaFood({ name: `Noodles, ${t}`, nameZh: '鸡蛋面', aliases: [`${t} noodles`] });
+    const scrambled = await seedUsdaFood({ name: `${t}, scrambled`, nameZh: '炒蛋' });
+    expect((await search(cookie, t)).map((f) => f.id)).toEqual([scrambled.id, noodles.id, eggplant.id]);
+  });
+
   it('escapes LIKE wildcards', async () => {
     const { cookie } = await signedInUser();
     const t = token();
