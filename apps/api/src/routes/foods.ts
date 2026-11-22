@@ -2,6 +2,7 @@ import { customFoodInputSchema, foodSearchQuerySchema } from '@fitplan/validator
 import { Hono } from 'hono';
 import { createDb } from '../db/client';
 import type { AppEnv } from '../env';
+import { addFavorite, listFavorites, removeFavorite } from '../foods/favorite-service';
 import { createCustomFood, deleteCustomFood, getFood, listOwnFoods, searchFoods, updateCustomFood } from '../foods/food-service';
 import { listLibrary } from '../foods/library-service';
 import { requireSession } from '../middleware/require-session';
@@ -21,9 +22,10 @@ export const foodRoutes = new Hono<AppEnv>()
     if (!body.ok) return c.json({ error: 'invalid_input' as const, fields: body.fields }, 400);
     return c.json({ food: await createCustomFood(createDb(c.env.DB), c.var.user.id, body.data) }, 201);
   })
-  // Before '/:id', which would otherwise match "mine" and "library".
+  // Before '/:id', which would otherwise match "mine", "library" and "favorites".
   .get('/mine', async (c) => c.json({ foods: await listOwnFoods(createDb(c.env.DB), c.var.user.id) }))
   .get('/library', async (c) => c.json({ foods: await listLibrary(createDb(c.env.DB)) }))
+  .get('/favorites', async (c) => c.json({ foods: await listFavorites(createDb(c.env.DB), c.var.user.id) }))
   .get('/:id', async (c) => {
     const food = await getFood(createDb(c.env.DB), c.var.user.id, c.req.param('id'));
     return food ? c.json({ food }) : c.json(notFound, 404);
@@ -33,6 +35,15 @@ export const foodRoutes = new Hono<AppEnv>()
     if (!body.ok) return c.json({ error: 'invalid_input' as const, fields: body.fields }, 400);
     const food = await updateCustomFood(createDb(c.env.DB), c.var.user.id, c.req.param('id'), body.data);
     return food ? c.json({ food }) : c.json(notFound, 404);
+  })
+  // Starring is idempotent both ways: the app's star is a switch, not a counter.
+  .put('/:id/favorite', async (c) => {
+    const starred = await addFavorite(createDb(c.env.DB), c.var.user.id, c.req.param('id'));
+    return starred ? c.body(null, 204) : c.json(notFound, 404);
+  })
+  .delete('/:id/favorite', async (c) => {
+    await removeFavorite(createDb(c.env.DB), c.var.user.id, c.req.param('id'));
+    return c.body(null, 204);
   })
   .delete('/:id', async (c) => {
     const deleted = await deleteCustomFood(createDb(c.env.DB), c.var.user.id, c.req.param('id'));

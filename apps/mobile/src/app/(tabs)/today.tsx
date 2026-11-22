@@ -26,8 +26,9 @@ type DayState = { state: 'loading' } | { state: 'error'; failure: Failure } | { 
 
 /**
  * Today tab: the food diary for one day (today by default; ‹ › moves between days, never past
- * today), its totals against the latest daily target, and each meal as a four-cell plate with
- * the meal's gap feedback and one-tap adjustments. Profile and settings live on the Me tab.
+ * today), its totals against the latest daily target, and each meal as a short card: its foods
+ * and one line of gap feedback, with the details and one-tap adjustments a tap away. Profile and
+ * settings live on the Me tab.
  */
 export default function Today() {
   const { t, locale } = useLocale();
@@ -159,6 +160,7 @@ export default function Today() {
                 entries={inMeal}
                 onOpenEntry={(entry) => router.push({ pathname: '/entry/[id]', params: { id: entry.id } })}
                 onApply={(suggestion) => apply(view.meal, suggestion)}
+                onSave={() => router.push({ pathname: '/food/save-meal', params: { date, meal: view.meal } })}
                 applying={applying}
               />
               {applyError?.meal === view.meal ? <ErrorText message={failureText(applyError.failure, t)} /> : null}
@@ -178,12 +180,7 @@ export default function Today() {
                   onPress={() => copyYesterday(view.meal)}
                   disabled={applying}
                 />
-              ) : (
-                <TextButton
-                  title={t('templates.save')}
-                  onPress={() => router.push({ pathname: '/food/save-meal', params: { date, meal: view.meal } })}
-                />
-              )}
+              ) : null}
             </Card>
             );
           })}

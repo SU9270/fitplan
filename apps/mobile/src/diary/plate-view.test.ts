@@ -1,5 +1,5 @@
 import { setLocale, t } from '../i18n';
-import { feedbackItems, feedbackLines, groupBySlot, splitPlate, shareTotal, stepShare, suggestionText, type SuggestionView } from './plate-view';
+import { feedbackItems, feedbackLines, feedbackSummary, groupBySlot, splitPlate, shareTotal, stepShare, suggestionText, type SuggestionView } from './plate-view';
 
 afterEach(() => setLocale('en'));
 
@@ -63,6 +63,43 @@ describe('feedbackItems at breakfast', () => {
     setLocale('zh');
     const items = feedbackItems({ meal: 'breakfast', hasVegetables: false, gap: { kcal: { status: 'short', diff: -543 }, proteinG: met } }, t);
     expect(items.map((i) => i.text)).toEqual(['热量还差 543 千卡', '蛋白质已够']);
+  });
+});
+
+describe('feedbackSummary', () => {
+  const short = (diff: number) => ({ status: 'short' as const, diff });
+  const over = (diff: number) => ({ status: 'over' as const, diff });
+
+  it('names what is short without numbers, and leaves calories to the card header', () => {
+    setLocale('zh');
+    const summary = feedbackSummary(
+      { meal: 'lunch', hasVegetables: false, gap: { kcal: short(-677), proteinG: short(-33), carbsG: short(-94), fatG: met } },
+      t,
+    );
+    expect(summary).toEqual({ text: '还差：蛋白质 · 主食 · 蔬菜', tone: 'short' });
+  });
+
+  it('names calories when nothing else is short', () => {
+    setLocale('zh');
+    const summary = feedbackSummary({ meal: 'breakfast', hasVegetables: false, gap: { kcal: short(-543), proteinG: met } }, t);
+    expect(summary).toEqual({ text: '还差：热量', tone: 'short' });
+  });
+
+  it('says what is above the target only when nothing is short', () => {
+    setLocale('zh');
+    const gap = { kcal: over(120), proteinG: met, carbsG: met, fatG: over(9) };
+    expect(feedbackSummary({ meal: 'dinner', hasVegetables: true, gap }, t)).toEqual({
+      text: '比这餐目标多：热量 · 脂肪',
+      tone: 'over',
+    });
+    expect(feedbackSummary({ meal: 'dinner', hasVegetables: false, gap }, t)).toEqual({ text: '还差：蔬菜', tone: 'short' });
+  });
+
+  it('says the meal is on target, and is null without a gap', () => {
+    setLocale('zh');
+    const gap = { kcal: met, proteinG: met, carbsG: met, fatG: met };
+    expect(feedbackSummary({ meal: 'lunch', hasVegetables: true, gap }, t)).toEqual({ text: '这餐已够', tone: 'met' });
+    expect(feedbackSummary({ meal: 'lunch', hasVegetables: false, gap: null }, t)).toBeNull();
   });
 });
 

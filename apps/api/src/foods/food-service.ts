@@ -2,7 +2,7 @@ import { per100gFromServing, plateSlot, type Nutrients, type PlateSlot } from '@
 import type { CustomFoodInput, FoodSearchQuery } from '@fitplan/validators';
 import { and, asc, desc, eq, exists, isNull, or, sql, type SQL } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { foodPortions, foods } from '../db/schema';
+import { favoriteFoods, foodPortions, foods } from '../db/schema';
 import { buildSearchText } from './search-text';
 
 export type FoodSource = 'usda' | 'custom';
@@ -32,6 +32,8 @@ export interface FoodDetail extends FoodSummary {
   sodiumMg: number | null;
   /** Image key in the food library tab; null = not in the library. */
   libraryKey: string | null;
+  /** Starred by this user (the food library tab's "我的" group). */
+  favorite: boolean;
   portions: FoodPortionView[];
 }
 
@@ -39,6 +41,9 @@ export type FoodRow = typeof foods.$inferSelect;
 
 /** At most this many words of a query are matched (each must appear in the food's search text). */
 const MAX_SEARCH_TERMS = 5;
+
+/** Characters that end a word after the query: "egg, whole" or "egg noodles", not "eggplant". */
+const WORD_BREAKS = [' ', ',', '-', '(', '/'];
 
 /** Escape `\`, `%` and `_` for `LIKE … ESCAPE '\'`, so they match literally. */
 export function escapeLike(text: string): string {
@@ -62,30 +67,52 @@ export function toSummary(row: FoodRow): FoodSummary {
 
 /**
  * Every word must appear in the search text (names and aliases, one per line). Ranking: a whole
- * line equals the query → a line starts with it → has a Chinese name → the rest; within a tier
- * shown names starting with the query first, then the user's own foods, then shorter names.
+ * line equals the query → a line starts with it as a whole word → a line starts with it → has a
+ * Chinese name → the rest. Within a tier:
+ * curated foods (Chinese-named, or the user's own) before raw USDA names, then shown names
+ * starting with the query, then food library foods, then the user's own foods, then shorter names.
  */
 export async function searchFoods(db: Db, userId: string, query: FoodSearchQuery): Promise<FoodSummary[]> {
   const whole = query.q.toLowerCase();
   const terms = whole.split(/\s+/).filter((t) => t !== '').slice(0, MAX_SEARCH_TERMS);
   const matches: SQL[] = terms.map((t) => sql`${foods.searchText} LIKE ${`%${escapeLike(t)}%`} ESCAPE '\\'`);
   const lines = sql`(char(10) || ${foods.searchText} || char(10))`;
+  const linePrefix = (rest: string) => sql`${lines} LIKE ${`%\n${escapeLike(whole)}${rest}%`} ESCAPE '\\'`;
+  // "egg" should match "egg, whole, …" more strongly than "eggplant". Chinese has no word
+  // breaks, so a query not ending in a Latin letter or digit counts any line prefix as a word.
+  const wordPrefix = /[a-z0-9]$/.test(whole) ? or(...WORD_BREAKS.map(linePrefix)) : linePrefix('');
   const tier = sql`CASE
-    WHEN ${lines} LIKE ${`%\n${escapeLike(whole)}\n%`} ESCAPE '\\' THEN 0
-    WHEN ${lines} LIKE ${`%\n${escapeLike(whole)}%`} ESCAPE '\\' THEN 1
-    WHEN ${foods.nameZh} IS NOT NULL THEN 2
-    ELSE 3 END`;
+    WHEN ${linePrefix('\n')} THEN 0
+    WHEN ${wordPrefix} THEN 1
+    WHEN ${linePrefix('')} THEN 2
+    WHEN ${foods.nameZh} IS NOT NULL THEN 3
+    ELSE 4 END`;
 
-  // Within a tier, a shown name that starts with the query beats one that merely contains it
+  // Curated foods first: dozens of USDA names start with "egg", and without this their English
+  // names (shown, so they also win the prefix check below) push 水煮蛋 out of the 20 results.
+  const curated = sql`CASE WHEN ${foods.nameZh} IS NOT NULL OR ${foods.ownerUserId} IS NOT NULL THEN 0 ELSE 1 END`;
+
+  // A shown name that starts with the query beats one that merely contains it
   // ("鸡蛋（生）" before "煎蛋" when both have the alias 鸡蛋).
   const shownName = sql`lower(coalesce(${foods.nameZh}, ${foods.name}))`;
   const shownPrefix = sql`CASE WHEN ${shownName} LIKE ${`${escapeLike(whole)}%`} ESCAPE '\\' THEN 0 ELSE 1 END`;
+
+  // Food library foods are the everyday picks (水煮蛋 before 煎蛋 for "egg").
+  const inLibrary = sql`${foods.libraryKey} IS NULL`;
 
   const rows = await db
     .select()
     .from(foods)
     .where(and(visibleTo(userId), ...matches))
-    .orderBy(tier, shownPrefix, sql`${foods.ownerUserId} IS NULL`, sql`length(${shownName})`, asc(foods.name))
+    .orderBy(
+      tier,
+      curated,
+      shownPrefix,
+      inLibrary,
+      sql`${foods.ownerUserId} IS NULL`,
+      sql`length(${shownName})`,
+      asc(foods.name),
+    )
     .limit(query.limit);
   return rows.map(toSummary);
 }
@@ -108,13 +135,14 @@ async function portionsOf(db: Db, foodId: string): Promise<FoodPortionView[]> {
     .orderBy(asc(foodPortions.sortOrder), asc(foodPortions.id));
 }
 
-function toDetail(row: FoodRow, portions: FoodPortionView[]): FoodDetail {
+function toDetail(row: FoodRow, portions: FoodPortionView[], favorite: boolean): FoodDetail {
   return {
     ...toSummary(row),
     fiberG: row.fiberG,
     sugarsG: row.sugarsG,
     sodiumMg: row.sodiumMg,
     libraryKey: row.libraryKey,
+    favorite,
     portions,
   };
 }
@@ -127,7 +155,16 @@ export async function findVisibleFood(db: Db, userId: string, id: string): Promi
 
 export async function getFood(db: Db, userId: string, id: string): Promise<FoodDetail | null> {
   const row = await findVisibleFood(db, userId, id);
-  return row ? toDetail(row, await portionsOf(db, row.id)) : null;
+  if (!row) return null;
+  const [portions, starred] = await Promise.all([
+    portionsOf(db, row.id),
+    db
+      .select({ foodId: favoriteFoods.foodId })
+      .from(favoriteFoods)
+      .where(and(eq(favoriteFoods.userId, userId), eq(favoriteFoods.foodId, row.id)))
+      .limit(1),
+  ]);
+  return toDetail(row, portions, starred.length > 0);
 }
 
 /** The label's per-serving values stored per 100 g, plus the matching search text. */

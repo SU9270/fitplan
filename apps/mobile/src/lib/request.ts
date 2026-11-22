@@ -42,7 +42,9 @@ export function failureText(failure: Failure, t: typeof translate): string {
   return t('error.compose', { action: t(failure.action), reason: t(REASON[failure.problem]) });
 }
 
-type Response = { ok: boolean; status: number; url: string; headers: { get(name: string): string | null } };
+/** What `call` needs of a response (Hono's client responses and `fetch`'s both fit). */
+export type CallResponse = { ok: boolean; status: number; url: string; headers: { get(name: string): string | null } };
+type Response = CallResponse;
 
 /**
  * The responses that can be ok. Hono types `ok` per status, but a route answering `c.json(body)`

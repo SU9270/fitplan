@@ -4,7 +4,7 @@
 // its integer millisecond timestamps rather than our ISO-text convention.
 // App-owned tables follow the spec convention (ISO-8601 UTC text, CHECK constraints).
 import { relations, sql } from 'drizzle-orm';
-import { check, index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { check, index, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 export const user = sqliteTable('user', {
   id: text('id').primaryKey(),
@@ -311,6 +311,24 @@ export const foodPortions = sqliteTable(
     index('food_portions_food_idx').on(table.foodId, table.sortOrder),
     check('food_portions_grams_check', sql`${table.grams} > 0`),
   ],
+);
+
+/**
+ * Foods a user starred for the food library tab's "我的" group. The primary key keeps a food from
+ * being starred twice and serves "this user's favorites"; rows go with the user or the food.
+ */
+export const favoriteFoods = sqliteTable(
+  'favorite_foods',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    foodId: text('food_id')
+      .notNull()
+      .references(() => foods.id, { onDelete: 'cascade' }),
+    createdAt: text('created_at').notNull().default(nowIso),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.foodId] })],
 );
 
 /**
