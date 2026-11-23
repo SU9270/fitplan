@@ -32,7 +32,7 @@ export default function SignIn() {
   }
 
   return (
-    <Screen centered>
+    <Screen>
       <AuthHeader title={t('auth.signIn.title')} subtitle={t('auth.signIn.subtitle')} />
       <TextField
         label={t('auth.email.label')}
@@ -58,7 +58,7 @@ export default function SignIn() {
       />
       <ErrorText message={message && t(message.key, message.params)} />
       <PrimaryButton title={t('auth.signIn.submit')} busy={busy} onPress={() => void submit()} />
-      <TextButton title={t('auth.signIn.toSignUp')} onPress={() => router.replace('/sign-up')} disabled={busy} />
+      <TextButton tone="quiet" title={t('auth.signIn.toSignUp')} onPress={() => router.replace('/sign-up')} disabled={busy} />
     </Screen>
   );
 }

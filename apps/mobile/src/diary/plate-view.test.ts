@@ -1,5 +1,5 @@
 import { setLocale, t } from '../i18n';
-import { feedbackItems, feedbackLines, feedbackSummary, groupBySlot, splitPlate, shareTotal, stepShare, suggestionText, type SuggestionView } from './plate-view';
+import { feedbackItems, feedbackSummary, groupBySlot, splitPlate, shareTotal, stepShare, suggestionText, type SuggestionView } from './plate-view';
 
 afterEach(() => setLocale('en'));
 
@@ -21,48 +21,23 @@ describe('groupBySlot', () => {
   });
 });
 
-describe('feedbackLines', () => {
-  it('says what is short or over, lists what is on target, and hints vegetables at lunch', () => {
-    setLocale('zh');
-    const lines = feedbackLines(
-      {
-        meal: 'lunch',
-        hasVegetables: false,
-        gap: {
-          kcal: { status: 'over', diff: 120 },
-          proteinG: { status: 'short', diff: -25 },
-          carbsG: met,
-          fatG: met,
-        },
-      },
-      t,
-    );
-    expect(lines).toEqual(['热量比这餐目标多 120 千卡', '蛋白质还差 25 克', '主食、脂肪已够', '这餐还没有蔬菜']);
-  });
-
-  it('is empty without a gap and skips the vegetable hint at breakfast', () => {
-    expect(feedbackLines({ meal: 'lunch', hasVegetables: false, gap: null }, t)).toEqual([]);
-    const lines = feedbackLines({ meal: 'breakfast', hasVegetables: false, gap: { kcal: met, proteinG: met, carbsG: met, fatG: met } }, t);
-    expect(lines).toEqual(['Calories, Protein, Carbs, Fat: on target']);
-  });
-});
-
 describe('feedbackItems', () => {
-  it('tags each line with its tone', () => {
+  it('says what is short, counts what is over as enough, and hints vegetables, each with its tone', () => {
     setLocale('zh');
     const items = feedbackItems(
-      { meal: 'dinner', hasVegetables: false, gap: { kcal: { status: 'over', diff: 120 }, proteinG: { status: 'short', diff: -25 }, carbsG: met, fatG: met } },
+      { hasVegetables: false, gap: { kcal: { status: 'over', diff: 120 }, proteinG: { status: 'short', diff: -25 }, carbsG: met, fatG: met } },
       t,
     );
-    expect(items.map((i) => i.tone)).toEqual(['over', 'short', 'met', 'hint']);
+    expect(items).toEqual([
+      { text: '蛋白质还差 25 克', tone: 'short' },
+      { text: '热量、碳水、脂肪已够', tone: 'met' },
+      { text: '全天还没有蔬菜', tone: 'hint' },
+    ]);
   });
-});
 
-describe('feedbackItems at breakfast', () => {
-  it('only mentions the nutrients the meal is checked on', () => {
-    setLocale('zh');
-    const items = feedbackItems({ meal: 'breakfast', hasVegetables: false, gap: { kcal: { status: 'short', diff: -543 }, proteinG: met } }, t);
-    expect(items.map((i) => i.text)).toEqual(['热量还差 543 千卡', '蛋白质已够']);
+  it('has no vegetable hint once the day has some', () => {
+    const items = feedbackItems({ hasVegetables: true, gap: { kcal: met, proteinG: met, carbsG: met, fatG: met } }, t);
+    expect(items.map((i) => i.text)).toEqual(['Calories, Protein, Carbs, Fat: enough']);
   });
 });
 
@@ -70,36 +45,28 @@ describe('feedbackSummary', () => {
   const short = (diff: number) => ({ status: 'short' as const, diff });
   const over = (diff: number) => ({ status: 'over' as const, diff });
 
-  it('names what is short without numbers, and leaves calories to the card header', () => {
+  it('names what is short without numbers, and leaves calories to the rings', () => {
     setLocale('zh');
-    const summary = feedbackSummary(
-      { meal: 'lunch', hasVegetables: false, gap: { kcal: short(-677), proteinG: short(-33), carbsG: short(-94), fatG: met } },
-      t,
-    );
-    expect(summary).toEqual({ text: '还差：蛋白质 · 主食 · 蔬菜', tone: 'short' });
+    const summary = feedbackSummary({ hasVegetables: false, gap: { kcal: short(-677), proteinG: short(-33), carbsG: short(-94), fatG: met } }, t);
+    expect(summary).toEqual({ text: '全天还差：蛋白质 · 碳水 · 蔬菜', tone: 'short' });
   });
 
   it('names calories when nothing else is short', () => {
     setLocale('zh');
-    const summary = feedbackSummary({ meal: 'breakfast', hasVegetables: false, gap: { kcal: short(-543), proteinG: met } }, t);
-    expect(summary).toEqual({ text: '还差：热量', tone: 'short' });
+    const summary = feedbackSummary({ hasVegetables: true, gap: { kcal: short(-543), proteinG: met, carbsG: met, fatG: met } }, t);
+    expect(summary).toEqual({ text: '全天还差：热量', tone: 'short' });
   });
 
-  it('says what is above the target only when nothing is short', () => {
+  it('says nothing when nothing is short, however much is above the target', () => {
     setLocale('zh');
     const gap = { kcal: over(120), proteinG: met, carbsG: met, fatG: over(9) };
-    expect(feedbackSummary({ meal: 'dinner', hasVegetables: true, gap }, t)).toEqual({
-      text: '比这餐目标多：热量 · 脂肪',
-      tone: 'over',
-    });
-    expect(feedbackSummary({ meal: 'dinner', hasVegetables: false, gap }, t)).toEqual({ text: '还差：蔬菜', tone: 'short' });
+    expect(feedbackSummary({ hasVegetables: true, gap }, t)).toBeNull();
+    expect(feedbackSummary({ hasVegetables: false, gap }, t)).toEqual({ text: '全天还差：蔬菜', tone: 'short' });
   });
 
-  it('says the meal is on target, and is null without a gap', () => {
-    setLocale('zh');
+  it('says nothing when the day is on target', () => {
     const gap = { kcal: met, proteinG: met, carbsG: met, fatG: met };
-    expect(feedbackSummary({ meal: 'lunch', hasVegetables: true, gap }, t)).toEqual({ text: '这餐已够', tone: 'met' });
-    expect(feedbackSummary({ meal: 'lunch', hasVegetables: false, gap: null }, t)).toBeNull();
+    expect(feedbackSummary({ hasVegetables: true, gap }, t)).toBeNull();
   });
 });
 
@@ -134,25 +101,6 @@ describe('suggestionText', () => {
       change: { kcal: 232.5, proteinG: 18.87, carbsG: 1.68, fatG: 15.9 },
     } as SuggestionView;
     expect(suggestionText(add, name, t)).toEqual({ action: '加 3 × 1 large 水煮蛋', effect: '+19 克蛋白质' });
-  });
-
-  it('describes a reduction in portions or grams', () => {
-    setLocale('zh');
-    const reduce = {
-      name: 'Rice, white, long-grain, regular, enriched, cooked',
-      nameZh: '白米饭',
-      kind: 'adjust',
-      reason: 'kcal',
-      entryId: 'e1',
-      portionId: 'p',
-      portionLabel: '1 cup',
-      quantity: 1.5,
-      change: { kcal: -308.1, proteinG: -6.4, carbsG: -66.8, fatG: -0.7 },
-    } as SuggestionView;
-    expect(suggestionText(reduce, name, t)).toEqual({ action: '白米饭 减到 1.5 × 1 cup', effect: '−308 千卡' });
-    expect(suggestionText({ ...reduce, portionId: null, portionLabel: null, quantity: 15 } as SuggestionView, name, t).action).toBe(
-      '白米饭 减到 15 克',
-    );
   });
 });
 

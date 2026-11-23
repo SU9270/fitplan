@@ -57,6 +57,13 @@
       "when": 1795377816220,
       "tag": "0007_favorite_foods",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1795391911613,
+      "tag": "0008_food_source_cn",
+      "breakpoints": true
     }
   ]
 }

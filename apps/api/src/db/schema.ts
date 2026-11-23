@@ -243,12 +243,16 @@ export const consents = sqliteTable(
 // Food library (phase 2). Nutrient columns are per 100 g; NULL means unknown.
 // ---------------------------------------------------------------------------
 
-/** USDA SR Legacy foods (`usda-<fdc_id>`, imported by scripts/import-usda.ts) and users' custom foods. */
+/**
+ * USDA SR Legacy foods (`usda-<fdc_id>`) and a few foods USDA lacks, from the China Food
+ * Composition Table (`cn-<key>`, source `cn_fct`, data/cn-foods.csv), both imported by
+ * scripts/import-usda.ts; plus users' custom foods.
+ */
 export const foods = sqliteTable(
   'foods',
   {
     id: text('id').primaryKey(),
-    source: text('source', { enum: ['usda_sr_legacy', 'custom'] }).notNull(),
+    source: text('source', { enum: ['usda_sr_legacy', 'cn_fct', 'custom'] }).notNull(),
     fdcId: integer('fdc_id').unique(),
     ownerUserId: text('owner_user_id').references(() => user.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
@@ -286,10 +290,10 @@ export const foods = sqliteTable(
   },
   (table) => [
     index('foods_owner_idx').on(table.ownerUserId),
-    check('foods_source_check', sql`${table.source} IN ('usda_sr_legacy', 'custom')`),
+    check('foods_source_check', sql`${table.source} IN ('usda_sr_legacy', 'cn_fct', 'custom')`),
     check(
       'foods_source_owner_check',
-      sql`(${table.source} = 'custom' AND ${table.ownerUserId} IS NOT NULL AND ${table.fdcId} IS NULL) OR (${table.source} = 'usda_sr_legacy' AND ${table.ownerUserId} IS NULL AND ${table.fdcId} IS NOT NULL)`,
+      sql`(${table.source} = 'custom' AND ${table.ownerUserId} IS NOT NULL AND ${table.fdcId} IS NULL) OR (${table.source} = 'usda_sr_legacy' AND ${table.ownerUserId} IS NULL AND ${table.fdcId} IS NOT NULL) OR (${table.source} = 'cn_fct' AND ${table.ownerUserId} IS NULL AND ${table.fdcId} IS NULL)`,
     ),
   ],
 );

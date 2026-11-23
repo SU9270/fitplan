@@ -1,8 +1,8 @@
 import type { ImageSourcePropType } from 'react-native';
 
 /**
- * Food library images by key (data/usda-zh.csv `library` in apps/api). To change a picture,
- * replace assets/library/<key>.png with a square PNG of the same name; see
+ * Food library images by key (`library` in apps/api/data/usda-zh.csv and cn-foods.csv). To
+ * change a picture, replace assets/library/<key>.png with a square PNG of the same name; see
  * docs/food-library-images.md for the style, prompt and size.
  */
 export const LIBRARY_IMAGES: Readonly<Record<string, ImageSourcePropType>> = {
@@ -48,6 +48,7 @@ export const LIBRARY_IMAGES: Readonly<Record<string, ImageSourcePropType>> = {
   lotus_root: require('../../assets/library/lotus_root.png'),
   mackerel: require('../../assets/library/mackerel.png'),
   mango: require('../../assets/library/mango.png'),
+  mantou: require('../../assets/library/mantou.png'),
   napa_cabbage: require('../../assets/library/napa_cabbage.png'),
   oats: require('../../assets/library/oats.png'),
   olive_oil: require('../../assets/library/olive_oil.png'),

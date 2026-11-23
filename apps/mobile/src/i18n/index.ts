@@ -35,6 +35,14 @@ export function t(key: MessageKey, params?: MessageParams): string {
   });
 }
 
+/**
+ * The English wording of `key` in capitals, for the small label beside a Chinese title
+ * ("早餐 BREAKFAST"). Null in English, where it would only repeat the title.
+ */
+export function kicker(key: MessageKey): string | null {
+  return current === 'zh' ? en[key].toUpperCase() : null;
+}
+
 export function getLocale(): Locale {
   return current;
 }

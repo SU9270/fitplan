@@ -39,16 +39,19 @@ interface Suggestion {
 }
 interface MealView {
   meal: string;
-  target: { kcal: number; proteinG: number; carbsG: number; fatG: number } | null;
   totals: { kcal: number; proteinG: number };
-  gap: Record<'kcal' | 'proteinG' | 'carbsG' | 'fatG', Gap> | null;
+}
+interface Feedback {
+  gap: Record<'kcal' | 'proteinG' | 'carbsG' | 'fatG', Gap>;
   hasVegetables: boolean;
+  meal: string;
   suggestions: Suggestion[];
 }
 interface Day {
   entries: { id: string; slot: string; meal: string }[];
-  mealShares: Record<string, number>;
+  target: { kcal: number; proteinG: number; carbsG: number; fatG: number } | null;
   meals: MealView[];
+  feedback: Feedback | null;
 }
 
 async function userWithGoal() {
@@ -58,13 +61,15 @@ async function userWithGoal() {
   return user;
 }
 
-async function day(cookie: string): Promise<Day> {
-  const res = await authed(cookie, 'GET', `/api/diary?date=${today()}`);
+/** `meal`: the meal the suggestions go to (the app sends the meal of the current time). */
+async function day(cookie: string, meal?: string): Promise<Day> {
+  const res = await authed(cookie, 'GET', `/api/diary?date=${today()}${meal ? `&meal=${meal}` : ''}`);
   expect(res.status).toBe(200);
   return (await res.json()) as Day;
 }
 
 const meal = (d: Day, name: string) => d.meals.find((m) => m.meal === name) as MealView;
+const feedback = (d: Day) => d.feedback as Feedback;
 
 async function log(cookie: string, body: Record<string, unknown>) {
   const res = await authed(cookie, 'POST', '/api/diary/entries', { date: today(), meal: 'lunch', portionId: null, quantity: 100, ...body });
@@ -90,33 +95,42 @@ describe('plates', () => {
     expect(detail.food.slot).toBe('other');
   });
 
-  it('splits the daily target by the default shares and only gives feedback for meals with entries', async () => {
+  it('gives feedback for the whole day, and only once dinner has an entry', async () => {
     const { cookie } = await userWithGoal();
     const rice = await seedUsdaFood({ name: `Rice ${unique('r')}`, kcal: 130, proteinG: 2.69, carbsG: 28.17, fatG: 0.28 });
+    const egg = await seedUsdaFood({ name: `Egg ${unique('e')}`, category: 'Dairy and Egg Products', kcal: 143, proteinG: 12.56, carbsG: 0.72, fatG: 9.51 });
     await log(cookie, { foodId: rice.id, meal: 'lunch', quantity: 300 });
 
-    const d = await day(cookie);
-    expect(d.mealShares).toEqual({ breakfast: 25, lunch: 30, dinner: 30, snack: 15 });
-    expect(d.meals.map((m) => m.meal)).toEqual(['breakfast', 'lunch', 'dinner', 'snack']);
-    expect(meal(d, 'lunch').target).toEqual({ kcal: 617, proteinG: 42, carbsG: 74, fatG: 17 });
-    expect(meal(d, 'breakfast').gap).toBeNull();
-    // 300 g rice: 390 kcal (short), 8 g protein (short), 85 g carbs (over 74 + 10 %), 1 g fat (short).
-    expect(meal(d, 'lunch').gap).toEqual({
-      kcal: { status: 'short', diff: 390 - 617 },
-      proteinG: { status: 'short', diff: 8 - 42 },
-      carbsG: { status: 'over', diff: 85 - 74 },
-      fatG: { status: 'short', diff: 1 - 17 },
+    const before = await day(cookie);
+    expect(before.meals).toEqual([
+      { meal: 'breakfast', totals: { kcal: 0, proteinG: 0, carbsG: 0, fatG: 0 } },
+      { meal: 'lunch', totals: { kcal: 390, proteinG: 8, carbsG: 85, fatG: 1 } },
+      { meal: 'dinner', totals: { kcal: 0, proteinG: 0, carbsG: 0, fatG: 0 } },
+      { meal: 'snack', totals: { kcal: 0, proteinG: 0, carbsG: 0, fatG: 0 } },
+    ]);
+    expect(before.feedback).toBeNull();
+
+    await log(cookie, { foodId: egg.id, meal: 'dinner', quantity: 100 });
+    const after = await day(cookie);
+    // 300 g rice + 100 g egg: 533 kcal, 21 g protein, 85 g carbs, 10 g fat, against 2056 / 140 / 248 / 56.
+    expect(feedback(after)).toMatchObject({
+      gap: {
+        kcal: { status: 'short', diff: 533 - 2056 },
+        proteinG: { status: 'short', diff: 21 - 140 },
+        carbsG: { status: 'short', diff: 85 - 248 },
+        fatG: { status: 'short', diff: 10 - 56 },
+      },
+      hasVegetables: false,
+      meal: 'dinner',
     });
-    expect(meal(d, 'lunch').hasVegetables).toBe(false);
   });
 
-  it('has no targets, feedback or suggestions without a goal', async () => {
+  it('has no target, feedback or suggestions without a goal', async () => {
     const user = await signedInUser();
     await authed(user.cookie, 'POST', '/api/me/consents', { kind: 'health_data', version: CONSENT_VERSION, granted: true });
     const rice = await seedUsdaFood({ name: `Rice ${unique('r')}` });
-    await log(user.cookie, { foodId: rice.id });
-    const lunch = meal(await day(user.cookie), 'lunch');
-    expect(lunch).toMatchObject({ target: null, gap: null, suggestions: [] });
+    await log(user.cookie, { foodId: rice.id, meal: 'dinner' });
+    expect(await day(user.cookie)).toMatchObject({ target: null, feedback: null });
   });
 
   it('suggests only curated candidates, with names and the curated portion, and applying one closes the gap', async () => {
@@ -151,54 +165,80 @@ describe('plates', () => {
     const rice = await seedUsdaFood({ name: `Rice ${t}`, kcal: 130, proteinG: 2.69, carbsG: 28.17, fatG: 0.28 });
     await log(cookie, { foodId: rice.id, meal: 'dinner', quantity: 250 });
 
-    const dinner = meal(await day(cookie), 'dinner');
+    const before = feedback(await day(cookie));
     const curated = await env.DB.prepare('SELECT id FROM foods WHERE suggest_portion_id IS NOT NULL').all<{ id: string }>();
     const curatedIds = new Set(curated.results.map((r) => r.id));
-    expect(dinner.suggestions.length).toBeGreaterThan(0);
-    expect(dinner.suggestions.length).toBeLessThanOrEqual(3);
-    for (const s of dinner.suggestions) {
+    expect(before.suggestions.length).toBeGreaterThan(0);
+    expect(before.suggestions.length).toBeLessThanOrEqual(3);
+    for (const s of before.suggestions) {
       expect(s.kind).toBe('add');
       expect(curatedIds.has(s.foodId ?? '')).toBe(true);
       expect(s.portionLabel).not.toBeNull();
     }
-    expect(dinner.suggestions[0]).toMatchObject({ reason: 'protein' });
-    const veg = dinner.suggestions.find((s) => s.reason === 'vegetable');
+    expect(before.suggestions[0]).toMatchObject({ reason: 'protein' });
+    const veg = before.suggestions.find((s) => s.reason === 'vegetable');
     expect(veg).toMatchObject({ foodId: broccoli.id, portionLabel: '0.5 cup, chopped', quantity: 1 });
 
     // The yogurt is the only curated protein food (test storage is isolated per test).
-    const protein = dinner.suggestions[0] as Suggestion;
+    const protein = before.suggestions[0] as Suggestion;
     expect(protein).toMatchObject({ foodId: yogurt.id, portionLabel: '1 container', nameZh: `酸奶${t}` });
     expect(curatedIds).toEqual(new Set([yogurt.id, broccoli.id]));
-    await log(cookie, { meal: 'dinner', foodId: protein.foodId, portionId: protein.portionId, quantity: protein.quantity });
-    const after = meal(await day(cookie), 'dinner');
-    expect(after.gap?.proteinG.diff).toBeGreaterThan(dinner.gap?.proteinG.diff ?? 0);
+    await log(cookie, { meal: before.meal, foodId: protein.foodId, portionId: protein.portionId, quantity: protein.quantity });
+    const after = feedback(await day(cookie));
+    expect(after.gap.proteinG.diff).toBeGreaterThan(before.gap.proteinG.diff);
   });
 
-  it('suggests halving the biggest staple when a meal is over its kcal band', async () => {
+  it('makes the suggestions for the meal the app asks for: a snack gets no vegetables', async () => {
     const { cookie } = await userWithGoal();
+    const t = unique('snack');
+    await seedUsdaFood({
+      name: `Yogurt ${t}`,
+      category: 'Dairy and Egg Products',
+      kcal: 59,
+      proteinG: 10.19,
+      carbsG: 3.6,
+      fatG: 0.39,
+      portions: [{ label: '1 container', grams: 170 }],
+      suggestPortion: 0,
+    });
+    await seedUsdaFood({ name: `Broccoli ${t}`, category: VEG, kcal: 35, proteinG: 2.38, carbsG: 7.18, fatG: 0.41, portions: [{ label: '0.5 cup', grams: 78 }], suggestPortion: 0 });
+    const rice = await seedUsdaFood({ name: `Rice ${t}`, kcal: 130, proteinG: 2.69, carbsG: 28.17, fatG: 0.28 });
+    await log(cookie, { foodId: rice.id, meal: 'dinner', quantity: 250 });
+
+    expect(feedback(await day(cookie)).suggestions.map((s) => s.reason)).toEqual(['protein', 'vegetable']);
+    const late = feedback(await day(cookie, 'snack'));
+    expect(late.meal).toBe('snack');
+    expect(late.suggestions.map((s) => s.reason)).toEqual(['protein']);
+
+    expect((await authed(cookie, 'GET', `/api/diary?date=${today()}&meal=brunch`)).status).toBe(400);
+  });
+
+  it('suggests nothing to cut when the day is over its kcal band', async () => {
+    const { cookie } = await userWithGoal();
+    const oil = await seedUsdaFood({ name: `Oil ${unique('o')}`, category: 'Fats and Oils', kcal: 884, proteinG: 0, carbsG: 0, fatG: 100 });
     const rice = await seedUsdaFood({ name: `Rice ${unique('r')}`, kcal: 130, proteinG: 2.69, carbsG: 28.17, fatG: 0.28, portions: [{ label: '1 cup', grams: 158 }] });
-    const entry = await log(cookie, { foodId: rice.id, meal: 'snack', portionId: `${rice.id}-p0`, quantity: 3 });
+    // 200 g of oil at lunch (1768 kcal) and 3 cups of rice at dinner (616 kcal): above 2056 + 10 %.
+    await log(cookie, { foodId: oil.id, meal: 'lunch', quantity: 200 });
+    await log(cookie, { foodId: rice.id, meal: 'dinner', portionId: `${rice.id}-p0`, quantity: 3 });
 
-    const snack = meal(await day(cookie), 'snack');
-    expect(snack.gap?.kcal.status).toBe('over');
-    const reduce = snack.suggestions.find((s) => s.kind === 'adjust');
-    expect(reduce).toMatchObject({ reason: 'kcal', entryId: entry.id, portionId: `${rice.id}-p0`, portionLabel: '1 cup', quantity: 1.5 });
-
-    const res = await authed(cookie, 'PATCH', `/api/diary/entries/${entry.id}`, { portionId: reduce?.portionId, quantity: reduce?.quantity });
-    expect(res.status).toBe(200);
-    expect(meal(await day(cookie), 'snack').totals.kcal).toBe(Math.round(130 * 1.58 * 1.5));
+    const over = feedback(await day(cookie));
+    expect(over.gap.kcal.status).toBe('over');
+    // Nothing of the meal is changed: only additions (protein, a vegetable) are suggested.
+    expect(over.suggestions.filter((s) => s.kind === 'adjust')).toEqual([]);
   });
 });
 
+const savedShares = async (cookie: string) =>
+  ((await (await authed(cookie, 'GET', '/api/me/profile')).json()) as { mealShares: Record<string, number> }).mealShares;
+
 describe('PATCH /api/me/settings mealShares', () => {
-  it('saves valid shares and the diary uses them', async () => {
+  // Kept as a setting although the diary no longer splits the target by meal (2026-11-22).
+  it('saves valid shares', async () => {
     const { cookie } = await userWithGoal();
     const res = await authed(cookie, 'PATCH', '/api/me/settings', { mealShares: { breakfast: 20, lunch: 40, dinner: 30, snack: 10 } });
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ settings: { mealShares: { breakfast: 20, lunch: 40, dinner: 30, snack: 10 } } });
-    const d = await day(cookie);
-    expect(d.mealShares).toEqual({ breakfast: 20, lunch: 40, dinner: 30, snack: 10 });
-    expect(meal(d, 'lunch').target?.kcal).toBe(Math.round(2056 * 0.4));
+    expect(await savedShares(cookie)).toEqual({ breakfast: 20, lunch: 40, dinner: 30, snack: 10 });
   });
 
   it('rejects shares that do not total 100 or are not steps of 5', async () => {
@@ -209,6 +249,6 @@ describe('PATCH /api/me/settings mealShares', () => {
     ]) {
       expect((await authed(cookie, 'PATCH', '/api/me/settings', { mealShares })).status).toBe(400);
     }
-    expect((await day(cookie)).mealShares).toEqual({ breakfast: 25, lunch: 30, dinner: 30, snack: 15 });
+    expect(await savedShares(cookie)).toEqual({ breakfast: 25, lunch: 30, dinner: 30, snack: 15 });
   });
 });

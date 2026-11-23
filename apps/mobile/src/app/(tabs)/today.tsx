@@ -2,23 +2,28 @@ import { shiftDate } from '@fitplan/core';
 import type { Meal } from '@fitplan/validators';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ActivityRings } from '../../components/activity-rings';
 import { Card, CardHeader, Tile } from '../../components/card';
 import { DateSwitcher } from '../../components/date-switcher';
+import { DayFeedback } from '../../components/day-feedback';
+import { Kicker, Title, type } from '../../components/display';
 import { ErrorText, PrimaryButton, SoftButton, TextButton } from '../../components/form';
 import { MealPlate } from '../../components/meal-plate';
 import { MACROS, MacroTiles } from '../../components/macro-tiles';
 import { Screen } from '../../components/screen';
+import { Perforation } from '../../components/ticket';
 import type { DiaryDay } from '../../diary/api-types';
 import { localDate } from '../../diary/dates';
 import { progress } from '../../diary/display';
 import { rememberEntries } from '../../diary/entry-store';
-import type { SuggestionView } from '../../diary/plate-view';
-import { useLocale } from '../../i18n';
+import { feedbackSummary, type SuggestionView } from '../../diary/plate-view';
+import { kicker, useLocale } from '../../i18n';
 import { api } from '../../lib/api';
 import { call, failureText, type Failure } from '../../lib/request';
 import { withJson } from '../../lib/with-json';
+import { mealAt } from '../../library/library-view';
 import { createInFlightGuard } from '../../onboarding/in-flight';
 import { tokens } from '../../theme/tokens';
 
@@ -26,9 +31,9 @@ type DayState = { state: 'loading' } | { state: 'error'; failure: Failure } | { 
 
 /**
  * Today tab: the food diary for one day (today by default; ‹ › moves between days, never past
- * today), its totals against the latest daily target, and each meal as a short card: its foods
- * and one line of gap feedback, with the details and one-tap adjustments a tap away. Profile and
- * settings live on the Me tab.
+ * today), its totals against the latest daily target, each meal as a short card of its foods, and
+ * at the end one line of feedback for the whole day (once dinner has something logged), with the
+ * details and one-tap adjustments a tap away. Profile and settings live on the Me tab.
  */
 export default function Today() {
   const { t, locale } = useLocale();
@@ -36,8 +41,8 @@ export default function Today() {
   const [date, setDate] = useState(today);
   const [day, setDay] = useState<DayState>({ state: 'loading' });
   const [applying, setApplying] = useState(false);
-  /** The meal whose suggestion could not be applied. */
-  const [applyError, setApplyError] = useState<{ meal: Meal; failure: Failure } | null>(null);
+  /** Why a suggestion could not be applied. */
+  const [applyError, setApplyError] = useState<Failure | null>(null);
   const [runExclusive] = useState(createInFlightGuard);
   /** After a copy: nothing to copy, or it failed — for a meal or the whole day. */
   const [copyNote, setCopyNote] = useState<{ target: Meal | 'day'; failure: Failure | null } | null>(null);
@@ -52,7 +57,10 @@ export default function Today() {
   const load = useCallback(async (forDate: string) => {
     const request = ++latestRequest.current;
     setDay((current) => (current.state === 'ready' && current.day.date === forDate ? current : { state: 'loading' }));
-    const out = await call('today.loadError', () => api.api.diary.$get({ query: { date: forDate } }));
+    // Suggestions go to the meal of the current time; for another day the server picks dinner.
+    const now = new Date();
+    const query = forDate === localDate(now) ? { date: forDate, meal: mealAt(now) } : { date: forDate };
+    const out = await call('today.loadError', () => api.api.diary.$get({ query }));
     if (out.kind === 'signedOut' || request !== latestRequest.current) return;
     if (out.kind === 'failed') {
       setDay({ state: 'error', failure: out.failure });
@@ -73,7 +81,7 @@ export default function Today() {
     }, [load, date]),
   );
 
-  /** Apply a suggestion: add the suggested food, or set the entry to the suggested amount. */
+  /** Apply a suggestion: add the suggested food to `meal`, or set the entry to the suggested amount. */
   function apply(meal: Meal, suggestion: SuggestionView) {
     void runExclusive(async () => {
       setApplying(true);
@@ -87,7 +95,7 @@ export default function Today() {
               withJson({ id: suggestion.entryId }, { portionId: suggestion.portionId, quantity: suggestion.quantity }),
             ),
       );
-      if (out.kind === 'failed') setApplyError({ meal, failure: out.failure });
+      if (out.kind === 'failed') setApplyError(out.failure);
       if (out.kind === 'ok') await load(date);
       setApplying(false);
     });
@@ -116,6 +124,10 @@ export default function Today() {
     router.push({ pathname: '/food/search', params: { date, meal } });
   }
 
+  // Only a day with something still short gets the feedback card (2026-11-22).
+  const dayFeedback = day.state === 'ready' ? day.day.feedback : null;
+  const feedback = dayFeedback && feedbackSummary(dayFeedback, t) !== null ? dayFeedback : null;
+
   return (
     <Screen inTabs>
       <DateSwitcher date={date} today={today} onChange={setDate} />
@@ -142,93 +154,147 @@ export default function Today() {
           ) : null}
           {day.day.meals.map((view) => {
             const inMeal = day.day.entries.filter((e) => e.meal === view.meal);
+            const mealName = t(`meal.${view.meal}`);
+            // Nothing logged yet: the meal is one row (name, copy, add), so the page stays short.
+            if (inMeal.length === 0) {
+              return (
+                <Card key={view.meal}>
+                  <View style={styles.emptyMeal}>
+                    <View style={styles.mealName}>
+                      <Title size="subtitle" numberOfLines={1}>
+                        {mealName}
+                      </Title>
+                      <Kicker color={tokens.color.textTertiary}>{kicker(`meal.${view.meal}`)}</Kicker>
+                    </View>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: applying }}
+                      disabled={applying}
+                      hitSlop={tokens.space.sm}
+                      onPress={() => copyYesterday(view.meal)}
+                      style={({ pressed }) => [styles.copyMeal, (pressed || applying) && styles.pressed]}
+                    >
+                      <Text style={styles.copyMealText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                        {t(copyKeys.meal, { meal: mealName })}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t('diary.addTo', { meal: mealName })}
+                      onPress={() => addTo(view.meal)}
+                      style={({ pressed }) => [styles.addRound, pressed && styles.addRoundPressed]}
+                    >
+                      <Ionicons name="add" size={tokens.fontSize.title + tokens.hairline} color={tokens.color.onPrimary} />
+                    </Pressable>
+                  </View>
+                  {copyNote?.target === view.meal ? (
+                    <Text style={styles.copyNote}>
+                      {copyNote.failure ? failureText(copyNote.failure, t) : t(copyKeys.emptyMeal, { meal: mealName })}
+                    </Text>
+                  ) : null}
+                </Card>
+              );
+            }
             return (
             <Card key={view.meal}>
               <CardHeader
                 strong
-                label={t(`meal.${view.meal}`)}
-                right={
-                  <Text style={styles.subtotal}>
-                    {view.target
-                      ? t('plate.mealKcal', { eaten: view.totals.kcal, target: view.target.kcal })
-                      : t('report.kcal', { n: view.totals.kcal })}
-                  </Text>
-                }
+                label={mealName}
+                kicker={kicker(`meal.${view.meal}`)}
+                right={<Text style={[type.num, styles.subtotal]}>{t('report.kcal', { n: view.totals.kcal })}</Text>}
               />
               <MealPlate
-                view={view}
                 entries={inMeal}
                 onOpenEntry={(entry) => router.push({ pathname: '/entry/[id]', params: { id: entry.id } })}
-                onApply={(suggestion) => apply(view.meal, suggestion)}
-                onSave={() => router.push({ pathname: '/food/save-meal', params: { date, meal: view.meal } })}
-                applying={applying}
               />
-              {applyError?.meal === view.meal ? <ErrorText message={failureText(applyError.failure, t)} /> : null}
-              {copyNote?.target === view.meal ? (
-                <Text style={styles.copyNote}>
-                  {copyNote.failure ? failureText(copyNote.failure, t) : t(copyKeys.emptyMeal, { meal: t(`meal.${view.meal}`) })}
-                </Text>
-              ) : null}
-              <SoftButton
-                title={`+ ${t('diary.add')}`}
-                accessibilityLabel={t('diary.addTo', { meal: t(`meal.${view.meal}`) })}
-                onPress={() => addTo(view.meal)}
-              />
-              {inMeal.length === 0 ? (
+              {/* One row: adding is the main action, "save as my meal" stays small beside it. */}
+              <View style={styles.mealActions}>
+                <View style={styles.mealAdd}>
+                  <SoftButton
+                    dashed
+                    title={`+ ${t('diary.add')}`}
+                    accessibilityLabel={t('diary.addTo', { meal: mealName })}
+                    onPress={() => addTo(view.meal)}
+                  />
+                </View>
                 <TextButton
-                  title={t(copyKeys.meal, { meal: t(`meal.${view.meal}`) })}
-                  onPress={() => copyYesterday(view.meal)}
-                  disabled={applying}
+                  tone="quiet"
+                  title={t('templates.save')}
+                  accessibilityLabel={t('templates.saveLabel', { meal: mealName })}
+                  onPress={() => router.push({ pathname: '/food/save-meal', params: { date, meal: view.meal } })}
                 />
-              ) : null}
+              </View>
             </Card>
             );
           })}
+          {/* The whole day at once, at the end: meals are not compared one by one. */}
+          {feedback ? (
+            <Card>
+              <DayFeedback
+                feedback={feedback}
+                onApply={(suggestion) => apply(feedback.meal, suggestion)}
+                applying={applying}
+              />
+              {applyError ? <ErrorText message={failureText(applyError, t)} /> : null}
+            </Card>
+          ) : null}
         </>
       )}
     </Screen>
   );
 }
 
-/** Eaten vs target: kcal and what is left (or over), concentric rings, and a tile per macro. */
+/**
+ * Eaten vs target, read top to bottom: the kcal in the middle of the rings, then, under a tear
+ * line, a tile per macro.
+ */
 function Summary({ day }: { day: DiaryDay }) {
   const { t } = useLocale();
   const { totals, target } = day;
-  const left = target ? target.kcal - totals.kcal : null;
   const unit = target ? t('diary.ofTarget', { n: target.kcal }) : t('diary.kcalUnit');
 
   return (
     <Card>
-      {/* The teal square matches the outer (kcal) ring, as the macro tiles' squares match theirs. */}
-      <CardHeader
-        label={t('diary.eaten')}
-        title={String(totals.kcal)}
-        unit={unit}
-        swatch={target ? tokens.color.kcal : undefined}
-      />
-      {target && left !== null ? (
+      {target ? (
         <>
-          <Text style={[styles.left, left < 0 && styles.over]}>
-            {left >= 0 ? t('diary.remaining', { n: left }) : t('diary.over', { n: -left })}
-          </Text>
+          <View style={styles.summaryHead}>
+            <Text style={styles.eatenChip}>{t('diary.eaten')}</Text>
+          </View>
           <ActivityRings
             accessibilityLabel={`${t('diary.eaten')} ${totals.kcal} ${unit}`}
             rings={[
               { progress: progress(totals.kcal, target.kcal), color: tokens.color.kcal, track: tokens.color.kcalTrack },
               ...MACROS.map(({ field, color, track }) => ({ progress: progress(totals[field], target[field]), color, track })),
             ]}
-          />
+          >
+            <Text style={[type.num, styles.ringValue]} numberOfLines={1} adjustsFontSizeToFit>
+              {totals.kcal}
+            </Text>
+            <Text style={[type.num, styles.ringUnit]} numberOfLines={1} adjustsFontSizeToFit>
+              {unit}
+            </Text>
+          </ActivityRings>
+          {/* Out to the card's edges, so the notches cut into them. */}
+          <View style={styles.tear}>
+            <Perforation color={tokens.color.borderStrong} notch={tokens.color.background} />
+          </View>
           <MacroTiles targets={target} eaten={totals} />
         </>
       ) : (
-        <Tile>
-          <Text style={styles.muted}>{t('diary.noTarget')}</Text>
-        </Tile>
+        <>
+          <CardHeader label={t('diary.eaten')} title={String(totals.kcal)} unit={unit} />
+          <Tile>
+            <Text style={styles.muted}>{t('diary.noTarget')}</Text>
+          </Tile>
+        </>
       )}
       {day.unknown.length > 0 ? <Text style={[styles.muted, styles.note]}>{t('diary.unknown')}</Text> : null}
     </Card>
   );
 }
+
+/** Width of the free middle of the rings (see `ActivityRings`: 248 wide, four rings of 14 + 4). */
+const RING_CENTER = 100;
 
 /** Digits of equal width, so numbers do not shift as they change. */
 const TABULAR = ['tabular-nums'] as const;
@@ -243,29 +309,91 @@ const styles = StyleSheet.create({
   },
   subtotal: {
     color: tokens.color.textSecondary,
-    fontSize: tokens.fontSize.label,
-    fontWeight: tokens.fontWeight.medium,
+    fontSize: tokens.fontSize.caption,
     fontVariant: TABULAR,
   },
-  left: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: tokens.space.sm,
-    paddingVertical: tokens.hairline,
+  summaryHead: {
+    flexDirection: 'row',
+    paddingHorizontal: tokens.card.headerInset,
+    paddingTop: tokens.space.sm,
+  },
+  eatenChip: {
+    paddingHorizontal: tokens.space.sm + tokens.hairline,
+    paddingVertical: tokens.space.xs,
     overflow: 'hidden',
-    borderRadius: tokens.radius.pill,
-    backgroundColor: tokens.color.primarySoft,
-    color: tokens.color.primary,
+    borderRadius: tokens.radius.sm,
+    backgroundColor: tokens.color.primary,
+    color: tokens.color.onPrimary,
+    fontSize: tokens.fontSize.caption - 1,
+    fontWeight: tokens.fontWeight.heavy,
+  },
+  // Both lines stay inside the innermost ring.
+  ringValue: {
+    width: RING_CENTER,
+    textAlign: 'center',
+    color: tokens.color.text,
+    fontSize: tokens.fontSize.display + tokens.space.xs,
+  },
+  ringUnit: {
+    width: RING_CENTER,
+    textAlign: 'center',
+    color: tokens.color.textSecondary,
+    fontSize: tokens.fontSize.caption - 1,
+  },
+  tear: {
+    marginHorizontal: -tokens.card.padding,
+    marginBottom: tokens.space.md - tokens.card.gap,
+  },
+  emptyMeal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.space.sm,
+    paddingLeft: tokens.card.headerInset,
+    paddingVertical: tokens.space.xs,
+  },
+  mealActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.space.sm,
+  },
+  mealAdd: {
+    flex: 1,
+  },
+  mealName: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.space.sm,
+  },
+  copyMeal: {
+    flexShrink: 1,
+    minHeight: tokens.touchTarget,
+    justifyContent: 'center',
+  },
+  // White, not yellow: the round "+" beside it is this row's main action.
+  copyMealText: {
+    color: tokens.color.text,
     fontSize: tokens.fontSize.caption,
-    fontWeight: tokens.fontWeight.medium,
+    fontWeight: tokens.fontWeight.semibold,
+  },
+  addRound: {
+    width: tokens.touchTarget,
+    height: tokens.touchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: tokens.touchTarget / 2,
+    backgroundColor: tokens.color.primary,
+  },
+  addRoundPressed: {
+    backgroundColor: tokens.color.primaryPressed,
+  },
+  pressed: {
+    opacity: 0.6,
   },
   // Neutral, not a red warning (requirements §3.3).
   copyNote: {
     paddingHorizontal: tokens.card.headerInset,
     color: tokens.color.textSecondary,
     fontSize: tokens.fontSize.label,
-  },
-  over: {
-    backgroundColor: tokens.color.border,
-    color: tokens.color.textSecondary,
   },
 });

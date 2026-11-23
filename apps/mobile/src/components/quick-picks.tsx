@@ -14,6 +14,7 @@ import { withJson } from '../lib/with-json';
 import { createInFlightGuard } from '../onboarding/in-flight';
 import { tokens } from '../theme/tokens';
 import { Card, CardHeader } from './card';
+import { type } from './display';
 import { ErrorText, SoftButton } from './form';
 import { ListRow } from './list-row';
 
@@ -152,7 +153,7 @@ function RecentRow({ title, subtitle, kcal, added, addLabel, addedLabel, onOpen,
         <Text style={styles.title} numberOfLines={1}>
           {title}
         </Text>
-        <Text style={styles.subtitle} numberOfLines={1}>
+        <Text style={[type.num, styles.subtitle]} numberOfLines={1}>
           {subtitle} · {kcal}
         </Text>
       </Pressable>
@@ -193,7 +194,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: tokens.color.text,
-    fontSize: tokens.fontSize.body,
+    fontSize: tokens.fontSize.label + 1,
     fontWeight: tokens.fontWeight.medium,
   },
   subtitle: {
@@ -205,10 +206,10 @@ const styles = StyleSheet.create({
     height: tokens.touchTarget,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: tokens.radius.md,
+    borderRadius: tokens.radius.inner,
     backgroundColor: tokens.color.primarySoft,
   },
   addDone: {
-    backgroundColor: tokens.color.primary,
+    backgroundColor: tokens.color.success,
   },
 });

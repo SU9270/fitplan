@@ -72,6 +72,8 @@ export default function FoodSearch() {
           autoCapitalize="none"
           returnKeyType="search"
           clearButtonMode="while-editing"
+          selectionColor={tokens.color.primary}
+          keyboardAppearance="dark"
           style={styles.input}
         />
       </View>
@@ -113,13 +115,15 @@ export default function FoodSearch() {
 
 const styles = StyleSheet.create({
   search: {
-    minHeight: tokens.touchTarget,
+    minHeight: tokens.controlHeight,
     flexDirection: 'row',
     alignItems: 'center',
     gap: tokens.space.sm,
-    paddingHorizontal: tokens.space.md,
+    paddingHorizontal: tokens.space.lg,
     borderRadius: tokens.radius.md,
-    backgroundColor: tokens.color.card,
+    borderWidth: 1.5,
+    borderColor: tokens.color.border,
+    backgroundColor: tokens.color.field,
   },
   input: {
     flex: 1,

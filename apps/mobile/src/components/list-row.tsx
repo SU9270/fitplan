@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { tokens } from '../theme/tokens';
+import { type } from './display';
 
 type Props = {
   title: string;
@@ -13,7 +14,7 @@ type Props = {
   onPress: () => void;
 };
 
-/** Tappable white tile inside a card: food search results, diary entries, custom foods. */
+/** Tappable tile inside a card: food search results, diary entries, custom foods. */
 export function ListRow({ title, subtitle, value, badge, accessibilityLabel, onPress }: Props) {
   const label = accessibilityLabel ?? [title, badge, subtitle, value].filter(Boolean).join(', ');
   return (
@@ -36,7 +37,7 @@ export function ListRow({ title, subtitle, value, badge, accessibilityLabel, onP
           </Text>
         ) : null}
       </View>
-      {value ? <Text style={styles.value}>{value}</Text> : null}
+      {value ? <Text style={[type.num, styles.value]}>{value}</Text> : null}
     </Pressable>
   );
 }
@@ -53,7 +54,7 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.color.surface,
   },
   pressed: {
-    backgroundColor: tokens.color.border,
+    backgroundColor: tokens.color.surfaceRaised,
   },
   texts: {
     flex: 1,
@@ -87,6 +88,5 @@ const styles = StyleSheet.create({
   value: {
     color: tokens.color.text,
     fontSize: tokens.fontSize.label,
-    fontWeight: tokens.fontWeight.semibold,
   },
 });

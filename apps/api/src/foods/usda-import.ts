@@ -1,5 +1,6 @@
-// Turns the USDA FoodData Central "SR Legacy" CSV download into rows for `foods` and
-// `food_portions`, and those rows into idempotent SQL. Pure (no file system): the CLI in
+// Turns the USDA FoodData Central "SR Legacy" CSV download, plus data/cn-foods.csv (foods USDA
+// lacks, from the China Food Composition Table), into rows for `foods` and `food_portions`,
+// and those rows into idempotent SQL. Pure (no file system): the CLI in
 // scripts/import-usda.ts reads the files and runs wrangler. See the phase 2 spec, section 2.
 import { csvRecords } from './csv.ts';
 import { ALIAS_SEPARATOR, buildSearchText } from './search-text.ts';
@@ -51,7 +52,9 @@ const LIBRARY_KEY = /^[a-z][a-z0-9_]*$/;
 
 export type UsdaFoodRow = {
   id: string;
-  fdcId: number;
+  source: 'usda_sr_legacy' | 'cn_fct';
+  /** Null for China Food Composition Table foods. */
+  fdcId: number | null;
   name: string;
   nameZh: string | null;
   aliases: string | null;
@@ -174,6 +177,7 @@ export function buildUsdaImport(files: UsdaCsvFiles, zhNames: readonly ZhName[])
     }
     foodsByFdc.set(fdc, {
       id: usdaFoodId(fdcId),
+      source: 'usda_sr_legacy',
       fdcId,
       name,
       nameZh: zh?.nameZh ?? null,
@@ -249,6 +253,132 @@ export function buildUsdaImport(files: UsdaCsvFiles, zhNames: readonly ZhName[])
   };
 }
 
+/** A row of data/cn-foods.csv: a food USDA SR Legacy lacks, per 100 g, with one portion. */
+export interface CnFood {
+  /** Stable id part (`cn-<key>`): lowercase letters, digits and underscores. */
+  key: string;
+  name: string;
+  nameZh: string;
+  aliases: string[];
+  /** A USDA category name, so the plate slot and light-meal rules treat it like its USDA peers. */
+  category: string | null;
+  kcal: number;
+  proteinG: number | null;
+  carbsG: number | null;
+  fatG: number | null;
+  fiberG: number | null;
+  sugarsG: number | null;
+  sodiumMg: number | null;
+  portion: { label: string; grams: number };
+  /** Whether the portion is a suggestion candidate (`suggest_portion` names it). */
+  suggest: boolean;
+  /** Image key in the library tab, or null; must equal `key` (one id per food). */
+  library: string | null;
+}
+
+const cnFoodId = (key: string) => `cn-${key}`;
+const cnPortionId = (key: string) => `cn-portion-${key}`;
+
+/**
+ * Reads apps/api/data/cn-foods.csv. Every row names the table entry it copies (`reference`);
+ * blank nutrients are unknown (stored as NULL, never 0). Throws on anything malformed.
+ */
+export function parseCnFoods(text: string): CnFood[] {
+  const out: CnFood[] = [];
+  const seen = new Set<string>();
+  for (const r of csvRecords(text)) {
+    const key = (r.key ?? '').trim();
+    const where = `cn-foods ${key || '(no key)'}`;
+    if (!LIBRARY_KEY.test(key)) throw new Error(`${where}: bad key "${key}"`);
+    if (seen.has(key)) throw new Error(`${where}: duplicate key`);
+    seen.add(key);
+    const text = (column: string) => (r[column] ?? '').trim();
+    const number = (column: string): number | null => {
+      const value = text(column);
+      if (value === '') return null;
+      const n = Number(value);
+      if (!Number.isFinite(n) || n < 0) throw new Error(`${where}: bad ${column} "${value}"`);
+      return n;
+    };
+    const name = text('name');
+    const nameZh = text('name_zh');
+    if (name === '' || nameZh === '') throw new Error(`${where}: name and name_zh are required`);
+    if (text('reference') === '') throw new Error(`${where}: reference (the table entry the numbers come from) is required`);
+    const kcal = number('kcal');
+    if (kcal === null) throw new Error(`${where}: kcal is required`);
+    const portionLabelText = text('portion_label');
+    const portionGrams = number('portion_grams');
+    if (portionLabelText === '' || portionGrams === null || portionGrams <= 0) {
+      throw new Error(`${where}: portion_label and a positive portion_grams are required`);
+    }
+    const suggestPortion = text('suggest_portion');
+    if (suggestPortion !== '' && suggestPortion !== portionLabelText) {
+      throw new Error(`${where}: suggest_portion "${suggestPortion}" is not the portion "${portionLabelText}"`);
+    }
+    const library = text('library');
+    if (library !== '' && library !== key) throw new Error(`${where}: library must be blank or the key`);
+    out.push({
+      key,
+      name,
+      nameZh,
+      aliases: text('aliases')
+        .split(ALIAS_SEPARATOR)
+        .map((a) => a.trim())
+        .filter((a) => a !== ''),
+      category: text('category') || null,
+      kcal,
+      proteinG: number('protein_g'),
+      carbsG: number('carbs_g'),
+      fatG: number('fat_g'),
+      fiberG: number('fiber_g'),
+      sugarsG: number('sugars_g'),
+      sodiumMg: number('sodium_mg'),
+      portion: { label: portionLabelText, grams: portionGrams },
+      suggest: suggestPortion !== '',
+      library: library === '' ? null : library,
+    });
+  }
+  return out;
+}
+
+/**
+ * Rows for the China Food Composition Table foods. Their library rows come after the USDA ones
+ * (`firstLibraryRank` = the number of USDA library rows), in the csv's order.
+ */
+export function buildCnImport(cnFoods: readonly CnFood[], firstLibraryRank: number): Pick<UsdaImport, 'foods' | 'portions'> {
+  let rank = firstLibraryRank;
+  const foods: UsdaFoodRow[] = cnFoods.map((f) => ({
+    id: cnFoodId(f.key),
+    source: 'cn_fct',
+    fdcId: null,
+    name: f.name,
+    nameZh: f.nameZh,
+    aliases: f.aliases.length > 0 ? f.aliases.join(ALIAS_SEPARATOR) : null,
+    searchText: buildSearchText(f.name, f.nameZh, f.aliases),
+    category: f.category,
+    suggestPortionId: f.suggest ? cnPortionId(f.key) : null,
+    omega3AlaG: null,
+    omega3EpaDhaG: null,
+    libraryKey: f.library,
+    libraryRank: f.library === null ? null : rank++,
+    kcal: f.kcal,
+    proteinG: f.proteinG,
+    carbsG: f.carbsG,
+    fatG: f.fatG,
+    fiberG: f.fiberG,
+    sugarsG: f.sugarsG,
+    sodiumMg: f.sodiumMg,
+  }));
+  const portions: UsdaPortionRow[] = cnFoods.map((f) => ({
+    id: cnPortionId(f.key),
+    foodId: cnFoodId(f.key),
+    label: f.portion.label,
+    grams: f.portion.grams,
+    sortOrder: 1,
+  }));
+  return { foods, portions };
+}
+
 function sqlValue(value: string | number | null): string {
   if (value === null) return 'NULL';
   if (typeof value === 'number') {
@@ -268,20 +398,20 @@ function chunks<T>(items: readonly T[], size: number): T[][] {
 const ROWS_PER_STATEMENT = 100;
 
 /**
- * Idempotent SQL: foods and portions are upserted by their stable FDC-derived ids, so running
- * the import again updates rows in place (diary entries keep pointing at the same portions)
- * and never touches custom foods.
+ * Idempotent SQL: foods and portions are upserted by their stable ids (FDC-derived, or
+ * `cn-<key>`), so running the import again updates rows in place (diary entries keep pointing
+ * at the same portions) and never touches custom foods.
  */
 export function toImportSql(data: Pick<UsdaImport, 'foods' | 'portions'>, now: string): string[] {
   // Library keys are unique: clear them first so moving a key to another food cannot collide.
   const statements: string[] = [
-    "UPDATE foods SET library_key = NULL, library_rank = NULL WHERE source = 'usda_sr_legacy' AND library_key IS NOT NULL;",
+    "UPDATE foods SET library_key = NULL, library_rank = NULL WHERE source IN ('usda_sr_legacy', 'cn_fct') AND library_key IS NOT NULL;",
   ];
   for (const batch of chunks(data.foods, ROWS_PER_STATEMENT)) {
     const values = batch.map((f) =>
       [
         f.id,
-        'usda_sr_legacy',
+        f.source,
         f.fdcId,
         null,
         f.name,

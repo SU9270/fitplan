@@ -4,7 +4,7 @@ import { authed, seedUsdaFood, signedInUser, unique } from './helpers';
 
 interface Summary {
   id: string;
-  source: 'usda' | 'custom';
+  source: 'usda' | 'cn' | 'custom';
   name: string;
   nameZh: string | null;
   per100g: { kcal: number | null; proteinG: number | null; carbsG: number | null; fatG: number | null };
@@ -136,6 +136,19 @@ describe('GET /api/foods/:id', () => {
       { id: food.portionIds[0], label: '1 cup', grams: 158 },
       { id: food.portionIds[1], label: '0.5 cup', grams: 79 },
     ]);
+  });
+
+  it('labels China Food Composition Table foods as such, in search and detail', async () => {
+    const { cookie } = await signedInUser();
+    const name = `Steamed bun ${token()}`;
+    const id = unique('cn');
+    await env.DB.prepare("INSERT INTO foods (id, source, name, search_text, kcal) VALUES (?, 'cn_fct', ?, ?, 223)")
+      .bind(id, name, name.toLowerCase())
+      .run();
+    const res = await authed(cookie, 'GET', `/api/foods/${id}`);
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { food: Detail }).food).toMatchObject({ id, source: 'cn', per100g: { kcal: 223 } });
+    expect((await search(cookie, name)).map((f) => f.source)).toEqual(['cn']);
   });
 
   it('404s for an unknown id', async () => {

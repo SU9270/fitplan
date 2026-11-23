@@ -146,7 +146,7 @@ export default function EntryScreen() {
       )}
       <ErrorText message={error && failureText(error, t)} />
       <PrimaryButton title={t('common.save')} onPress={save} busy={busy} disabled={!quick && !checked.ok} />
-      <TextButton title={t('entry.delete')} onPress={confirmDelete} />
+      <TextButton tone="quiet" title={t('entry.delete')} onPress={confirmDelete} />
     </Screen>
   );
 }

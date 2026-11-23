@@ -1,11 +1,13 @@
 import { Redirect, router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { Card, CardHeader, Tile } from '../components/card';
+import { Title, type } from '../components/display';
 import { ErrorText, PrimaryButton, TextButton } from '../components/form';
 import { LanguageSwitch } from '../components/language-switch';
 import { MacroTiles } from '../components/macro-tiles';
 import { ReasonList } from '../components/reason-list';
 import { Screen } from '../components/screen';
+import { Perforation, Ticket, TicketSection } from '../components/ticket';
 import { useLocale, type MessageKey } from '../i18n';
 import { useGate } from '../lib/gate';
 import { useOnboarding } from '../onboarding/draft';
@@ -41,9 +43,9 @@ export default function Report() {
   return (
     <Screen>
       <View style={styles.topRow}>
-        <Text accessibilityRole="header" style={styles.title}>
-          {t('report.title')}
-        </Text>
+        <View style={styles.title}>
+          <Title size="display">{t('report.title')}</Title>
+        </View>
         <LanguageSwitch />
       </View>
       {status !== 'blocked' ? <Text style={styles.subtitle}>{t('report.subtitle')}</Text> : null}
@@ -64,10 +66,20 @@ export default function Report() {
             <Stat label={t('report.bmr')} hint={t('report.bmr.hint')} value={t('report.kcal', { n: result.bmrKcal })} />
             <Stat label={t('report.tdee')} hint={t('report.tdee.hint')} value={t('report.kcal', { n: result.tdeeKcal })} />
           </Card>
-          <Card>
-            <CardHeader label={t('report.target')} title={String(targets.kcal)} unit={t('diary.kcalUnit')} />
-            <MacroTiles targets={targets} />
-          </Card>
+          {/* The result the questionnaire hands over: a ticket, like the estimate on the steps before. */}
+          <Ticket>
+            <TicketSection style={styles.targetTop}>
+              <Text style={styles.targetLabel}>{t('report.target')}</Text>
+              <Text style={[type.num, styles.targetValue]} accessibilityLabel={t('report.kcal', { n: targets.kcal })}>
+                {targets.kcal}
+                <Text style={styles.targetUnit}> {t('diary.kcalUnit')}</Text>
+              </Text>
+            </TicketSection>
+            <Perforation notch={tokens.color.background} />
+            <TicketSection style={styles.targetBottom}>
+              <MacroTiles tone="paper" targets={targets} />
+            </TicketSection>
+          </Ticket>
         </>
       ) : null}
 
@@ -80,7 +92,7 @@ export default function Report() {
         ) : status === 'confirm' ? (
           <>
             <PrimaryButton title={t('report.confirm')} busy={busy} onPress={() => void confirm()} />
-            <TextButton title={t('report.edit')} disabled={busy} onPress={() => router.back()} />
+            <TextButton tone="quiet" title={t('report.edit')} disabled={busy} onPress={() => router.back()} />
           </>
         ) : (
           <PrimaryButton title={t('report.edit')} onPress={() => router.back()} />
@@ -97,7 +109,7 @@ function Stat({ label, hint, value }: { label: string; hint?: string; value: str
         <Text style={styles.statLabel}>{label}</Text>
         {hint ? <Text style={styles.statHint}>{hint}</Text> : null}
       </View>
-      <Text style={styles.statValue}>{value}</Text>
+      <Text style={[type.num, styles.statValue]}>{value}</Text>
     </View>
   );
 }
@@ -110,13 +122,34 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    color: tokens.color.text,
-    fontSize: tokens.fontSize.title,
-    fontWeight: tokens.fontWeight.semibold,
+  },
+  targetTop: {
+    paddingTop: tokens.space.lg,
+    gap: tokens.space.xs,
+  },
+  targetLabel: {
+    color: tokens.color.onPaperSecondary,
+    fontSize: tokens.fontSize.caption,
+    fontWeight: tokens.fontWeight.bold,
+  },
+  targetValue: {
+    color: tokens.color.onPaper,
+    fontSize: tokens.fontSize.hero,
+    lineHeight: tokens.fontSize.hero * 1.15,
+  },
+  targetUnit: {
+    color: tokens.color.onPaperSecondary,
+    fontSize: tokens.fontSize.body,
+  },
+  // The tiles reach the card padding, like tiles in a dark card.
+  targetBottom: {
+    paddingHorizontal: tokens.card.padding,
+    paddingBottom: tokens.space.lg,
   },
   subtitle: {
     color: tokens.color.textSecondary,
-    fontSize: tokens.fontSize.body,
+    fontSize: tokens.fontSize.label + 1,
+    lineHeight: (tokens.fontSize.label + 1) * 1.45,
   },
   stat: {
     flexDirection: 'row',
@@ -144,7 +177,6 @@ const styles = StyleSheet.create({
   statValue: {
     color: tokens.color.text,
     fontSize: tokens.fontSize.subtitle,
-    fontWeight: tokens.fontWeight.semibold,
   },
   disclaimer: {
     color: tokens.color.textSecondary,

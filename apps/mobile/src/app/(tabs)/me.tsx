@@ -1,19 +1,18 @@
-import type { MealShares } from '@fitplan/core';
 import type { InferResponseType } from 'hono/client';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 import { Card, CardHeader, Tile } from '../../components/card';
+import { Kicker, Title, type } from '../../components/display';
 import { ErrorText, PrimaryButton, SoftButton, TextButton, TextField } from '../../components/form';
 import { InfoRow } from '../../components/info-row';
 import { ListRow } from '../../components/list-row';
 import { MacroTiles } from '../../components/macro-tiles';
-import { MealSharesEditor } from '../../components/meal-shares-editor';
 import { Screen } from '../../components/screen';
 import { SegmentedControl } from '../../components/segmented-control';
 import type { MealTemplate } from '../../diary/api-types';
 import { localDate } from '../../diary/dates';
-import { useLocale, type Locale, type MessageKey } from '../../i18n';
+import { kicker, useLocale, type Locale, type MessageKey } from '../../i18n';
 import { api } from '../../lib/api';
 import { authClient } from '../../lib/auth-client';
 import { useGate } from '../../lib/gate';
@@ -138,18 +137,6 @@ export default function Me() {
     ]);
   }
 
-  async function saveMealShares(mealShares: MealShares): Promise<boolean> {
-    setSettingsError(null);
-    const out = await call('profile.settings.error', () => api.api.me.settings.$patch({ json: { mealShares } }));
-    if (out.kind === 'failed') setSettingsError(out.failure);
-    if (out.kind !== 'ok') return false;
-    const { settings } = await out.res.json();
-    setProfile((current) =>
-      current.state === 'ready' ? { state: 'ready', data: { ...current.data, mealShares: settings.mealShares } } : current,
-    );
-    return true;
-  }
-
   async function saveSettings(patch: { locale?: Locale; unitSystem?: UnitSystem }) {
     setSettingsError(null);
     if (patch.locale) setLocale(patch.locale);
@@ -173,9 +160,10 @@ export default function Me() {
 
   return (
     <Screen inTabs>
-      <Text accessibilityRole="header" style={styles.title}>
-        {t('profile.title')}
-      </Text>
+      <View style={styles.heading}>
+        <Kicker>{kicker('profile.title')}</Kicker>
+        <Title numberOfLines={1}>{t('profile.title')}</Title>
+      </View>
 
       <AccountCard />
 
@@ -286,11 +274,6 @@ export default function Me() {
             onChange={(l) => void saveSettings({ locale: l })}
           />
         </Tile>
-        {profile.state === 'ready' && saved ? (
-          <Tile>
-            <MealSharesEditor value={profile.data.mealShares} onSave={saveMealShares} />
-          </Tile>
-        ) : null}
         {saved ? (
           <Tile>
             <Text style={styles.label}>{t('profile.units')}</Text>
@@ -303,7 +286,7 @@ export default function Me() {
           </Tile>
         ) : null}
         <ErrorText message={settingsError && failureText(settingsError, t)} />
-        <TextButton title={t('auth.signOut')} onPress={() => void signOut()} />
+        <TextButton tone="quiet" title={t('auth.signOut')} onPress={() => void signOut()} />
       </Card>
     </Screen>
   );
@@ -351,19 +334,23 @@ function AccountCard() {
         <View style={styles.avatar} accessible={false}>
           <Text style={styles.avatarText}>{initial(name)}</Text>
         </View>
-        <Text style={styles.name} numberOfLines={1}>
-          {name}
-        </Text>
+        <View style={styles.accountTexts}>
+          <Text style={styles.name} numberOfLines={1}>
+            {name}
+          </Text>
+          <Text style={styles.email} numberOfLines={1}>
+            {session?.user.email ?? ''}
+          </Text>
+        </View>
+        {draft === null ? <TextButton title={t('profile.editName')} onPress={() => setDraft(name)} /> : null}
       </View>
-      <InfoRow label={t('auth.email.label')} value={session?.user.email ?? ''} />
-      {draft === null ? (
-        <TextButton title={t('profile.editName')} onPress={() => setDraft(name)} />
-      ) : (
+      {draft === null ? null : (
         <Tile>
           <TextField label={t('profile.nickname')} value={draft} onChangeText={setDraft} autoFocus maxLength={60} />
           <ErrorText message={error && (typeof error === 'string' ? t(error) : failureText(error, t))} />
           <PrimaryButton title={t('common.save')} onPress={() => void save()} busy={busy} />
           <TextButton
+            tone="quiet"
             title={t('common.cancel')}
             onPress={() => {
               setDraft(null);
@@ -405,38 +392,48 @@ function BodySummary({ body, onEdit }: { body: ProfileBody; onEdit: () => void }
   );
 }
 
-/** BoardUI stat tile: gray label, value under it. */
+/** Stat tile: the number first (it is what changes), its gray label under it. */
 function Stat({ value, label }: { value: string; label: string }) {
   return (
     <View style={styles.stat} accessible accessibilityLabel={`${label} ${value}`}>
-      <Text style={styles.muted}>{label}</Text>
-      <Text style={styles.statValue}>{value}</Text>
+      <Text style={[type.num, styles.statValue]} numberOfLines={1} adjustsFontSizeToFit>
+        {value}
+      </Text>
+      <Text style={styles.statLabel}>{label}</Text>
     </View>
   );
 }
 
-const AVATAR = 64;
+const AVATAR = 56;
 
 const styles = StyleSheet.create({
-  title: {
-    color: tokens.color.text,
-    fontSize: tokens.fontSize.title,
-    fontWeight: tokens.fontWeight.semibold,
+  heading: {
+    gap: tokens.hairline,
   },
   label: {
     color: tokens.color.textSecondary,
-    fontSize: tokens.fontSize.label,
-    fontWeight: tokens.fontWeight.medium,
+    fontSize: tokens.fontSize.caption,
+    fontWeight: tokens.fontWeight.semibold,
   },
   muted: {
     color: tokens.color.textSecondary,
     fontSize: tokens.fontSize.label,
   },
+  // Avatar and name on one row, starting on the card's text inset like everything under it.
   account: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: tokens.space.sm,
-    paddingTop: tokens.space.md,
-    paddingBottom: tokens.space.xs,
+    gap: tokens.space.md,
+    paddingLeft: tokens.card.headerInset,
+    paddingVertical: tokens.space.sm,
+  },
+  accountTexts: {
+    flex: 1,
+    gap: tokens.hairline,
+  },
+  email: {
+    color: tokens.color.textSecondary,
+    fontSize: tokens.fontSize.caption,
   },
   avatar: {
     width: AVATAR,
@@ -444,17 +441,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: tokens.radius.pill,
-    backgroundColor: tokens.color.borderStrong,
+    backgroundColor: tokens.color.primary,
   },
   avatarText: {
     color: tokens.color.onPrimary,
     fontSize: tokens.fontSize.title,
-    fontWeight: tokens.fontWeight.semibold,
+    fontWeight: tokens.fontWeight.heavy,
   },
   name: {
     color: tokens.color.text,
-    fontSize: tokens.fontSize.title,
-    fontWeight: tokens.fontWeight.medium,
+    fontSize: tokens.fontSize.subtitle + 2,
+    fontWeight: tokens.fontWeight.bold,
   },
   statRow: {
     flexDirection: 'row',
@@ -470,7 +467,10 @@ const styles = StyleSheet.create({
   },
   statValue: {
     color: tokens.color.text,
-    fontSize: tokens.fontSize.subtitle,
-    fontWeight: tokens.fontWeight.semibold,
+    fontSize: tokens.fontSize.title,
+  },
+  statLabel: {
+    color: tokens.color.textSecondary,
+    fontSize: tokens.fontSize.caption - 1,
   },
 });

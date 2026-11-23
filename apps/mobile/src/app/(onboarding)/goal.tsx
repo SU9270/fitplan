@@ -40,9 +40,9 @@ export default function Goal() {
       onNext={() => router.push('/basics')}
       footer={
         editing ? (
-          <TextButton title={t('onboarding.cancelEdit')} onPress={() => router.back()} />
+          <TextButton tone="quiet" title={t('onboarding.cancelEdit')} onPress={() => router.back()} />
         ) : (
-          <TextButton title={t('auth.signOut')} onPress={() => void signOut()} />
+          <TextButton tone="quiet" title={t('auth.signOut')} onPress={() => void signOut()} />
         )
       }
     >
@@ -86,12 +86,13 @@ const styles = StyleSheet.create({
     gap: tokens.space.sm,
   },
   label: {
-    color: tokens.color.text,
+    color: tokens.color.textSecondary,
     fontSize: tokens.fontSize.caption,
     fontWeight: tokens.fontWeight.semibold,
   },
   paceHint: {
     color: tokens.color.textSecondary,
-    fontSize: tokens.fontSize.body,
+    fontSize: tokens.fontSize.label,
+    lineHeight: tokens.fontSize.label * 1.45,
   },
 });

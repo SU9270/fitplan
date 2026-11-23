@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { useLocale } from '../i18n';
 import { tokens } from '../theme/tokens';
+import { type } from './display';
 
 /** Segmented progress bar for the questionnaire ("第 2 / 4 步"). */
 export function StepProgress({ step, total }: { step: number; total: number }) {
@@ -14,7 +15,7 @@ export function StepProgress({ step, total }: { step: number; total: number }) {
       accessibilityValue={{ min: 1, max: total, now: step }}
       style={styles.container}
     >
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[type.num, styles.label]}>{label}</Text>
       <View style={styles.bar}>
         {Array.from({ length: total }, (_, i) => (
           <View key={i} style={[styles.segment, i < step && styles.segmentDone]} />
@@ -24,14 +25,15 @@ export function StepProgress({ step, total }: { step: number; total: number }) {
   );
 }
 
+const SEGMENT_HEIGHT = 6;
+
 const styles = StyleSheet.create({
   container: {
-    gap: tokens.space.xs,
+    gap: tokens.space.sm,
   },
   label: {
     color: tokens.color.textSecondary,
     fontSize: tokens.fontSize.caption,
-    fontWeight: tokens.fontWeight.medium,
   },
   bar: {
     flexDirection: 'row',
@@ -39,9 +41,9 @@ const styles = StyleSheet.create({
   },
   segment: {
     flex: 1,
-    height: tokens.space.sm,
+    height: SEGMENT_HEIGHT,
     borderRadius: tokens.radius.pill,
-    backgroundColor: tokens.color.border,
+    backgroundColor: tokens.color.surfaceRaised,
   },
   segmentDone: {
     backgroundColor: tokens.color.primary,

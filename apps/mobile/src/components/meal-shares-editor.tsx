@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { shareTotal, stepShare } from '../diary/plate-view';
 import { useLocale } from '../i18n';
 import { tokens } from '../theme/tokens';
+import { type } from './display';
 import { ErrorText, SoftButton } from './form';
 
 type Props = {
@@ -12,7 +13,11 @@ type Props = {
   onSave: (shares: MealShares) => Promise<boolean>;
 };
 
-/** Me → Settings: how the daily targets are split over the meals, ±5 % per tap, total 100 %. */
+/**
+ * How the daily targets are split over the meals, ±5 % per tap, total 100 %.
+ * Not shown since 2026-11-22: feedback is for the whole day, so the split changes nothing the
+ * user sees. The setting, its API and this editor are kept in case per-meal targets come back.
+ */
 export function MealSharesEditor({ value, onSave }: Props) {
   const { t } = useLocale();
   const [draft, setDraft] = useState(value);
@@ -44,7 +49,7 @@ export function MealSharesEditor({ value, onSave }: Props) {
               setDraft(stepShare(draft, meal, -1));
             }}
           />
-          <Text style={styles.value}>{draft[meal]}%</Text>
+          <Text style={[type.num, styles.value]}>{draft[meal]}%</Text>
           <Step
             symbol="+"
             label={t('profile.mealShares.increase', { meal: t(`meal.${meal}`) })}
@@ -81,7 +86,7 @@ function Step({ symbol, label, onPress }: { symbol: string; label: string; onPre
   );
 }
 
-const STEP = 36;
+const STEP = 40;
 
 const styles = StyleSheet.create({
   container: {
@@ -89,8 +94,8 @@ const styles = StyleSheet.create({
   },
   label: {
     color: tokens.color.textSecondary,
-    fontSize: tokens.fontSize.label,
-    fontWeight: tokens.fontWeight.medium,
+    fontSize: tokens.fontSize.caption,
+    fontWeight: tokens.fontWeight.semibold,
   },
   hint: {
     color: tokens.color.textSecondary,
@@ -111,20 +116,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: tokens.color.text,
     fontSize: tokens.fontSize.body,
-    fontWeight: tokens.fontWeight.semibold,
   },
   step: {
     width: STEP,
     height: STEP,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    borderColor: tokens.color.border,
-    backgroundColor: tokens.color.surface,
+    borderRadius: tokens.radius.inner,
+    backgroundColor: tokens.color.surfaceRaised,
   },
   stepPressed: {
-    backgroundColor: tokens.color.card,
+    backgroundColor: tokens.color.borderStrong,
   },
   stepText: {
     color: tokens.color.text,

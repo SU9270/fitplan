@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useLocale } from '../i18n';
 import type { Preview } from '../onboarding/preview';
 import { tokens } from '../theme/tokens';
+import { Title } from './display';
 import { PrimaryButton, TextButton } from './form';
 import { LanguageSwitch } from './language-switch';
 import { PreviewStrip } from './preview-strip';
@@ -49,9 +50,7 @@ export function StepLayout({
         <LanguageSwitch />
       </View>
       <View style={styles.heading}>
-        <Text accessibilityRole="header" style={styles.title}>
-          {title}
-        </Text>
+        <Title size="display">{title}</Title>
         <Text style={styles.subtitle}>{subtitle}</Text>
       </View>
       {children}
@@ -59,7 +58,7 @@ export function StepLayout({
       <Text style={styles.disclaimer}>{t('onboarding.disclaimer')}</Text>
       <View style={styles.nav}>
         <PrimaryButton title={nextTitle ?? t('onboarding.next')} onPress={onNext} busy={nextBusy} />
-        {onBack ? <TextButton title={t('onboarding.back')} onPress={onBack} disabled={nextBusy} /> : null}
+        {onBack ? <TextButton tone="quiet" title={t('onboarding.back')} onPress={onBack} disabled={nextBusy} /> : null}
         {footer}
       </View>
     </Screen>
@@ -75,17 +74,16 @@ const styles = StyleSheet.create({
   progress: {
     flex: 1,
   },
+  // More room under the heading than between the fields that follow, so it reads as the step's title.
   heading: {
-    gap: tokens.space.sm,
-  },
-  title: {
-    color: tokens.color.text,
-    fontSize: tokens.fontSize.title,
-    fontWeight: tokens.fontWeight.semibold,
+    gap: tokens.space.xs,
+    marginTop: tokens.space.sm,
+    marginBottom: tokens.space.sm,
   },
   subtitle: {
     color: tokens.color.textSecondary,
-    fontSize: tokens.fontSize.body,
+    fontSize: tokens.fontSize.label + 1,
+    lineHeight: (tokens.fontSize.label + 1) * 1.45,
   },
   disclaimer: {
     color: tokens.color.textSecondary,
@@ -93,6 +91,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   nav: {
-    gap: tokens.space.sm,
+    gap: tokens.space.xs,
   },
 });

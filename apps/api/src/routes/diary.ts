@@ -32,7 +32,7 @@ export const diaryRoutes = new Hono<AppEnv>()
   .get('/', async (c) => {
     const query = parseValue(c.req.query(), diaryDayQuerySchema);
     if (!query.ok) return c.json({ error: 'invalid_input' as const, fields: query.fields }, 400);
-    return c.json(await getDiaryDay(createDb(c.env.DB), c.var.user.id, query.data.date));
+    return c.json(await getDiaryDay(createDb(c.env.DB), c.var.user.id, query.data.date, query.data.meal));
   })
   .get('/stats', async (c) => {
     const query = parseValue(c.req.query(), diaryStatsQuerySchema);

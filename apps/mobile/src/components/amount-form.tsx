@@ -5,6 +5,7 @@ import { checkAmount, defaultQuantity, formatNumber, type AmountUnit, type Porti
 import { useLocale, type MessageKey } from '../i18n';
 import { tokens } from '../theme/tokens';
 import { Card, CardHeader, Tile } from './card';
+import { type } from './display';
 import { ErrorText, TextField } from './form';
 import { SegmentedControl } from './segmented-control';
 
@@ -74,7 +75,7 @@ export function AmountForm({ per100g, portions, value, onChange }: Props) {
           />
           {check.ok ? (
             value.unit.kind === 'portion' ? (
-              <Text style={styles.hint}>{t('food.amountGrams', { n: formatNumber(check.grams) })}</Text>
+              <Text style={[type.num, styles.hint]}>{t('food.amountGrams', { n: formatNumber(check.grams) })}</Text>
             ) : null
           ) : (
             <ErrorText
@@ -99,7 +100,7 @@ export function AmountForm({ per100g, portions, value, onChange }: Props) {
                 <View style={[styles.swatch, { backgroundColor: color }]} />
                 <Text style={styles.macroLabel}>{t(label)}</Text>
               </View>
-              <Text style={styles.macroValue}>{gramsText(eaten?.[key] ?? null, t)}</Text>
+              <Text style={[type.num, styles.macroValue]}>{gramsText(eaten?.[key] ?? null, t)}</Text>
             </View>
           ))}
         </View>
@@ -143,7 +144,7 @@ function Chip({ label, selected, onPress }: { label: string; selected: boolean; 
   );
 }
 
-const SWATCH = 10;
+const SWATCH = 8;
 
 const styles = StyleSheet.create({
   container: {
@@ -159,8 +160,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: tokens.space.md,
     borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    borderColor: tokens.color.border,
+    borderWidth: 1.5,
+    borderColor: tokens.color.surface,
     backgroundColor: tokens.color.surface,
   },
   chipSelected: {
@@ -170,10 +171,11 @@ const styles = StyleSheet.create({
   chipText: {
     color: tokens.color.text,
     fontSize: tokens.fontSize.label,
+    fontWeight: tokens.fontWeight.medium,
   },
   chipTextSelected: {
     color: tokens.color.primary,
-    fontWeight: tokens.fontWeight.semibold,
+    fontWeight: tokens.fontWeight.bold,
   },
   hint: {
     color: tokens.color.textSecondary,
@@ -185,7 +187,7 @@ const styles = StyleSheet.create({
   },
   macro: {
     flex: 1,
-    gap: tokens.hairline,
+    gap: tokens.space.xs,
     paddingHorizontal: tokens.card.tilePaddingX,
     paddingVertical: tokens.card.tilePaddingY,
     borderRadius: tokens.radius.md,
@@ -194,7 +196,7 @@ const styles = StyleSheet.create({
   macroLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: tokens.space.xs,
+    gap: tokens.space.xs + tokens.hairline,
   },
   swatch: {
     width: SWATCH,
@@ -203,11 +205,10 @@ const styles = StyleSheet.create({
   },
   macroLabel: {
     color: tokens.color.textSecondary,
-    fontSize: tokens.fontSize.caption,
+    fontSize: tokens.fontSize.caption - 1,
   },
   macroValue: {
     color: tokens.color.text,
-    fontSize: tokens.fontSize.body,
-    fontWeight: tokens.fontWeight.semibold,
+    fontSize: tokens.fontSize.subtitle,
   },
 });

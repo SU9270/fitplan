@@ -15,6 +15,7 @@ import { call, failureText, type CallResponse, type Failure } from '../lib/reque
 import { withJson } from '../lib/with-json';
 import { tokens } from '../theme/tokens';
 import { Card, CardHeader } from './card';
+import { type } from './display';
 import { ErrorText } from './form';
 import { LibraryGrid, TILE_IMAGE_SIZE, tileStyles } from './library-grid';
 import { SLOT_COLORS } from './meal-plate';
@@ -99,8 +100,7 @@ export function MyLibrary({ favorites, templates, onNotice }: Props) {
       {favorites.length === 0 ? (
         <Text style={styles.muted}>{t('library.mine.empty')}</Text>
       ) : (
-        <Card>
-          <LibraryGrid
+        <LibraryGrid
             items={favorites}
             renderTile={(food, width) => {
               const name = favoriteName(food, locale);
@@ -119,7 +119,6 @@ export function MyLibrary({ favorites, templates, onNotice }: Props) {
               );
             }}
           />
-        </Card>
       )}
 
       {templates.length > 0 ? (
@@ -152,7 +151,7 @@ function MealRow({ title, subtitle, added, addLabel, addedLabel, onAdd }: MealRo
         <Text style={styles.mealTitle} numberOfLines={2}>
           {title}
         </Text>
-        <Text style={tileStyles.value} numberOfLines={1}>
+        <Text style={[type.num, styles.mealValue]} numberOfLines={1}>
           {subtitle}
         </Text>
       </View>
@@ -176,7 +175,7 @@ function AddButton({ added, addLabel, addedLabel, onAdd, corner = false }: AddBu
       <Ionicons
         name={added ? 'checkmark' : 'add'}
         size={tokens.fontSize.subtitle}
-        color={added ? tokens.color.onPrimary : tokens.color.primary}
+        color={tokens.color.onPrimary}
       />
     </Pressable>
   );
@@ -191,7 +190,7 @@ export function MyLibraryNoticeLine({ notice }: { notice: MyLibraryNotice }) {
         <ErrorText message={failureText(notice.failure, t)} />
       ) : (
         <View accessibilityLiveRegion="polite" style={styles.noticeRow}>
-          <Ionicons name="checkmark-circle" size={tokens.fontSize.body} color={tokens.color.primary} />
+          <Ionicons name="checkmark-circle" size={tokens.fontSize.subtitle} color={tokens.color.success} />
           <Text style={styles.noticeText} numberOfLines={1}>
             {notice.text}
           </Text>
@@ -225,20 +224,20 @@ function FavoriteTile({ food, name, value, width, added, addLabel, addedLabel, o
         }}
         style={({ pressed }) => [tileStyles.tile, styles.tile, pressed && tileStyles.tilePressed]}
       >
-        {image ? (
-          <Image source={image} style={tileStyles.image} resizeMode="contain" accessible={false} />
-        ) : (
-          // No picture (a searched or custom food): its plate cell's color and the name's first character.
-          <View style={[tileStyles.image, tileStyles.placeholder]}>
+        <View style={[tileStyles.plate, image ? null : styles.plateEmpty]}>
+          {image ? (
+            <Image source={image} style={tileStyles.image} resizeMode="contain" accessible={false} />
+          ) : (
+            // No picture (a searched or custom food): its plate cell's color and the name's first character.
             <View style={[styles.circle, { backgroundColor: SLOT_COLORS[food.slot] }]}>
               <Text style={styles.initial}>{favoriteInitial(name)}</Text>
             </View>
-          </View>
-        )}
+          )}
+        </View>
         <Text style={tileStyles.name} numberOfLines={2}>
           {name}
         </Text>
-        <Text style={tileStyles.value} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+        <Text style={[type.num, tileStyles.value]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
           {value}
         </Text>
       </Pressable>
@@ -249,8 +248,8 @@ function FavoriteTile({ food, name, value, width, added, addLabel, addedLabel, o
 }
 
 /** The "＋" in a tile's corner; `hitSlop` brings its touch area to the usual size. */
-const ADD_SIZE = 28;
-/** The circle that stands in for a picture, a little smaller than one. */
+const ADD_SIZE = 30;
+/** The circle that stands in for a picture. */
 const CIRCLE_SIZE = TILE_IMAGE_SIZE - tokens.space.md;
 
 const styles = StyleSheet.create({
@@ -270,10 +269,15 @@ const styles = StyleSheet.create({
     fontSize: tokens.fontSize.title,
     fontWeight: tokens.fontWeight.semibold,
   },
+  plateEmpty: {
+    backgroundColor: tokens.color.surface,
+  },
+  // On the plate's corner, the same distance from its top and right edges.
   addCorner: {
     position: 'absolute',
-    top: tokens.space.xs,
-    right: tokens.space.xs,
+    top: tokens.card.gap + tokens.space.xs,
+    right: tokens.card.gap + tokens.space.xs,
+    ...tokens.shadow.raised,
   },
   meal: {
     flexDirection: 'row',
@@ -283,6 +287,10 @@ const styles = StyleSheet.create({
     paddingVertical: tokens.space.md,
     borderRadius: tokens.radius.md,
     backgroundColor: tokens.color.surface,
+  },
+  mealValue: {
+    color: tokens.color.textSecondary,
+    fontSize: tokens.fontSize.caption,
   },
   mealTexts: {
     flex: 1,
@@ -299,19 +307,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: ADD_SIZE / 2,
-    backgroundColor: tokens.color.primarySoft,
-  },
-  addDone: {
     backgroundColor: tokens.color.primary,
   },
+  addDone: {
+    backgroundColor: tokens.color.success,
+  },
+  // Floats over the page: the lightest surface, an edge, and the one real shadow in the app.
   notice: {
     paddingHorizontal: tokens.space.lg,
     paddingVertical: tokens.space.md,
     borderRadius: tokens.radius.md,
     borderWidth: 1,
-    borderColor: tokens.color.border,
-    backgroundColor: tokens.color.surface,
-    ...tokens.shadow.raised,
+    borderColor: tokens.color.borderStrong,
+    backgroundColor: tokens.color.surfaceRaised,
+    ...tokens.shadow.floating,
   },
   noticeRow: {
     flexDirection: 'row',
@@ -322,6 +331,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: tokens.color.text,
     fontSize: tokens.fontSize.label,
+    fontWeight: tokens.fontWeight.medium,
   },
   muted: {
     color: tokens.color.textSecondary,

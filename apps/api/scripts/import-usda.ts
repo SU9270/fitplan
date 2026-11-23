@@ -1,4 +1,5 @@
-// Import the USDA FoodData Central "SR Legacy" foods into the D1 database.
+// Import the USDA FoodData Central "SR Legacy" foods, plus the few foods USDA lacks from the
+// China Food Composition Table (data/cn-foods.csv), into the D1 database.
 //
 //   1. Download "SR Legacy" (CSV) from https://fdc.nal.usda.gov/download-datasets and unzip it.
 //   2. pnpm --filter @fitplan/api food:import -- --dir <unzipped folder>            # local database
@@ -14,7 +15,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { buildUsdaImport, parseZhNames, toImportSql } from '../src/foods/usda-import.ts';
+import { buildCnImport, buildUsdaImport, parseCnFoods, parseZhNames, toImportSql } from '../src/foods/usda-import.ts';
 
 const DATABASE_NAME = 'fitplan';
 const API_DIR = fileURLToPath(new URL('..', import.meta.url));
@@ -65,6 +66,9 @@ const files = Object.fromEntries(Object.entries(FILES).map(([key, file]) => [key
 
 const data = buildUsdaImport(files, parseZhNames(readFileSync(path.resolve(invokedFrom, values.zh), 'utf8')));
 if (data.foods.length === 0) fail(`No SR Legacy foods found in ${dataDir}.`);
+const usdaLibraryCount = data.foods.filter((f) => f.libraryKey !== null).length;
+const cn = buildCnImport(parseCnFoods(readFileSync(path.join(API_DIR, 'data', 'cn-foods.csv'), 'utf8')), usdaLibraryCount);
+console.log(`China Food Composition Table foods: ${cn.foods.length}`);
 const named = data.foods.filter((f) => f.nameZh !== null).length;
 console.log(`Foods: ${data.foods.length} (${named} with a Chinese name), portions: ${data.portions.length}`);
 if (data.unmatchedSuggestPortions.length > 0) {
@@ -95,7 +99,10 @@ if (!values.remote) {
 
 const workDir = mkdtempSync(path.join(tmpdir(), 'fitplan-usda-'));
 const sqlFile = path.join(workDir, 'import.sql');
-writeFileSync(sqlFile, toImportSql(data, new Date().toISOString()).join('\n'));
+writeFileSync(
+  sqlFile,
+  toImportSql({ foods: [...data.foods, ...cn.foods], portions: [...data.portions, ...cn.portions] }, new Date().toISOString()).join('\n'),
+);
 
 const result = spawnSync(
   'pnpm',

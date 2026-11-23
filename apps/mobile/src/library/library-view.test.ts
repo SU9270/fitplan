@@ -58,14 +58,15 @@ describe('groupValue', () => {
 
 describe('library images', () => {
   const root = path.resolve(__dirname, '../../');
-  const csv = readFileSync(path.resolve(root, '../api/data/usda-zh.csv'), 'utf8');
-  // The library key is the last column; rows with quoted commas still end in it.
-  const keys = csv
-    .trim()
-    .split('\n')
-    .slice(1)
-    .map((line) => line.slice(line.lastIndexOf(',') + 1).trim())
-    .filter((key) => key !== '');
+  // The library key is the last column of both tables; rows with quoted commas still end in it.
+  const keys = ['usda-zh.csv', 'cn-foods.csv'].flatMap((file) =>
+    readFileSync(path.resolve(root, '../api/data', file), 'utf8')
+      .trim()
+      .split('\n')
+      .slice(1)
+      .map((line) => line.slice(line.lastIndexOf(',') + 1).trim())
+      .filter((key) => key !== ''),
+  );
   const files = readdirSync(path.join(root, 'assets/library'))
     .filter((f) => f.endsWith('.png'))
     .map((f) => f.slice(0, -'.png'.length));

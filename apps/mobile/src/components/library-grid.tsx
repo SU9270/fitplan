@@ -4,7 +4,7 @@ import { tokens } from '../theme/tokens';
 
 const COLUMNS = 3;
 
-/** Side of a tile's picture (or of the circle that stands in for one). */
+/** Size of the icon or circle that stands in for a missing picture. */
 export const TILE_IMAGE_SIZE = 64;
 
 type Props<T> = {
@@ -16,7 +16,8 @@ type Props<T> = {
 /** The food library's three-column grid of tiles; tiles appear once the grid knows its width. */
 export function LibraryGrid<T>({ items, renderTile }: Props<T>) {
   const [gridWidth, setGridWidth] = useState(0);
-  const tileWidth = gridWidth > 0 ? (gridWidth - tokens.card.gap * (COLUMNS - 1)) / COLUMNS : 0;
+  // Rounded down, so three tiles and two gaps never add up to more than the row.
+  const tileWidth = gridWidth > 0 ? Math.floor((gridWidth - GAP * (COLUMNS - 1)) / COLUMNS) : 0;
   return (
     <View style={styles.grid} onLayout={(e) => setGridWidth(e.nativeEvent.layout.width)}>
       {tileWidth > 0 ? items.map((item) => renderTile(item, tileWidth)) : null}
@@ -24,43 +25,59 @@ export function LibraryGrid<T>({ items, renderTile }: Props<T>) {
   );
 }
 
+const GAP = tokens.space.sm;
+
 const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: tokens.card.gap,
+    gap: GAP,
   },
 });
 
-/** A tile: picture, name, one value. Shared by every group of the food library. */
+/**
+ * A tile: a small card holding a white plate with the picture, then the name and one value.
+ * Shared by every group of the food library. The plate's corner nests in the tile's.
+ */
 export const tileStyles = StyleSheet.create({
   tile: {
-    alignItems: 'center',
-    gap: tokens.space.xs,
-    paddingHorizontal: tokens.space.xs,
-    paddingVertical: tokens.space.md,
-    borderRadius: tokens.radius.md,
-    backgroundColor: tokens.color.surface,
+    gap: tokens.hairline,
+    padding: tokens.card.gap,
+    paddingBottom: tokens.card.padding,
+    borderRadius: tokens.radius.md + tokens.card.gap,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.color.cardBorder,
+    backgroundColor: tokens.color.card,
   },
   tilePressed: {
     opacity: 0.6,
   },
-  image: {
-    width: TILE_IMAGE_SIZE,
-    height: TILE_IMAGE_SIZE,
-  },
-  placeholder: {
+  // The pictures have a white background, so the plate is white too.
+  plate: {
+    width: '100%',
+    aspectRatio: 1,
+    // A tile stretched to its row's height must not squeeze the plate (its width follows its height).
+    flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: tokens.card.gap,
+    overflow: 'hidden',
+    borderRadius: tokens.radius.md,
+    backgroundColor: tokens.color.paperTile,
+  },
+  image: {
+    width: '100%',
+    height: '100%',
   },
   name: {
+    paddingHorizontal: tokens.space.xs,
     color: tokens.color.text,
     fontSize: tokens.fontSize.label,
-    fontWeight: tokens.fontWeight.medium,
-    textAlign: 'center',
+    fontWeight: tokens.fontWeight.bold,
   },
   value: {
+    paddingHorizontal: tokens.space.xs,
     color: tokens.color.textSecondary,
-    fontSize: tokens.fontSize.caption,
+    fontSize: tokens.fontSize.caption - 1,
   },
 });

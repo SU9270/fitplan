@@ -65,10 +65,10 @@ export default function Health() {
 
 const styles = StyleSheet.create({
   group: {
-    gap: tokens.space.xs,
+    gap: tokens.space.sm,
   },
   label: {
-    color: tokens.color.text,
+    color: tokens.color.textSecondary,
     fontSize: tokens.fontSize.caption,
     fontWeight: tokens.fontWeight.semibold,
   },
