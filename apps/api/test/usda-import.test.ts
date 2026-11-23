@@ -1,7 +1,8 @@
 import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
+import cnCsv from '../data/cn-foods.csv?raw';
 import zhCsv from '../data/usda-zh.csv?raw';
-import { buildUsdaImport, parseZhNames, portionLabel, toImportSql, type UsdaCsvFiles } from '../src/foods/usda-import';
+import { buildCnImport, buildUsdaImport, parseCnFoods, parseZhNames, portionLabel, toImportSql, type UsdaCsvFiles } from '../src/foods/usda-import';
 import { unique } from './helpers';
 
 // Synthetic rows in the layout of the FoodData Central SR Legacy CSV download (every field
@@ -195,5 +196,106 @@ describe('toImportSql', () => {
     expect(portions?.n).toBe(3);
     const custom = await env.DB.prepare('SELECT name FROM foods WHERE id = ?').bind(`custom-${ownerId}`).first();
     expect(custom).toEqual({ name: 'My bar' });
+  });
+});
+
+const CN_HEADER = 'key,name,name_zh,aliases,category,kcal,protein_g,carbs_g,fat_g,fiber_g,sugars_g,sodium_mg,portion_label,portion_grams,reference,suggest_portion,library';
+const cnText = `${CN_HEADER}\ntest_bun,Test bun,测试馒头,白馒头| bun ,Baked Products,223,7,47,1.1,,,,1 medium,100,Test table,1 medium,test_bun\n`;
+
+describe('parseCnFoods', () => {
+  it('reads nutrients per 100 g (blank = unknown), the portion and the library key', () => {
+    expect(parseCnFoods(cnText)).toEqual([
+      {
+        key: 'test_bun',
+        name: 'Test bun',
+        nameZh: '测试馒头',
+        aliases: ['白馒头', 'bun'],
+        category: 'Baked Products',
+        kcal: 223,
+        proteinG: 7,
+        carbsG: 47,
+        fatG: 1.1,
+        fiberG: null,
+        sugarsG: null,
+        sodiumMg: null,
+        portion: { label: '1 medium', grams: 100 },
+        suggest: true,
+        library: 'test_bun',
+      },
+    ]);
+  });
+
+  it('rejects bad keys, duplicates, missing energy, bad portions and a suggestion that is not the portion', () => {
+    const row = (fields: Partial<Record<string, string>>) => {
+      const base: Record<string, string> = {
+        key: 'bun', name: 'Bun', name_zh: '馒头', aliases: '', category: '', kcal: '223', protein_g: '7', carbs_g: '47', fat_g: '1.1',
+        fiber_g: '', sugars_g: '', sodium_mg: '', portion_label: '1 medium', portion_grams: '100', reference: 'x', suggest_portion: '', library: '',
+      };
+      const merged = { ...base, ...fields };
+      return `${CN_HEADER}\n${CN_HEADER.split(',').map((c) => merged[c]).join(',')}\n`;
+    };
+    expect(() => parseCnFoods(row({ key: 'Bun' }))).toThrow(/bad key/);
+    expect(() => parseCnFoods(row({}) + 'bun,Bun2,馒头2,,,1,1,1,1,,,,1 medium,100,x,,\n')).toThrow(/duplicate key/);
+    expect(() => parseCnFoods(row({ kcal: '' }))).toThrow(/kcal/);
+    expect(() => parseCnFoods(row({ protein_g: 'abc' }))).toThrow(/protein_g/);
+    expect(() => parseCnFoods(row({ portion_grams: '0' }))).toThrow(/portion/);
+    expect(() => parseCnFoods(row({ reference: '' }))).toThrow(/reference/);
+    expect(() => parseCnFoods(row({ suggest_portion: '1 large' }))).toThrow(/suggest_portion/);
+    expect(() => parseCnFoods(row({ library: 'other' }))).toThrow(/library/);
+  });
+
+  it('the shipped table has steamed buns with the China Food Composition Table values', () => {
+    const foods = parseCnFoods(cnCsv);
+    const mantou = foods.find((f) => f.key === 'mantou');
+    expect(mantou).toMatchObject({ nameZh: '馒头', kcal: 223, proteinG: 7, carbsG: 47, fatG: 1.1, library: 'mantou', suggest: true });
+  });
+});
+
+describe('buildCnImport', () => {
+  it('builds cn_fct food rows after the USDA library rows, with their one portion', () => {
+    const data = buildCnImport(parseCnFoods(cnText), 76);
+    expect(data.foods).toEqual([
+      expect.objectContaining({
+        id: 'cn-test_bun',
+        source: 'cn_fct',
+        fdcId: null,
+        name: 'Test bun',
+        nameZh: '测试馒头',
+        aliases: '白馒头|bun',
+        category: 'Baked Products',
+        suggestPortionId: 'cn-portion-test_bun',
+        kcal: 223,
+        fiberG: null,
+        libraryKey: 'test_bun',
+        libraryRank: 76,
+      }),
+    ]);
+    expect(data.foods[0]?.searchText).toContain('测试馒头');
+    expect(data.portions).toEqual([{ id: 'cn-portion-test_bun', foodId: 'cn-test_bun', label: '1 medium', grams: 100, sortOrder: 1 }]);
+  });
+
+  it('imports with the USDA rows and can run again', async () => {
+    const usda = buildUsdaImport(files, zh);
+    const cn = buildCnImport(parseCnFoods(cnText), 1);
+    const data = { foods: [...usda.foods, ...cn.foods], portions: [...usda.portions, ...cn.portions] };
+    for (const now of ['2026-11-22T00:00:00.000Z', '2026-11-23T00:00:00.000Z']) {
+      for (const statement of toImportSql(data, now)) await env.DB.prepare(statement).run();
+    }
+    const food = await env.DB.prepare(
+      "SELECT source, fdc_id, owner_user_id, kcal, library_key, library_rank, suggest_portion_id, created_at, updated_at FROM foods WHERE id = 'cn-test_bun'",
+    ).first();
+    expect(food).toEqual({
+      source: 'cn_fct',
+      fdc_id: null,
+      owner_user_id: null,
+      kcal: 223,
+      library_key: 'test_bun',
+      library_rank: 1,
+      suggest_portion_id: 'cn-portion-test_bun',
+      created_at: '2026-11-22T00:00:00.000Z',
+      updated_at: '2026-11-23T00:00:00.000Z',
+    });
+    const portion = await env.DB.prepare("SELECT label, grams FROM food_portions WHERE food_id = 'cn-test_bun'").all();
+    expect(portion.results).toEqual([{ label: '1 medium', grams: 100 }]);
   });
 });

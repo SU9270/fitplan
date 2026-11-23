@@ -28,7 +28,7 @@ export default function Index() {
             {t('gate.error.title')}
           </Text>
           <PrimaryButton title={t('gate.error.retry')} onPress={refreshProfile} />
-          <TextButton title={t('auth.signOut')} onPress={() => void authClient.signOut()} />
+          <TextButton tone="quiet" title={t('auth.signOut')} onPress={() => void authClient.signOut()} />
         </>
       )}
     </View>

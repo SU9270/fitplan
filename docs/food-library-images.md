@@ -1,6 +1,6 @@
 # 食物库配图
 
-食物库每个食物一张图，放在 `apps/mobile/assets/library/<文件名>.png`。前 55 张是 2026-11-15、后 21 张是 2026-11-22 用 GPT 生图（Codex CLI 里的 Image 2）生成的「釉面陶瓷小摆件」风格。生成过程的原图、每张的提示词和后处理脚本在仓库上一级的 `food-images-gpt/` 文件夹里，不进仓库。
+食物库每个食物一张图，放在 `apps/mobile/assets/library/<文件名>.png`。前 55 张是 2026-11-15、后 22 张是 2026-11-22 用 GPT 生图（Codex CLI 里的 Image 2）生成的「釉面陶瓷小摆件」风格。生成过程的原图、每张的提示词和后处理脚本在仓库上一级的 `food-images-gpt/` 文件夹里，不进仓库。
 
 ## 图片要求
 
@@ -32,9 +32,9 @@ glaze, like a ceramic toy food.
 2. 用下表的文件名覆盖 `apps/mobile/assets/library/` 里同名的文件
 3. 重启 `pnpm dev`（Expo 需要重新打包图片）
 
-新增一个食物：在 `apps/api/data/usda-zh.csv` 那一行的 `library` 列填上文件名（不带 .png），把图片放进上面的文件夹，在 `apps/mobile/src/library/images.ts` 加一行，再运行一次 `food:import`。测试会检查三处是否一致。
+新增一个食物：在 `apps/api/data/usda-zh.csv` 那一行的 `library` 列填上文件名（不带 .png）；USDA 里没有的食物写进 `apps/api/data/cn-foods.csv`（见下面「USDA 没有的食物」）。然后把图片放进上面的文件夹，在 `apps/mobile/src/library/images.ts` 加一行，再运行一次 `food:import`。测试会检查三处是否一致。
 
-## 清单（76 张）
+## 清单（77 张）
 
 | # | 文件名 | 食物 | 英文描述（填进提示词） |
 |---|---|---|---|
@@ -114,3 +114,10 @@ glaze, like a ceramic toy food.
 | 74 | `pineapple.png` | 菠萝 | pineapple with its green leafy crown |
 | 75 | `cherries.png` | 樱桃 | small cluster of three dark red cherries with stems |
 | 76 | `cantaloupe.png` | 哈密瓜 | cantaloupe melon cut in half showing orange flesh and netted rind |
+| 77 | `mantou.png` | 馒头 | pair of plain round white Chinese steamed buns (mantou), smooth soft domed tops（另加 no plate, no steamer basket） |
+
+## USDA 没有的食物
+
+USDA SR Legacy 里没有的中国常见食物（目前只有馒头），营养数据用《中国食物成分表》，写在 `apps/api/data/cn-foods.csv`：每 100 克的热量和营养素（空着表示未知，存 NULL，不写 0）、一个份量（如 `1 medium`, 100 克）、`reference` 列写明数字出自哪个条目。`food:import` 会把它们和 USDA 食物一起导入，来源记为 `cn_fct`，食物页显示「数据来源：中国食物成分表」。`category` 填一个 USDA 分类名（馒头填 `Baked Products`），这样盘子分格和「早餐、加餐只推荐轻食」的规则把它当作同类 USDA 食物处理。这些食物排在食物库每组的最后。
+
+馒头：223 千卡、蛋白质 7 克、碳水 47 克、脂肪 1.1 克（每 100 克，《中国食物成分表》馒头均值，经香港食物安全中心的营养资料核对）；膳食纤维、糖、钠没有核实，暂时为空。一个中等馒头按 100 克算。

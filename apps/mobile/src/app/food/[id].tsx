@@ -149,34 +149,47 @@ export default function FoodScreen() {
   const image = detail.libraryKey === null ? undefined : LIBRARY_IMAGES[detail.libraryKey];
   return (
     <Screen>
-      {image ? <Image source={image} style={styles.image} resizeMode="contain" accessible={false} /> : null}
       <ScreenHeader
         title={displayName(detail, locale)}
         subtitle={locale === 'zh' && detail.nameZh ? detail.name : undefined}
+        right={
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ selected: starred }}
+            onPress={toggleFavorite}
+            style={({ pressed }) => [styles.favorite, starred && styles.favoriteOn, pressed && styles.pressed]}
+          >
+            <Ionicons
+              name={starred ? 'star' : 'star-outline'}
+              size={tokens.fontSize.body}
+              color={starred ? tokens.color.onPrimary : tokens.color.text}
+            />
+            <Text style={[styles.favoriteText, starred && styles.favoriteTextOn]}>{t(starred ? 'favorite.remove' : 'favorite.add')}</Text>
+          </Pressable>
+        }
+        hero={
+          image ? (
+            // Yellow banner: the picture on a white plate and the plate cell it counts as.
+            <View style={styles.hero}>
+              <View style={styles.plate}>
+                <Image source={image} style={styles.image} resizeMode="contain" accessible={false} />
+              </View>
+              <Text style={styles.slotChip}>{t('plate.slotOf', { slot: t(`plate.slot.${detail.slot}`) })}</Text>
+            </View>
+          ) : undefined
+        }
       />
-      <Text style={styles.muted}>{t(isCustom ? 'food.source.custom' : 'food.source.usda')}</Text>
-      <View style={styles.slot}>
-        <View style={[styles.swatch, { backgroundColor: SLOT_COLORS[detail.slot] }]} />
-        <Text style={styles.muted}>{t('plate.slotOf', { slot: t(`plate.slot.${detail.slot}`) })}</Text>
-      </View>
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ selected: starred }}
-        onPress={toggleFavorite}
-        style={({ pressed }) => [styles.favorite, pressed && styles.pressed]}
-      >
-        <Ionicons
-          name={starred ? 'star' : 'star-outline'}
-          size={tokens.fontSize.subtitle}
-          color={starred ? tokens.color.primary : tokens.color.textSecondary}
-        />
-        <Text style={[styles.favoriteText, starred && styles.favoriteOn]}>{t(starred ? 'favorite.remove' : 'favorite.add')}</Text>
-      </Pressable>
+      {image ? null : (
+        <View style={styles.slot}>
+          <View style={[styles.swatch, { backgroundColor: SLOT_COLORS[detail.slot] }]} />
+          <Text style={styles.muted}>{t('plate.slotOf', { slot: t(`plate.slot.${detail.slot}`) })}</Text>
+        </View>
+      )}
 
       <AmountForm per100g={detail.per100g} portions={detail.portions} value={amount} onChange={setAmount} />
 
       {!isCustom ? <Per100gExtras food={detail} /> : null}
+      <Text style={styles.muted}>{t(`food.source.${detail.source}`)}</Text>
 
       <ErrorText message={error && failureText(error, t)} />
       <PrimaryButton
@@ -191,7 +204,7 @@ export default function FoodScreen() {
             title={t('food.edit')}
             onPress={() => router.push({ pathname: '/food/custom', params: { id: detail.id } })}
           />
-          <TextButton title={t('food.delete')} onPress={confirmDelete} />
+          <TextButton tone="quiet" title={t('food.delete')} onPress={confirmDelete} />
         </View>
       ) : null}
     </Screen>
@@ -218,16 +231,45 @@ function Per100gExtras({ food }: { food: FoodDetail }) {
 }
 
 /** Same as the plate cells' squares. */
-const SWATCH = 10;
+const SWATCH = 8;
 
-/** The food library picture above the name. */
-const IMAGE_SIZE = 96;
+/** The banner, and the round white plate with the food library picture on it. */
+const HERO_HEIGHT = 220;
+const PLATE_SIZE = 176;
 
 const styles = StyleSheet.create({
+  hero: {
+    height: HERO_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    borderRadius: tokens.radius.lg,
+    backgroundColor: tokens.color.primary,
+  },
+  plate: {
+    width: PLATE_SIZE,
+    height: PLATE_SIZE,
+    overflow: 'hidden',
+    borderRadius: PLATE_SIZE / 2,
+    backgroundColor: tokens.color.paperTile,
+  },
   image: {
-    width: IMAGE_SIZE,
-    height: IMAGE_SIZE,
-    alignSelf: 'center',
+    width: PLATE_SIZE,
+    height: PLATE_SIZE,
+  },
+  // Same inset from the banner's top and left edges as a card's text.
+  slotChip: {
+    position: 'absolute',
+    top: tokens.space.lg,
+    left: tokens.space.lg,
+    paddingHorizontal: tokens.space.sm + tokens.hairline,
+    paddingVertical: tokens.space.xs,
+    overflow: 'hidden',
+    borderRadius: tokens.radius.sm,
+    backgroundColor: tokens.color.onPrimary,
+    color: tokens.color.primary,
+    fontSize: tokens.fontSize.caption - 1,
+    fontWeight: tokens.fontWeight.heavy,
   },
   muted: {
     color: tokens.color.textSecondary,
@@ -240,21 +282,24 @@ const styles = StyleSheet.create({
     minHeight: tokens.touchTarget,
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: tokens.space.xs,
-    paddingHorizontal: tokens.space.md,
+    gap: tokens.space.xs + tokens.hairline,
+    paddingHorizontal: tokens.space.lg,
     borderRadius: tokens.radius.pill,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: tokens.color.border,
-    backgroundColor: tokens.color.surface,
-  },
-  favoriteText: {
-    color: tokens.color.textSecondary,
-    fontSize: tokens.fontSize.label,
-    fontWeight: tokens.fontWeight.medium,
+    backgroundColor: tokens.color.card,
   },
   favoriteOn: {
-    color: tokens.color.primary,
+    borderColor: tokens.color.primary,
+    backgroundColor: tokens.color.primary,
+  },
+  favoriteText: {
+    color: tokens.color.text,
+    fontSize: tokens.fontSize.label,
+    fontWeight: tokens.fontWeight.bold,
+  },
+  favoriteTextOn: {
+    color: tokens.color.onPrimary,
   },
   pressed: {
     opacity: 0.6,

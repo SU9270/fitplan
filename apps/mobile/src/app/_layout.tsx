@@ -1,3 +1,5 @@
+import { FugazOne_400Regular } from '@expo-google-fonts/fugaz-one';
+import { useFonts } from 'expo-font';
 import { SplashScreen, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -25,10 +27,13 @@ export const unstable_settings = {
 function RootNavigator() {
   const { status, editing } = useGate();
   const access = routeAccess(status, editing);
+  // The number / title font. If it cannot be loaded the app still opens, in the system font.
+  const [fontsLoaded, fontError] = useFonts({ FugazOne_400Regular });
+  const fontsSettled = fontsLoaded || fontError !== null;
 
   useEffect(() => {
-    if (status !== 'loading') SplashScreen.hide();
-  }, [status]);
+    if (status !== 'loading' && fontsSettled) SplashScreen.hide();
+  }, [status, fontsSettled]);
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: tokens.color.background } }}>
@@ -53,7 +58,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <GateProvider>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         {/* Above the navigator: the questionnaire draft survives a 401 sign-out and sign-in. */}
         <OnboardingProvider>
           <RootNavigator />

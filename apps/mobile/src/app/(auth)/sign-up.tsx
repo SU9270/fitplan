@@ -49,7 +49,7 @@ export default function SignUp() {
   const passwordRule = t('auth.password.placeholder', { min: PASSWORD_MIN_LENGTH });
 
   return (
-    <Screen centered>
+    <Screen>
       <AuthHeader title={t('auth.signUp.title')} subtitle={t('auth.signUp.subtitle')} />
       <TextField
         label={t('auth.email.label')}
@@ -86,7 +86,7 @@ export default function SignUp() {
       />
       <ErrorText message={message && t(message.key, message.params)} />
       <PrimaryButton title={t('auth.signUp.submit')} busy={busy} onPress={() => void submit()} />
-      <TextButton title={t('auth.signUp.toSignIn')} onPress={() => router.replace('/sign-in')} disabled={busy} />
+      <TextButton tone="quiet" title={t('auth.signUp.toSignIn')} onPress={() => router.replace('/sign-in')} disabled={busy} />
     </Screen>
   );
 }

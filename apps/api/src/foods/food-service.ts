@@ -5,7 +5,10 @@ import type { Db } from '../db/client';
 import { favoriteFoods, foodPortions, foods } from '../db/schema';
 import { buildSearchText } from './search-text';
 
-export type FoodSource = 'usda' | 'custom';
+/** Where a food's numbers come from: USDA SR Legacy, the China Food Composition Table, or the user. */
+export type FoodSource = 'usda' | 'cn' | 'custom';
+
+const SUMMARY_SOURCE: Record<FoodRow['source'], FoodSource> = { usda_sr_legacy: 'usda', cn_fct: 'cn', custom: 'custom' };
 
 export interface FoodSummary {
   id: string;
@@ -50,14 +53,14 @@ export function escapeLike(text: string): string {
   return text.replace(/[\\%_]/g, (ch) => `\\${ch}`);
 }
 
-/** The user's own custom foods plus all USDA foods. */
+/** The user's own custom foods plus all shared foods (USDA and China Food Composition Table). */
 export const visibleTo = (userId: string) => or(isNull(foods.ownerUserId), eq(foods.ownerUserId, userId));
 
 export function toSummary(row: FoodRow): FoodSummary {
   const per100g = { kcal: row.kcal, proteinG: row.proteinG, carbsG: row.carbsG, fatG: row.fatG };
   return {
     id: row.id,
-    source: row.source === 'custom' ? 'custom' : 'usda',
+    source: SUMMARY_SOURCE[row.source],
     name: row.name,
     nameZh: row.nameZh,
     per100g,

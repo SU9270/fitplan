@@ -22,6 +22,7 @@ export function Screen({ children, centered = false, inTabs = false, overlay }: 
     <SafeAreaView style={styles.safe} edges={inTabs ? TAB_SCREEN_EDGES : undefined}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
+          indicatorStyle="white"
           contentContainerStyle={[styles.content, centered && styles.centered]}
           keyboardShouldPersistTaps="handled"
         >
@@ -46,9 +47,12 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
+  // One page margin for every screen, so titles, cards and buttons share a left edge.
   content: {
     flexGrow: 1,
-    padding: tokens.space.xl,
+    paddingHorizontal: tokens.space.lg,
+    paddingTop: tokens.space.lg,
+    paddingBottom: tokens.space.xxl,
   },
   centered: {
     justifyContent: 'center',
@@ -61,8 +65,8 @@ const styles = StyleSheet.create({
   },
   overlay: {
     position: 'absolute',
-    left: tokens.space.xl,
-    right: tokens.space.xl,
+    left: tokens.space.lg,
+    right: tokens.space.lg,
     bottom: tokens.space.lg,
   },
 });

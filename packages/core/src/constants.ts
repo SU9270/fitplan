@@ -108,19 +108,14 @@ export const OTHER_CATEGORIES: readonly string[] = [
  */
 export const PROTEIN_SLOT_MIN_ENERGY_SHARE = 0.3;
 
-/** Within ±10 % of a meal target counts as met (requirements §3.3). */
+/** Within ±10 % of the daily target counts as met (requirements §3.3 says it per meal). */
 export const GAP_TOLERANCE = 0.1;
 /**
- * Nutrients each meal's feedback compares. Breakfast and snacks check only energy and protein:
- * many breakfasts have no staple (eggs, yogurt), and the carbs / fat they leave are made up later
- * in the day, which the daily summary shows. Differs from requirements §3.3 (all four per meal).
+ * The day's feedback ("今天还差…") shows once this meal has something logged: the last main meal,
+ * so the feedback comes at the end of the day. Meals are not compared one by one: people split
+ * the day differently (differs from requirements §3.3, which gives feedback per meal).
  */
-export const MEAL_GAP_NUTRIENTS: Readonly<Record<Meal, readonly ('kcal' | 'proteinG' | 'carbsG' | 'fatG')[]>> = {
-  breakfast: ['kcal', 'proteinG'],
-  lunch: ['kcal', 'proteinG', 'carbsG', 'fatG'],
-  dinner: ['kcal', 'proteinG', 'carbsG', 'fatG'],
-  snack: ['kcal', 'proteinG'],
-};
+export const DAY_FEEDBACK_AFTER_MEAL: Meal = 'dinner';
 /**
  * At breakfast and snacks, foods are suggested only from these USDA categories (eggs, dairy,
  * bread, cereals, soy, fruit, nuts), never rice, meat or fish.
@@ -134,8 +129,6 @@ export const LIGHT_MEAL_CATEGORIES: readonly string[] = [
   'Nut and Seed Products',
 ];
 export const LIGHT_MEALS: readonly Meal[] = ['breakfast', 'snack'];
-/** Meals that get the "no vegetables yet" hint. */
-export const VEGETABLE_HINT_MEALS: readonly Meal[] = ['lunch', 'dinner'];
 
 export const MAX_SUGGESTIONS = 3;
 /** Suggested amounts are multiples of half a portion … */
@@ -147,8 +140,8 @@ export const SUGGESTION_MAX_PORTIONS = 2;
  * most this many extra portions close the gap; otherwise a new food is suggested.
  */
 export const MAX_TOP_UP_PORTIONS = 1;
-/** "Halve it" for an entry logged in grams rounds to this many grams. */
-export const REDUCE_GRAMS_STEP = 5;
+/** A suggested change to an entry logged in grams is a multiple of this many grams. */
+export const SUGGESTION_GRAMS_STEP = 5;
 /** The suggested vegetable is the one whose portion is closest to this weight (a side dish). */
 export const VEGETABLE_SUGGESTION_GRAMS = 100;
 /** Score penalty for a suggestion that is not a whole number of portions. */

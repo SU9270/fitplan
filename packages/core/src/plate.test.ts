@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_MEAL_SHARES } from './constants';
-import { mealGap, mealTargets, plateSlot, suggestAdjustments, type PlateEntry, type SuggestionCandidate } from './plate';
+import {
+  dayGap,
+  mealTargets,
+  plateSlot,
+  suggestDayAdjustments,
+  type DayPlateEntry,
+  type PlateEntry,
+  type SuggestionCandidate,
+} from './plate';
 import type { Nutrients } from './types';
 
 // Per-100 g values from USDA SR Legacy (FoodData Central, 2018-04).
@@ -92,40 +100,34 @@ describe('mealTargets', () => {
   });
 });
 
-describe('mealGap', () => {
-  const target = { kcal: 600, proteinG: 40, carbsG: 70, fatG: 20 };
+describe('dayGap', () => {
+  const target = { kcal: 2400, proteinG: 160, carbsG: 280, fatG: 80 };
 
   it('marks short, met and over with the signed difference', () => {
-    expect(mealGap('lunch', target, { kcal: 600, proteinG: 15, carbsG: 90, fatG: 20 })).toEqual({
+    expect(dayGap(target, { kcal: 2400, proteinG: 60, carbsG: 360, fatG: 80 })).toEqual({
       kcal: { status: 'met', diff: 0 },
-      proteinG: { status: 'short', diff: -25 },
-      carbsG: { status: 'over', diff: 20 },
+      proteinG: { status: 'short', diff: -100 },
+      carbsG: { status: 'over', diff: 80 },
       fatG: { status: 'met', diff: 0 },
     });
   });
 
   it('includes both ±10 % bounds in "met"', () => {
-    expect(mealGap('lunch', target, { kcal: 540, proteinG: 44, carbsG: 70, fatG: 20 }).kcal?.status).toBe('met');
-    expect(mealGap('lunch', target, { kcal: 539, proteinG: 44, carbsG: 70, fatG: 20 }).kcal?.status).toBe('short');
-    expect(mealGap('lunch', target, { kcal: 660, proteinG: 44, carbsG: 70, fatG: 20 }).kcal?.status).toBe('met');
-    expect(mealGap('lunch', target, { kcal: 661, proteinG: 44, carbsG: 70, fatG: 20 }).kcal?.status).toBe('over');
-  });
-
-  it('checks only kcal and protein at breakfast and snacks', () => {
-    const eaten = { kcal: 300, proteinG: 15, carbsG: 2, fatG: 20 };
-    expect(Object.keys(mealGap('breakfast', target, eaten))).toEqual(['kcal', 'proteinG']);
-    expect(Object.keys(mealGap('snack', target, eaten))).toEqual(['kcal', 'proteinG']);
-    expect(Object.keys(mealGap('dinner', target, eaten))).toEqual(['kcal', 'proteinG', 'carbsG', 'fatG']);
+    const at = (kcal: number) => dayGap(target, { kcal, proteinG: 160, carbsG: 280, fatG: 80 }).kcal.status;
+    expect(at(2160)).toBe('met');
+    expect(at(2159)).toBe('short');
+    expect(at(2640)).toBe('met');
+    expect(at(2641)).toBe('over');
   });
 
   it('handles a zero target', () => {
     const zero = { kcal: 0, proteinG: 0, carbsG: 0, fatG: 0 };
-    expect(mealGap('lunch', zero, zero).kcal).toEqual({ status: 'met', diff: 0 });
-    expect(mealGap('lunch', zero, { ...zero, kcal: 50 }).kcal).toEqual({ status: 'over', diff: 50 });
+    expect(dayGap(zero, zero).kcal).toEqual({ status: 'met', diff: 0 });
+    expect(dayGap(zero, { ...zero, kcal: 50 }).kcal).toEqual({ status: 'over', diff: 50 });
   });
 });
 
-describe('suggestAdjustments', () => {
+describe('suggestDayAdjustments', () => {
   const CATEGORIES: Record<string, string> = {
     'usda-boiled-egg': 'Dairy and Egg Products',
     'usda-chicken': 'Poultry Products',
@@ -150,8 +152,10 @@ describe('suggestAdjustments', () => {
     candidate('usda-broccoli', 'vegetable', food.broccoli, 91),
     candidate('usda-spinach', 'vegetable', food.spinach, 30),
   ];
-  const entry = (id: string, foodId: string, slot: PlateEntry['slot'], per100g: Nutrients, grams: number, portion = true): PlateEntry => ({
+  /** An entry of dinner (the meal the suggestions go to in most tests). */
+  const entry = (id: string, foodId: string, slot: PlateEntry['slot'], per100g: Nutrients, grams: number, portion = true): DayPlateEntry => ({
     id,
+    meal: 'dinner',
     foodId,
     slot,
     per100g,
@@ -159,17 +163,18 @@ describe('suggestAdjustments', () => {
     quantity: portion ? 1 : grams,
     portionId: portion ? `${foodId}-p` : null,
   });
-  const lunchTarget = { kcal: 617, proteinG: 42, carbsG: 74, fatG: 17 };
+  // Small numbers (a third of a day) keep the arithmetic readable; the engine only sees "the target".
+  const target = { kcal: 617, proteinG: 42, carbsG: 74, fatG: 17 };
 
-  it('gives nothing for an empty meal', () => {
-    expect(suggestAdjustments({ meal: 'lunch', target: lunchTarget, entries: [], candidates })).toEqual([]);
+  it('gives nothing for an empty day', () => {
+    expect(suggestDayAdjustments({ meal: 'dinner', target, entries: [], candidates })).toEqual([]);
   });
 
   it('fills a protein gap, then a staple gap, then adds the vegetable portion closest to 100 g', () => {
-    // Half a cup of rice only: protein short by ~40 g, carbs short, no vegetables.
-    const s = suggestAdjustments({
-      meal: 'lunch',
-      target: lunchTarget,
+    // 50 g of tofu only: protein short by ~37 g, carbs short, no vegetables.
+    const s = suggestDayAdjustments({
+      meal: 'dinner',
+      target,
       entries: [entry('e1', 'usda-tofu', 'protein', food.tofu, 50)],
       candidates,
     });
@@ -187,10 +192,27 @@ describe('suggestAdjustments', () => {
     expect(s[2]).toMatchObject({ foodId: 'usda-broccoli', quantity: 1 });
   });
 
-  it('halves the biggest staple or "other" entry when the meal is over its kcal band', () => {
-    const s = suggestAdjustments({
+  it('compares the whole day, not the meal the suggestions go to', () => {
+    // Breakfast and lunch already cover the day: nothing to add at dinner, however little is in it.
+    const s = suggestDayAdjustments({
       meal: 'dinner',
-      target: lunchTarget,
+      target,
+      entries: [
+        { ...entry('c', 'usda-chicken', 'protein', food.chicken, 120), meal: 'lunch' },
+        { ...entry('r', 'usda-rice', 'staple', food.rice, 250), meal: 'lunch' },
+        { ...entry('b', 'usda-broccoli', 'vegetable', food.broccoli, 91), meal: 'breakfast' },
+        entry('s', 'usda-spinach', 'vegetable', food.spinach, 30),
+      ],
+      candidates,
+    });
+    expect(s).toEqual([]);
+  });
+
+  it('suggests nothing to cut when the day is over its kcal band', () => {
+    // Eating more than the target is not called out (2026-11-22): no "halve the rice".
+    const s = suggestDayAdjustments({
+      meal: 'dinner',
+      target,
       entries: [
         { ...entry('rice', 'usda-rice', 'staple', food.rice, 158 * 3), quantity: 3 },
         entry('pb', 'usda-pb', 'other', food.peanutButter, 32),
@@ -199,98 +221,87 @@ describe('suggestAdjustments', () => {
       ],
       candidates,
     });
-    // 3 cups of rice (616 kcal) is the biggest: halve to 1.5 cups.
-    expect(s).toEqual([
-      expect.objectContaining({ kind: 'adjust', reason: 'kcal', entryId: 'rice', portionId: 'usda-rice-p', quantity: 1.5 }),
-    ]);
-    expect(s[0]?.change.kcal).toBeCloseTo(-130 * 1.58 * 1.5, 6);
+    expect(s).toEqual([]);
   });
 
-  it('rounds a halved gram entry to 5 g and skips entries that cannot shrink', () => {
-    const big = suggestAdjustments({
-      meal: 'snack',
-      target: { kcal: 100, proteinG: 0, carbsG: 0, fatG: 0 },
-      entries: [entry('oil', 'usda-oil', 'other', food.oliveOil, 33, false)],
+  it('only changes entries of the meal the suggestions go to', () => {
+    // 2 eggs at breakfast, 6 g protein short: one more egg would do, but that entry is breakfast's.
+    const eggs = { ...entry('e', 'usda-boiled-egg', 'protein', food.boiledEgg, 100), quantity: 2, meal: 'breakfast' as const };
+    const short = suggestDayAdjustments({
+      meal: 'dinner',
+      target: { kcal: 400, proteinG: 19, carbsG: 0, fatG: 25 },
+      entries: [eggs, entry('broc', 'usda-broccoli', 'vegetable', food.broccoli, 91)],
       candidates,
     });
-    expect(big).toEqual([expect.objectContaining({ kind: 'adjust', reason: 'kcal', portionId: null, quantity: 15 })]);
-    const tiny = suggestAdjustments({
-      meal: 'snack',
-      target: { kcal: 10, proteinG: 0, carbsG: 0, fatG: 0 },
-      entries: [entry('oil', 'usda-oil', 'other', food.oliveOil, 5, false)],
-      candidates,
-    });
-    expect(tiny).toEqual([]);
+    expect(short[0]).toMatchObject({ kind: 'add', reason: 'protein' });
   });
 
-  it('tops up a food already in the cell when at most one more portion closes the gap', () => {
-    // 1 cup of rice (44.5 g carbs) for a 74 g carbs lunch: half a cup more (+22 g) instead of a new staple.
+  it('tops up a food already in the meal when at most one more portion closes the gap', () => {
+    // 1 cup of rice (44.5 g carbs) against 74 g: half a cup more (+22 g) instead of a new staple.
     const rice = { ...entry('r', 'usda-rice', 'staple', food.rice, 158), quantity: 1 };
     const chicken = entry('c', 'usda-chicken', 'protein', food.chicken, 140);
-    const s = suggestAdjustments({ meal: 'lunch', target: lunchTarget, entries: [rice, chicken], candidates });
+    const s = suggestDayAdjustments({ meal: 'dinner', target, entries: [rice, chicken], candidates });
     expect(s[0]).toMatchObject({ kind: 'adjust', reason: 'staple', entryId: 'r', quantity: 1.5 });
     expect(s[0]?.change.carbsG).toBeCloseTo(28.17 * 0.79, 6);
 
     // 2 eggs, 6 g protein short: one more egg.
     const eggs = { ...entry('e', 'usda-egg', 'protein', food.boiledEgg, 100), quantity: 2 };
-    const breakfast = suggestAdjustments({
-      meal: 'breakfast',
+    const more = suggestDayAdjustments({
+      meal: 'dinner',
       target: { kcal: 400, proteinG: 19, carbsG: 0, fatG: 25 },
       entries: [eggs],
       candidates,
     });
-    expect(breakfast[0]).toMatchObject({ kind: 'adjust', reason: 'protein', entryId: 'e', quantity: 3 });
+    expect(more[0]).toMatchObject({ kind: 'adjust', reason: 'protein', entryId: 'e', quantity: 3 });
   });
 
   it('adds a new food when topping up would need more than one more portion', () => {
     const eggs = { ...entry('e', 'usda-egg', 'protein', food.boiledEgg, 100), quantity: 2 };
-    const s = suggestAdjustments({ meal: 'breakfast', target: { kcal: 500, proteinG: 35, carbsG: 0, fatG: 30 }, entries: [eggs], candidates });
-    // 22 g short = 3.5 more eggs: suggest another food instead, a breakfast one (not chicken).
+    const s = suggestDayAdjustments({ meal: 'dinner', target: { kcal: 500, proteinG: 35, carbsG: 0, fatG: 30 }, entries: [eggs], candidates });
+    // 22 g short = 3.5 more eggs: suggest another food instead.
     expect(s[0]).toMatchObject({ kind: 'add', reason: 'protein' });
-    expect(s[0]?.kind === 'add' && s[0].foodId).not.toBe('usda-chicken');
   });
 
-  it('never asks for more carbs at breakfast, and suggests no rice or meat there', () => {
-    const eggs = { ...entry('e', 'usda-egg', 'protein', food.boiledEgg, 100), quantity: 2 };
-    const s = suggestAdjustments({
-      meal: 'breakfast',
+  it('suggests only light foods for breakfast and snacks: no rice, meat or vegetables', () => {
+    const eggs = { ...entry('e', 'usda-egg', 'protein', food.boiledEgg, 100), quantity: 2, meal: 'snack' as const };
+    const s = suggestDayAdjustments({
+      meal: 'snack',
       target: { kcal: 800, proteinG: 40, carbsG: 130, fatG: 25 },
       entries: [eggs],
       candidates,
     });
-    expect(s.map((x) => x.reason)).not.toContain('staple');
-    const added = s.flatMap((x) => (x.kind === 'add' ? [x.foodId] : []));
-    expect(added.every((id) => id !== 'usda-rice' && id !== 'usda-chicken')).toBe(true);
+    // Protein from yogurt, carbs from bread; no vegetable although the day has none.
+    expect(s.map((x) => (x.kind === 'add' ? x.foodId : x.entryId))).toEqual(['usda-greek-yogurt', 'usda-bread']);
   });
 
   it('does not suggest a staple when kcal is over, nor foods already in the meal', () => {
-    const s = suggestAdjustments({
-      meal: 'lunch',
-      target: lunchTarget,
+    const s = suggestDayAdjustments({
+      meal: 'dinner',
+      target,
       entries: [entry('pb', 'usda-pb', 'other', food.peanutButter, 150), entry('broc', 'usda-broccoli', 'vegetable', food.broccoli, 91)],
       candidates,
     });
-    expect(s.map((x) => x.reason)).toEqual(['protein', 'kcal']);
+    expect(s.map((x) => x.reason)).toEqual(['protein']);
     expect(s.every((x) => x.kind !== 'add' || x.foodId !== 'usda-broccoli')).toBe(true);
   });
 
-  it('only hints vegetables at lunch and dinner', () => {
+  it('adds a vegetable only when the whole day has none', () => {
     const balanced = [entry('c', 'usda-chicken', 'protein', food.chicken, 120), entry('r', 'usda-rice', 'staple', food.rice, 250)];
-    const at = (meal: 'breakfast' | 'dinner') =>
-      suggestAdjustments({ meal, target: lunchTarget, entries: balanced, candidates }).map((x) => x.reason);
-    expect(at('dinner')).toEqual(['vegetable']);
-    expect(at('breakfast')).toEqual([]);
+    const reasons = (entries: DayPlateEntry[]) =>
+      suggestDayAdjustments({ meal: 'dinner', target, entries, candidates }).map((x) => x.reason);
+    expect(reasons(balanced)).toEqual(['vegetable']);
+    expect(reasons([...balanced, { ...entry('s', 'usda-spinach', 'vegetable', food.spinach, 30), meal: 'lunch' }])).toEqual([]);
   });
 
   it('caps the portions at 2 and is stable for the same input', () => {
     const input = {
-      meal: 'lunch' as const,
+      meal: 'dinner' as const,
       target: { kcal: 2000, proteinG: 200, carbsG: 50, fatG: 50 },
       entries: [entry('r', 'usda-rice', 'staple', food.rice, 50)],
       candidates,
     };
-    const first = suggestAdjustments(input);
+    const first = suggestDayAdjustments(input);
     expect(first[0]).toMatchObject({ reason: 'protein', quantity: 2 });
-    expect(suggestAdjustments({ ...input, candidates: [...candidates].reverse() })).toEqual(first);
+    expect(suggestDayAdjustments({ ...input, candidates: [...candidates].reverse() })).toEqual(first);
   });
 });

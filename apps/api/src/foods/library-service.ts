@@ -15,7 +15,7 @@ export interface LibraryFood extends FoodSummary {
   omega3EpaDhaG: number | null;
 }
 
-/** The food library tab: the curated foods (data/usda-zh.csv `library`) in the csv's order. */
+/** The food library tab: the curated foods (`library` in data/usda-zh.csv, then data/cn-foods.csv) in the csvs' order. */
 export async function listLibrary(db: Db): Promise<LibraryFood[]> {
   const rows = await db
     .select()

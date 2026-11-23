@@ -48,8 +48,11 @@ export const foodSearchQuerySchema = z.object({
 });
 export type FoodSearchQuery = z.infer<typeof foodSearchQuerySchema>;
 
-/** Query string of GET /api/diary. */
-export const diaryDayQuerySchema = z.object({ date: isoDateSchema });
+/**
+ * Query string of GET /api/diary. `meal`: the meal the day's suggestions go to (the app sends the
+ * meal of the current time, which the server cannot know); dinner when left out.
+ */
+export const diaryDayQuerySchema = z.object({ date: isoDateSchema, meal: mealSchema.optional() });
 
 /** Query string of GET /api/diary/stats: the user's local today (the server has no time zone). */
 export const diaryStatsQuerySchema = z.object({ today: isoDateSchema });

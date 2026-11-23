@@ -6,6 +6,7 @@ export function LanguageSwitch() {
   const { locale, setLocale, t } = useLocale();
   return (
     <TextButton
+      tone="quiet"
       title={t('lang.switch')}
       accessibilityLabel={t('lang.switchLabel')}
       onPress={() => setLocale(locale === 'zh' ? 'en' : 'zh')}

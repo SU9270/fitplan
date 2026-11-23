@@ -9,7 +9,7 @@
       "android"
     ],
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "ios": {
       "bundleIdentifier": "org.fitplan.app",
       "supportsTablet": false

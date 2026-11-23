@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { tokens } from '../theme/tokens';
 
@@ -18,10 +19,13 @@ export function OptionCard({ title, description, selected, onPress }: Props) {
       onPress={onPress}
       style={[styles.card, selected && styles.cardSelected]}
     >
-      <View style={[styles.dot, selected && styles.dotSelected]}>{selected && <View style={styles.dotInner} />}</View>
       <View style={styles.texts}>
-        <Text style={[styles.title, selected && styles.titleSelected]}>{title}</Text>
+        <Text style={styles.title}>{title}</Text>
         {description ? <Text style={styles.description}>{description}</Text> : null}
+      </View>
+      {/* The mark sits at the right edge, so every title starts on the card's inset. */}
+      <View style={[styles.dot, selected && styles.dotSelected]}>
+        {selected ? <Ionicons name="checkmark" size={DOT - tokens.space.sm} color={tokens.color.onPrimary} /> : null}
       </View>
     </Pressable>
   );
@@ -36,7 +40,7 @@ export function OptionGroup({ label, children }: { label: string; children: Reac
   );
 }
 
-const DOT = 22;
+const DOT = 24;
 
 const styles = StyleSheet.create({
   group: {
@@ -47,10 +51,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: tokens.space.md,
-    padding: tokens.space.lg,
+    paddingHorizontal: tokens.card.padding + tokens.card.headerInset,
+    paddingVertical: tokens.space.lg,
     borderRadius: tokens.radius.lg,
     borderWidth: 1.5,
-    borderColor: tokens.color.border,
+    borderColor: tokens.color.cardBorder,
     backgroundColor: tokens.color.card,
   },
   cardSelected: {
@@ -63,16 +68,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: tokens.radius.pill,
-    borderWidth: 2,
-    borderColor: tokens.color.border,
+    borderWidth: 1.5,
+    borderColor: tokens.color.borderStrong,
   },
   dotSelected: {
     borderColor: tokens.color.primary,
-  },
-  dotInner: {
-    width: DOT / 2,
-    height: DOT / 2,
-    borderRadius: tokens.radius.pill,
     backgroundColor: tokens.color.primary,
   },
   texts: {
@@ -81,14 +81,12 @@ const styles = StyleSheet.create({
   },
   title: {
     color: tokens.color.text,
-    fontSize: tokens.fontSize.subtitle,
-    fontWeight: tokens.fontWeight.medium,
-  },
-  titleSelected: {
-    color: tokens.color.primary,
+    fontSize: tokens.fontSize.body + 1,
+    fontWeight: tokens.fontWeight.bold,
   },
   description: {
     color: tokens.color.textSecondary,
     fontSize: tokens.fontSize.caption,
+    lineHeight: tokens.fontSize.caption * 1.45,
   },
 });

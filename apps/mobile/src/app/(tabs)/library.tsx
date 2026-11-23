@@ -4,14 +4,14 @@ import type { InferResponseType } from 'hono/client';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Card } from '../../components/card';
+import { Kicker, Title, type } from '../../components/display';
 import { ErrorText, PrimaryButton } from '../../components/form';
 import { LibraryGrid, TILE_IMAGE_SIZE, tileStyles } from '../../components/library-grid';
 import { MyLibrary, MyLibraryNoticeLine, type MyLibraryNotice } from '../../components/my-library';
 import { Screen } from '../../components/screen';
 import type { FavoriteFood, MealTemplate } from '../../diary/api-types';
 import { localDate } from '../../diary/dates';
-import { useLocale } from '../../i18n';
+import { kicker, useLocale } from '../../i18n';
 import { initialTab, LIBRARY_TABS, type LibraryTab } from '../../library/favorites-view';
 import { LIBRARY_IMAGES } from '../../library/images';
 import { groupValue, mealAt, shortName } from '../../library/library-view';
@@ -75,9 +75,8 @@ export default function Library() {
   return (
     <Screen inTabs overlay={tab === 'mine' && notice ? <MyLibraryNoticeLine notice={notice} /> : null}>
       <View style={styles.heading}>
-        <Text accessibilityRole="header" style={styles.title}>
-          {t('library.title')}
-        </Text>
+        <Kicker>{kicker('library.title')}</Kicker>
+        <Title numberOfLines={1}>{t('library.title')}</Title>
         {/* "我的" shows amounts, not per-100 g values, so it has its own line. */}
         <Text style={styles.caption}>{t(tab === 'mine' ? 'library.about.mine' : 'library.subtitle')}</Text>
       </View>
@@ -107,7 +106,12 @@ export default function Library() {
           );
         })}
       </ScrollView>
-      {group === null ? null : <Text style={styles.caption}>{t(`library.about.${group}`)}</Text>}
+      {group === null ? null : (
+        <View style={styles.about}>
+          <Ionicons name="information-circle" size={tokens.fontSize.subtitle} color={tokens.color.primary} />
+          <Text style={styles.aboutText}>{t(`library.about.${group}`)}</Text>
+        </View>
+      )}
 
       {loaded.state === 'loading' ? (
         <ActivityIndicator color={tokens.color.primary} accessibilityLabel={t('gate.loading')} />
@@ -123,12 +127,10 @@ export default function Library() {
       ) : foods.length === 0 ? (
         <Text style={styles.muted}>{t('library.groupEmpty')}</Text>
       ) : (
-        <Card>
-          <LibraryGrid
-            items={foods}
-            renderTile={(food, width) => <FoodTile key={food.id} food={food} group={group} width={width} />}
-          />
-        </Card>
+        <LibraryGrid
+          items={foods}
+          renderTile={(food, width) => <FoodTile key={food.id} food={food} group={group} width={width} />}
+        />
       )}
     </Screen>
   );
@@ -149,19 +151,19 @@ function FoodTile({ food, group, width }: { food: LibraryFood; group: LibraryGro
       }
       style={({ pressed }) => [tileStyles.tile, { width }, pressed && tileStyles.tilePressed]}
     >
-      {image ? (
-        <Image source={image} style={tileStyles.image} resizeMode="contain" accessible={false} />
-      ) : (
-        // A food added on the server before the app has its picture.
-        <View style={[tileStyles.image, tileStyles.placeholder]}>
-          <Ionicons name="nutrition-outline" size={TILE_IMAGE_SIZE / 2} color={tokens.color.textTertiary} />
-        </View>
-      )}
+      <View style={tileStyles.plate}>
+        {image ? (
+          <Image source={image} style={tileStyles.image} resizeMode="contain" accessible={false} />
+        ) : (
+          // A food added on the server before the app has its picture.
+          <Ionicons name="nutrition-outline" size={TILE_IMAGE_SIZE / 2} color={tokens.color.paperQuiet} />
+        )}
+      </View>
       <Text style={tileStyles.name} numberOfLines={1}>
         {name}
       </Text>
       {/* Long values such as "EPA+DHA 2140 毫克" shrink to fit instead of being cut off. */}
-      <Text style={tileStyles.value} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+      <Text style={[type.num, tileStyles.value]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
         {valueText}
       </Text>
     </Pressable>
@@ -170,16 +172,27 @@ function FoodTile({ food, group, width }: { food: LibraryFood; group: LibraryGro
 
 const styles = StyleSheet.create({
   heading: {
-    gap: tokens.space.xs,
-  },
-  title: {
-    color: tokens.color.text,
-    fontSize: tokens.fontSize.title,
-    fontWeight: tokens.fontWeight.semibold,
+    gap: tokens.hairline,
   },
   caption: {
+    marginTop: tokens.hairline,
+    color: tokens.color.textSecondary,
+    fontSize: tokens.fontSize.label,
+  },
+  about: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.space.sm,
+    paddingHorizontal: tokens.space.md,
+    paddingVertical: tokens.space.md,
+    borderRadius: tokens.radius.md,
+    backgroundColor: tokens.color.card,
+  },
+  aboutText: {
+    flex: 1,
     color: tokens.color.textSecondary,
     fontSize: tokens.fontSize.caption,
+    lineHeight: tokens.fontSize.caption * 1.4,
   },
   muted: {
     color: tokens.color.textSecondary,
@@ -194,21 +207,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: tokens.space.lg,
     borderRadius: tokens.radius.pill,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: tokens.color.border,
-    backgroundColor: tokens.color.surface,
+    backgroundColor: tokens.color.card,
   },
+  // The chosen group is the one filled chip in the row.
   chipSelected: {
     borderColor: tokens.color.primary,
-    backgroundColor: tokens.color.primarySoft,
+    backgroundColor: tokens.color.primary,
   },
   chipText: {
-    color: tokens.color.textSecondary,
+    color: tokens.color.text,
     fontSize: tokens.fontSize.label,
     fontWeight: tokens.fontWeight.medium,
   },
   chipTextSelected: {
-    color: tokens.color.primary,
-    fontWeight: tokens.fontWeight.semibold,
+    color: tokens.color.onPrimary,
+    fontWeight: tokens.fontWeight.heavy,
   },
 });

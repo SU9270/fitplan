@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     gap: tokens.space.sm,
   },
   label: {
-    color: tokens.color.text,
+    color: tokens.color.textSecondary,
     fontSize: tokens.fontSize.caption,
     fontWeight: tokens.fontWeight.semibold,
   },

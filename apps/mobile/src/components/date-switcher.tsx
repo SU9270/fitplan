@@ -2,14 +2,11 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { shiftDate } from '@fitplan/core';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { dayLabel } from '../diary/dates';
-import { useLocale } from '../i18n';
+import { kicker, useLocale } from '../i18n';
 import { tokens } from '../theme/tokens';
+import { Kicker, Title } from './display';
 
 type Props = { date: string; today: string; onChange: (date: string) => void };
-
-/** Round arrow buttons; `hitSlop` brings the touch area up to 44 pt. */
-const ARROW_SIZE = 36;
-const ARROW_HIT_SLOP = (tokens.touchTarget - ARROW_SIZE) / 2;
 
 /**
  * The shown day as the page title, with ‹ › beside it (never past today) and "回到今天" when an
@@ -28,17 +25,13 @@ export function DateSwitcher({ date, today, onChange }: Props) {
 
   return (
     <View style={styles.row}>
-      <Text accessibilityRole="header" style={styles.label}>
-        {text}
-      </Text>
+      <View style={styles.texts}>
+        <Kicker>{kicker('app.name') ?? t('app.name').toUpperCase()}</Kicker>
+        <Title numberOfLines={1}>{text}</Title>
+      </View>
       <View style={styles.controls}>
         {!atToday ? (
-          <Pressable
-            accessibilityRole="button"
-            hitSlop={ARROW_HIT_SLOP}
-            onPress={() => onChange(today)}
-            style={({ pressed }) => [styles.today, pressed && styles.pressed]}
-          >
+          <Pressable accessibilityRole="button" onPress={() => onChange(today)} style={({ pressed }) => [styles.today, pressed && styles.pressed]}>
             <Text style={styles.todayText}>{t('diary.backToToday')}</Text>
           </Pressable>
         ) : null}
@@ -66,7 +59,6 @@ function Arrow({
       accessibilityLabel={label}
       accessibilityState={{ disabled }}
       disabled={disabled}
-      hitSlop={ARROW_HIT_SLOP}
       onPress={onPress}
       style={({ pressed }) => [styles.arrow, pressed && styles.pressed, disabled && styles.disabled]}
     >
@@ -76,47 +68,49 @@ function Arrow({
 }
 
 const styles = StyleSheet.create({
+  // The controls sit on the title's baseline, not centered on the two-line block.
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
     gap: tokens.space.sm,
   },
-  label: {
+  texts: {
     flexShrink: 1,
-    color: tokens.color.text,
-    fontSize: tokens.fontSize.title,
-    fontWeight: tokens.fontWeight.semibold,
+    gap: tokens.hairline,
   },
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: tokens.space.sm,
+    paddingBottom: tokens.hairline,
   },
   today: {
-    height: ARROW_SIZE,
+    height: tokens.touchTarget,
     justifyContent: 'center',
-    paddingHorizontal: tokens.space.md,
+    paddingHorizontal: tokens.space.lg,
     borderRadius: tokens.radius.pill,
     backgroundColor: tokens.color.primarySoft,
   },
   todayText: {
     color: tokens.color.primary,
     fontSize: tokens.fontSize.label,
-    fontWeight: tokens.fontWeight.semibold,
+    fontWeight: tokens.fontWeight.bold,
   },
   arrow: {
-    width: ARROW_SIZE,
-    height: ARROW_SIZE,
+    width: tokens.touchTarget,
+    height: tokens.touchTarget,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: ARROW_SIZE / 2,
+    borderRadius: tokens.touchTarget / 2,
+    borderWidth: 1.5,
+    borderColor: tokens.color.border,
     backgroundColor: tokens.color.card,
   },
   pressed: {
     opacity: 0.6,
   },
   disabled: {
-    opacity: 0.3,
+    opacity: 0.35,
   },
 });
